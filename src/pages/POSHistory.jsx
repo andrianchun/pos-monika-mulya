@@ -11,7 +11,7 @@ import TransactionEditModal from '../components/modals/TransactionEditModal';
 export default function POSHistory({ 
   tab, sales, setSales, purchases, setPurchases, colors, showToast, 
   isSoundOn, products, setProducts, storeInfo, accounting, setAccounting, 
-  customers, suppliers, financialAccounts 
+  customers, setCustomers, suppliers, financialAccounts 
 }) {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [returnDoc, setReturnDoc] = useState(null); 
@@ -35,8 +35,30 @@ export default function POSHistory({
        setProducts(updatedProducts);
        
        if (accounting) {
-           const origAccId = (doc.paymentHistory || [])[0]?.accountId || null;
-           setAccounting([...accounting, { id: Date.now(), accountId: origAccId, type: 'kas', name: `Hapus Nota ${doc.nota}`, amount: isSale ? -doc.paid : doc.paid, date: new Date().toISOString() }]);
+           let totalKasToRevert = 0;
+           let totalDepositToRevert = 0;
+           
+           (doc.paymentHistory || []).forEach(ph => {
+               if (ph.method === 'Saldo Deposit') {
+                   totalDepositToRevert += ph.amount;
+               } else if (ph.method !== 'Retur') {
+                   totalKasToRevert += ph.amount;
+               }
+           });
+           
+           if (totalKasToRevert !== 0) {
+               const origAccId = (doc.paymentHistory || [])[0]?.accountId || null;
+               setAccounting([...accounting, { id: Date.now(), accountId: origAccId, type: 'kas', name: `Hapus Nota ${doc.nota}`, amount: isSale ? -totalKasToRevert : totalKasToRevert, date: new Date().toISOString() }]);
+           }
+           
+           if (isSale && totalDepositToRevert > 0 && setCustomers) {
+               setCustomers(prev => prev.map(c => {
+                   if (c.name === doc.customer) {
+                       return { ...c, deposit: (c.deposit || 0) + totalDepositToRevert };
+                   }
+                   return c;
+               }));
+           }
        }
        if(isSale) setSales(sales.filter(s => s.id !== deleteConfirmId));
        else setPurchases(purchases.filter(s => s.id !== deleteConfirmId));
@@ -71,8 +93,15 @@ export default function POSHistory({
     else setPurchases(purchases.map(s => s.id === finalizedDoc.id ? finalizedDoc : s));
     
     if (accounting) {
-        const origAccId = (doc.paymentHistory || [])[0]?.accountId || null;
-        setAccounting([...accounting, { id: Date.now(), type: 'kas', accountId: origAccId, name: `Retur ${doc.nota}`, amount: isSale ? -totalAmount : totalAmount, date: new Date().toISOString() }]);
+        // Hitung berapa uang tunai yang perlu dikembalikan (refund) jika lunas
+        // Jika nota aslinya Piutang (ngutang), retur hanya mengurangi tagihan, tidak keluar uang kas.
+        const prevPaid = doc.paid || 0;
+        const refundAmount = Math.max(0, prevPaid - newTotal);
+        
+        if (refundAmount > 0) {
+            const origAccId = (doc.paymentHistory || [])[0]?.accountId || null;
+            setAccounting([...accounting, { id: Date.now(), type: 'kas', accountId: origAccId, name: `Retur ${doc.nota}`, amount: isSale ? -refundAmount : refundAmount, date: new Date().toISOString() }]);
+        }
     }
     setReturnDoc(null); 
     showToast(`Retur terekam presisi.`, 'success');

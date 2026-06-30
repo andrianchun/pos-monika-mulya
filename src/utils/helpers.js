@@ -143,14 +143,6 @@ export const printReceipt = async (elementId) => {
   const printElement = document.getElementById(elementId);
   if (!printElement) return;
 
-  // Buka jendela SEBELUM proses async agar tidak diblokir popup blocker browser
-  const printWindow = window.open('', '_blank', 'width=400,height=600');
-  if (!printWindow) {
-    alert("Browser memblokir pop-up cetak. Mohon izinkan pop-up (di sebelah kanan address bar) untuk situs ini.");
-    return;
-  }
-  printWindow.document.write('<html><body style="font-family:sans-serif;text-align:center;padding-top:2rem;">Memproses struk cetak...</body></html>');
-
   try {
     const clone = printElement.cloneNode(true);
     clone.style.position = 'fixed';
@@ -168,9 +160,19 @@ export const printReceipt = async (elementId) => {
     document.body.removeChild(clone);
     const imgData = canvas.toDataURL('image/png');
 
-    printWindow.document.open(); // Reset isi dokumen yang tadi "Memproses..."
+    // Buat iframe tersembunyi agar tidak pernah diblokir oleh popup blocker
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
 
-    printWindow.document.write(`
+    const iframeDoc = iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(`
       <!DOCTYPE html>
       <html>
         <head>
@@ -189,31 +191,26 @@ export const printReceipt = async (elementId) => {
             img {
               width: 58mm !important;
               display: block;
-              /* Filter diturunkan jadi 120% agar watermark abu-abu tetap terlihat */
               filter: grayscale(100%) contrast(120%);
               image-rendering: pixelated;
             }
           </style>
         </head>
         <body>
-          <img src="${imgData}" />
-          <script>
-            window.onload = () => {
-              setTimeout(() => {
-                window.print();
-                window.close();
-              }, 500);
-            };
-          </script>
+          <img src="${imgData}" onload="window.setTimeout(function() { window.focus(); window.print(); }, 500);" />
         </body>
       </html>
     `);
-    
-    printWindow.document.close();
-    printWindow.focus();
+    iframeDoc.close();
+
+    // Hapus iframe setelah proses selesai (beri jeda waktu aman)
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 60000); // Hapus setelah 60 detik
 
   } catch (error) {
-    if (printWindow && !printWindow.closed) printWindow.close();
     console.error("Gagal membuat gambar struk:", error);
     alert("Maaf, terjadi kesalahan saat memproses gambar struk.");
   }

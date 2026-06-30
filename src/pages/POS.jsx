@@ -239,6 +239,13 @@ export default function POS({ products, setProducts, customers, setCustomers, su
     
     const isLunas = totalPaid >= total;
     
+    // Hitung uang fisik yang benar-benar masuk laci kasir (potong kembalian jika tidak masuk deposit)
+    let actualCashToKas = paidCash;
+    if (totalPaid > total && depositAdded === 0) {
+      const kembalian = totalPaid - total;
+      actualCashToKas = paidCash - kembalian;
+    }
+    
     // --- TAMBAHAN VALIDASI PIUTANG / UTANG ---
     if (!isLunas) {
       if (!dueDate) {
@@ -329,8 +336,8 @@ export default function POS({ products, setProducts, customers, setCustomers, su
            }));
         }
 
-        if (paidCash > 0 && activeAccount) {
-            setAccounting(prev => [...prev, { id: Date.now()+1, type: 'kas', accountId: activeAccount.id, name: posMode === 'penjualan' ? `Penerimaan Nota ${genNota}` : `Pembayaran Nota ${genNota}`, amount: posMode === 'penjualan' ? paidCash : -paidCash, date: docDate.toISOString() }]);
+        if (actualCashToKas > 0 && activeAccount) {
+            setAccounting(prev => [...prev, { id: Date.now()+1, type: 'kas', accountId: activeAccount.id, name: posMode === 'penjualan' ? `Penerimaan Nota ${genNota}` : `Pembayaran Nota ${genNota}`, amount: posMode === 'penjualan' ? actualCashToKas : -actualCashToKas, date: docDate.toISOString() }]);
         }
 
         if(posMode === 'penjualan') setSales(prev => [newRecord, ...prev]); 

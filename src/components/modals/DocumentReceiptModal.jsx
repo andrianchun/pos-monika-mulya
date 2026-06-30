@@ -47,23 +47,19 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
     playSound('pop', isSoundOn);
     const printContent = document.getElementById('receipt-print-area').innerHTML;
     
-    // Hapus iframe lama jika ada untuk mencegah memory leak / bentrok
-    const oldIframe = document.getElementById('receipt-print-iframe');
-    if (oldIframe) {
-      document.body.removeChild(oldIframe);
+    // PERBAIKAN: Gunakan iframe yang sama (reuse) agar browser tidak nge-bug (bisa 1x tok)
+    let iframe = document.getElementById('receipt-print-iframe');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'receipt-print-iframe';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
     }
-
-    const iframe = document.createElement('iframe');
-    iframe.id = 'receipt-print-iframe';
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '1px'; // Beberapa browser butuh dimensi minimum > 0
-    iframe.style.height = '1px';
-    iframe.style.opacity = '0';
-    iframe.style.border = 'none';
-    iframe.style.zIndex = '-9999';
-    document.body.appendChild(iframe);
     
     const iframeDoc = iframe.contentWindow.document;
     iframeDoc.open();
@@ -100,12 +96,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
     setTimeout(() => {
       iframe.contentWindow.focus();
       iframe.contentWindow.print();
-      
-      // JANGAN MENGHAPUS iframe secara otomatis dengan setTimeout(..., 3000).
-      // Jika pengguna belum menutup dialog print selama 3 detik, menghapus parent document (iframe) 
-      // akan membuat dialog print menjadi zombie window yang tidak bisa diclose.
-      // Iframe lama akan dihapus ketika tombol print ditekan lagi nanti.
-    }, 400);
+    }, 500);
   };
 
   const handleWA = async () => {

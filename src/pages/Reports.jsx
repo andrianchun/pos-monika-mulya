@@ -7,7 +7,7 @@ import DonutChart from '../components/ui/DonutChart';
 import DocumentReceiptModal from '../components/modals/DocumentReceiptModal';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 
-export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, colors, isSoundOn, theme, storeInfo, showToast }) {
+export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, customers, colors, isSoundOn, theme, storeInfo, showToast }) {
   const [activeReport, setActiveReport] = useState(null);
   const [selectedAccFilter, setSelectedAccFilter] = useState(''); 
   const [filterMode, setFilterMode] = useState('Bulan Ini'); 
@@ -164,19 +164,24 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
      const totalHPP = filteredSales.reduce((sum, s) => sum + s.items.reduce((itemSum, item) => itemSum + (item.cost * item.qty), 0), 0);
      const labaKotor = totalPenjualan - totalHPP;
      const persediaan = products.reduce((sum, p) => sum + (p.stock * p.cost), 0);
-     const piutang = sales.reduce((sum, s) => sum + (s.total > s.paid ? s.total - s.paid : 0), 0);
-     const utang = purchases.reduce((sum, p) => sum + (p.total > p.paid ? p.total - p.paid : 0), 0);
+     const piutang = sales.filter(s => s.status === 'Tempo').reduce((sum, s) => sum + Math.max(0, s.total - (s.paid || 0)), 0);
+     const utang = purchases.filter(s => s.status === 'Tempo').reduce((sum, s) => sum + Math.max(0, s.total - (s.paid || 0)), 0);
      
      const kasBalances = financialAccounts.map(acc => ({ name: acc.name, balance: accounting.filter(a => a.type === 'kas' && a.accountId === acc.id).reduce((sum, a) => sum + a.amount, 0) }));
      const totalKas = kasBalances.reduce((sum, k) => sum + k.balance, 0);
+     
+     // Tambahkan Deposit Pelanggan sebagai Liabilitas Titipan
+     const totalDepositPelanggan = customers?.reduce((sum, c) => sum + (Number(c.deposit) || 0), 0) || 0;
+     const liabLain = accounting.filter(a => a.type === 'liabilitas').reduce((sum, a) => sum + a.amount, 0) + totalDepositPelanggan;
+     
      const asetTetap = accounting.filter(a => a.type === 'aset_tetap').reduce((sum, a) => sum + a.amount, 0);
-     const modalAwal = accounting.filter(a => a.type === 'ekuitas').reduce((sum, a) => sum + a.amount, 0);
-     const liabLain = accounting.filter(a => a.type === 'liabilitas').reduce((sum, a) => sum + a.amount, 0);
+     const modalAwal = accounting.filter(a => a.type === 'modal').reduce((sum, a) => sum + a.amount, 0);
 
      const asetLancarTotal = totalKas + piutang + persediaan;
      
-     const bebanOperasional = accounting.filter(a => a.type === 'kas' && a.amount < 0 && !a.name.toLowerCase().includes('bayar nota')).reduce((sum, a) => sum + Math.abs(a.amount), 0);
-     const pendapatanLain = accounting.filter(a => a.type === 'kas' && a.amount > 0 && !a.name.toLowerCase().includes('terima nota') && !a.name.toLowerCase().includes('modal') && !a.name.toLowerCase().includes('saldo')).reduce((sum, a) => sum + a.amount, 0);
+     // PERBAIKAN: Gunakan string matching yang presisi ('pembayaran nota' dan 'penerimaan nota')
+     const bebanOperasional = accounting.filter(a => a.type === 'kas' && a.amount < 0 && !a.name.toLowerCase().includes('pembayaran nota') && !a.name.toLowerCase().includes('bayar nota')).reduce((sum, a) => sum + Math.abs(a.amount), 0);
+     const pendapatanLain = accounting.filter(a => a.type === 'kas' && a.amount > 0 && !a.name.toLowerCase().includes('penerimaan nota') && !a.name.toLowerCase().includes('terima nota') && !a.name.toLowerCase().includes('modal') && !a.name.toLowerCase().includes('saldo')).reduce((sum, a) => sum + a.amount, 0);
      const pendapatanBersih = labaKotor + pendapatanLain - bebanOperasional;
 
      return { totalPenjualan, totalHPP, labaKotor, persediaan, piutang, utang, kasBalances, totalKas, asetTetap, modalAwal, liabLain, totalAset: asetLancarTotal + asetTetap, totalLiabilitas: utang + liabLain, totalEkuitas: modalAwal + labaKotor, pendapatanBersih };
