@@ -138,28 +138,38 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
              window.location.href = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}` : `whatsapp://send?text=${encodeURIComponent(text)}`;
          }
      } else {
-         // OPSI 1 (PC / LAPTOP): Buka WA Desktop App + Auto Clipboard Gambar
-         const waTab = window.open('about:blank', '_blank');
-         if(waTab) waTab.document.write('<h2 style="font-family:sans-serif; text-align:center; margin-top:20%">Membuka Aplikasi WhatsApp Desktop...<br/><br/>Silakan PASTE (Ctrl+V) nota di chat yang terbuka.</h2>');
+         // OPSI 1 (PC / LAPTOP): Buka WA Desktop App + Auto Clipboard
+         // Fallback copy text via textarea (works almost anywhere)
+         try { 
+             const tempTextArea = document.createElement('textarea');
+             tempTextArea.value = text;
+             document.body.appendChild(tempTextArea);
+             tempTextArea.select();
+             document.execCommand('copy');
+             document.body.removeChild(tempTextArea);
+         } catch(e){}
 
-         if (notaBlob && typeof ClipboardItem !== 'undefined') {
+         // Try copy image if possible
+         if (notaBlob && typeof ClipboardItem !== 'undefined' && navigator.clipboard) {
              try {
                  const item = new ClipboardItem({ "image/png": notaBlob });
                  await navigator.clipboard.write([item]);
              } catch (clipboardErr) {
-                 try { await navigator.clipboard.writeText(text); } catch(e){}
+                 console.log("Gambar gagal di-copy ke clipboard, teks sudah di-copy");
              }
-         } else {
-             try { await navigator.clipboard.writeText(text); } catch(e){}
          }
          
-         setTimeout(() => { 
-             if(waTab) waTab.location.href = appUrl; 
-             else window.open(appUrl, '_blank');
-         }, 1500);
+         const desktopAppUrl = phone 
+            ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}` 
+            : `whatsapp://send?text=${encodeURIComponent(text)}`;
+         
+         window.location.href = desktopAppUrl;
      }
      
      setIsRendering(false);
+     if (doc?.autoAction === 'wa') {
+         setTimeout(onClose, 500);
+     }
   };
 
   if (!doc) return null;
@@ -167,7 +177,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
   const isSales = doc.nota.includes(storeInfo.prefixSales);
   const watermarkText = doc?.status?.toUpperCase() === 'LUNAS' ? 'LUNAS' : 'TEMPO';
 
-  const isAuto = doc?.autoAction === 'cetak';
+  const isAuto = !!doc?.autoAction;
 
   return (
      <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 ${isAuto ? 'opacity-0 pointer-events-none' : 'bg-black/70'}`}>
@@ -250,16 +260,14 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
               </div>
            </div>
 
-           <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex gap-3 shrink-0 bg-white dark:bg-[#1e1e1e]">
-              <button disabled={isRendering} onClick={handleWA} className={`flex-1 py-3 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-transform ${isRendering ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 active:scale-95'}`}>
-                 {isRendering ? <Loader2 className="animate-spin" size={20} /> : <MessageCircle size={20}/>}
-                 <span className="hidden sm:inline">Kirim WA + Foto</span><span className="sm:hidden">WA + Foto</span>
-              </button>
-              <button disabled={isRendering} onClick={handlePrint} className={`flex-1 py-3 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-transform ${isRendering ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#D4AF37] hover:opacity-90 active:scale-95'}`}>
-                 {isRendering ? <Loader2 className="animate-spin" size={20} /> : <Printer size={20}/>}
-                 <span className="hidden sm:inline">Cetak Nota</span><span className="sm:hidden">Cetak</span>
-              </button>
-           </div>
+           {!isAuto && (
+             <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex gap-3 shrink-0 bg-white dark:bg-[#1e1e1e]">
+                <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="flex-1 py-3 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-transform bg-stone-500 hover:bg-stone-600 active:scale-95">
+                   <X size={20}/>
+                   <span>Tutup Preview</span>
+                </button>
+             </div>
+           )}
         </div>
      </div>
   );

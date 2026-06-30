@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 // PERBAIKAN 1: Import Share2 untuk icon Kirim WA
-import { Printer, Edit, RotateCcw, Share2 } from 'lucide-react';
+import { Printer, Edit, RotateCcw, Send } from 'lucide-react';
 import { formatIDR, playSound } from '../utils/helpers';
 import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
@@ -125,7 +125,7 @@ export default function POSHistory({
       onClick: (r) => { playSound('pop', isSoundOn); setSelectedDoc({ ...r, autoAction: 'cetak' }); } 
     },
     { 
-      icon: Share2, 
+      icon: Send, 
       label: 'Kirim WA', 
       colorClass: 'bg-green-100 text-green-600 hover:bg-green-200', 
       onClick: (r) => { playSound('pop', isSoundOn); setSelectedDoc({ ...r, autoAction: 'wa' }); } 
