@@ -12,8 +12,9 @@ import Reports from './pages/Reports';
 import SettingsPage from './pages/SettingsPage';
 import POSHistory from './pages/POSHistory';
 
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { collection, doc, setDoc, getDocs, writeBatch, onSnapshot } from 'firebase/firestore';
+import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 
 const defaultStoreInfo = { name: 'MONIKA MULYA', tagline: 'Bismillah', address: 'Jl. Raya Blitar No. 1', phone: '081234567890', logo: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
 const getInitialStoreInfo = () => {
@@ -107,6 +108,7 @@ export default function App() {
     let unsubs = []; 
     let loadedCount = 0;
     const safetyTimer = setTimeout(() => { setLoading(false); }, 3000);
+    const checkLoaded = () => { loadedCount++; if(loadedCount >= 8) { clearTimeout(safetyTimer); setLoading(false); } };
 
     const initializeAndListen = async () => {
       try {
@@ -151,8 +153,7 @@ export default function App() {
             });
             if (sortDesc) data.sort((a, b) => b.id - a.id);
             setter(data);
-            loadedCount++;
-            if(loadedCount >= 8) { clearTimeout(safetyTimer); setLoading(false); }
+            checkLoaded();
          }, (error) => { clearTimeout(safetyTimer); setLoading(false); });
       };
 
@@ -190,9 +191,22 @@ export default function App() {
          }
       }));
     };
+    
+    // Trik "Akun Satpam"
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        await initializeAndListen();
+      }
+    });
+    
+    signInWithEmailAndPassword(auth, 'satpam@monikamulya.com', 'satpam12345').catch(err => {
+      console.error("Gagal login pintu satpam:", err);
+    });
 
-    initializeAndListen();
-    return () => unsubs.forEach(u => u());
+    return () => {
+      unsubscribeAuth();
+      unsubs.forEach(u => u());
+    };
   }, []);
 
   useEffect(() => {
