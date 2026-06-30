@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Sun, Moon, LogOut, Settings, Menu, Bell, AlertTriangle, Package, Calendar, Send } from 'lucide-react';
+import { Sun, Moon, LogOut, Settings, Menu, Bell, AlertTriangle, Package, Calendar, Send, Loader2 } from 'lucide-react';
 import ProfileModal from './modals/ProfileModal';
 import { playSound, formatIDR, formatDate } from '../utils/helpers';
 
 export default function Header({ 
   user, setUser, users, setUsers, theme, setTheme, colors, isSoundOn, storeInfo, showToast, 
-  isSidebarOpen, setIsSidebarOpen, products = [], sales = [], purchases = [], suppliers = [] 
+  isSidebarOpen, setIsSidebarOpen, products = [], sales = [], purchases = [], suppliers = [], syncCount = 0 
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -133,7 +133,12 @@ export default function Header({
 
         <div className="flex items-center gap-2 sm:gap-4">
           
-          {isOnline ? (
+          {syncCount > 0 ? (
+              <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-600 border border-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.4)]`}>
+                 <Loader2 size={12} className="animate-spin text-white" />
+                 <span className="text-xs font-bold text-white">Menyinkronkan... ({syncCount})</span>
+              </div>
+          ) : isOnline ? (
               <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full ${colors.creamBg} border ${colors.border}`}>
                  <span className="w-2 h-2 rounded-full bg-emerald-500/80 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.3)]"></span>
                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-500/90">Sistem Online</span>
@@ -155,13 +160,12 @@ export default function Header({
 
              {showNotifDropdown && (
                 // PERBAIKAN: CSS Ajaib! Kotak akan melayang Fixed di HP agar tidak meluber, tapi Absolute (Normal) di PC
-                <div className={`fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-3 w-auto sm:w-[420px] rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} z-[150] overflow-hidden max-h-[80vh] flex flex-col`}>
+                <div className={`fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-3 w-auto sm:w-[420px] rounded-2xl shadow-2xl bg-white dark:bg-[#18181B] border ${colors.border} z-[150] overflow-hidden max-h-[80vh] flex flex-col`}>
                    <div className="p-4 border-b border-solid border-gray-200 dark:border-gray-800 bg-[#F8FAFC] dark:bg-[#27272A]/50 flex justify-between items-center shrink-0">
                       <h4 className={`font-black text-sm ${colors.text}`}>Pemberitahuan Sistem</h4>
-                      <span className="text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-2 py-0.5 rounded font-bold">{totalNotifCount} Isu Ditemukan</span>
                    </div>
 
-                   <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3">
+                   <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-[#18181B] p-3 space-y-3">
                       {totalNotifCount === 0 ? (
                          <div className="p-8 text-center text-xs text-gray-500 font-bold">Semua sistem aman. Tidak ada pemberitahuan baru. ✨</div>
                       ) : (

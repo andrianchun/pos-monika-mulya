@@ -111,7 +111,7 @@ export default function POSHistory({
     { key: 'nota', label: 'No. Nota', render: (r) => <span className="font-bold text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedDoc(r)}>{r.nota}</span> },
     { key: 'date', label: 'Tanggal & Waktu', render: (r) => new Date(r.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
     { key: tab === 'penjualan' ? 'customer' : 'supplier', label: tab === 'penjualan' ? 'Customer' : 'Supplier' },
-    { key: 'total', label: 'Total', render: (r) => <span className={`font-bold ${tab === 'penjualan' ? colors.gold : '${colors.gold}'}`}>Rp {formatIDR(r.total)}</span> },
+    { key: 'total', label: 'Total', render: (r) => <span className="font-bold text-blue-600">Rp {formatIDR(r.total)}</span> },
     { key: 'status', label: 'Status', render: (r) => <span className={`px-2 py-1 rounded text-xs font-bold ${r.status === 'Lunas' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{r.status}</span> }
   ];
 

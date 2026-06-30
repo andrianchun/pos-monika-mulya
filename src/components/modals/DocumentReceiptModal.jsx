@@ -21,19 +21,19 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
     playSound('pop', isSoundOn);
     const printContent = document.getElementById('receipt-print-area').innerHTML;
     
-    // PERBAIKAN: Gunakan iframe yang sama (reuse) agar browser tidak nge-bug (bisa 1x tok)
-    let iframe = document.getElementById('receipt-print-iframe');
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = 'receipt-print-iframe';
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = 'none';
-      document.body.appendChild(iframe);
-    }
+    // Hapus iframe lama jika ada (mencegah Chrome Print Crash)
+    const oldIframe = document.getElementById('receipt-print-iframe');
+    if (oldIframe) oldIframe.parentNode.removeChild(oldIframe);
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'receipt-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
     
     const iframeDoc = iframe.contentWindow.document;
     iframeDoc.open();
@@ -70,6 +70,10 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
     setTimeout(() => {
       iframe.contentWindow.focus();
       iframe.contentWindow.print();
+      
+      if (doc?.autoAction === 'cetak') {
+        setTimeout(onClose, 1000);
+      }
     }, 500);
   };
 
@@ -163,8 +167,10 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
   const isSales = doc.nota.includes(storeInfo.prefixSales);
   const watermarkText = doc?.status?.toUpperCase() === 'LUNAS' ? 'LUNAS' : 'TEMPO';
 
+  const isAuto = doc?.autoAction === 'cetak';
+
   return (
-     <div className="fixed inset-0 bg-black/70 z-[300] flex items-center justify-center p-4">
+     <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 ${isAuto ? 'opacity-0 pointer-events-none' : 'bg-black/70'}`}>
         <div className="w-full max-w-sm rounded-2xl shadow-2xl bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
            
            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
