@@ -6,6 +6,9 @@
   width: 6px;
   height: 6px;
 }
+.dark input[type="date"] {
+  color-scheme: dark;
+}
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }

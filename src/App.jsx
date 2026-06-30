@@ -15,6 +15,15 @@ import POSHistory from './pages/POSHistory';
 import { db } from './firebase';
 import { collection, doc, setDoc, getDocs, writeBatch, onSnapshot } from 'firebase/firestore';
 
+const defaultStoreInfo = { name: 'MONIKA MULYA', tagline: 'Bismillah', address: 'Jl. Raya Blitar No. 1', phone: '081234567890', logo: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
+const getInitialStoreInfo = () => {
+    try {
+        const cached = localStorage.getItem('mmpos_storeInfo');
+        if (cached) return JSON.parse(cached);
+    } catch(e) {}
+    return defaultStoreInfo;
+};
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [theme, setTheme] = useState('dark');
@@ -32,7 +41,7 @@ export default function App() {
   const [purchases, setPurchases] = useState([]);
   const [accounting, setAccounting] = useState([]);
   const [financialAccounts, setFinancialAccounts] = useState([]);
-  const [storeInfo, setStoreInfo] = useState({ name: 'MONIKA MULYA', tagline: 'Bismillah', address: 'Jl. Raya Blitar No. 1', phone: '081234567890', logo: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 });
+  const [storeInfo, setStoreInfo] = useState(getInitialStoreInfo);
   const [categories, setCategories] = useState(['Sembako', 'Makanan', 'Minuman']);
   const [units, setUnits] = useState(['Pcs', 'Kg', 'Sak']);
   const [users, setUsers] = useState([]);
@@ -97,7 +106,7 @@ export default function App() {
   useEffect(() => {
     let unsubs = []; 
     let loadedCount = 0;
-    const safetyTimer = setTimeout(() => { setLoading(false); }, 6000);
+    const safetyTimer = setTimeout(() => { setLoading(false); }, 3000);
 
     const initializeAndListen = async () => {
       try {
@@ -159,7 +168,14 @@ export default function App() {
       unsubs.push(onSnapshot(collection(db, "settings"), (snap) => {
          if (!snap.empty) {
             snap.docs.forEach(d => {
-               if(d.id === 'storeInfo') setStoreInfo(prev => ({...prev, ...d.data()}));
+               if(d.id === 'storeInfo') {
+                  const dData = d.data();
+                  setStoreInfo(prev => {
+                     const n = {...prev, ...dData};
+                     localStorage.setItem('mmpos_storeInfo', JSON.stringify(n));
+                     return n;
+                  });
+               }
                if(d.id === 'categories') {
                   const cats = d.data().values || [];
                   const lowerCats = Array.from(new Set(cats.map(c => typeof c === 'string' ? c.toUpperCase().trim() : c))).sort();
@@ -284,7 +300,8 @@ export default function App() {
 
   const customSetStoreInfo = (next) => { 
      const res = typeof next === 'function' ? next(stateRef.current.storeInfo) : next; 
-     setStoreInfo(res); 
+     setStoreInfo(res);
+     try { localStorage.setItem('mmpos_storeInfo', JSON.stringify(res)); } catch (e) {}
      setSyncCount(p=>p+1); 
      return setDoc(doc(db, "settings", "storeInfo"), JSON.parse(JSON.stringify(res)))
        .catch(e => { console.error(e); throw e; })
@@ -353,18 +370,68 @@ export default function App() {
     }
   };
 
-  const themeColors = { bg: theme === 'dark' ? 'bg-[#09090B]' : 'bg-[#F4F4F5]', panel: theme === 'dark' ? 'bg-[#18181B]' : 'bg-[#FFFFFF]', text: theme === 'dark' ? 'text-[#FAFAFA]' : 'text-[#18181B]', textMuted: theme === 'dark' ? 'text-[#A1A1AA]' : 'text-[#71717A]', gold: 'text-[#D4AF37]', goldBg: 'bg-[#D4AF37]', border: theme === 'dark' ? 'border-[#27272A]' : 'border-[#E4E4E7]', creamBg: theme === 'dark' ? 'bg-[#27272A]' : 'bg-[#F8FAFC]' };
+  const themeColors = { 
+     bg: theme === 'dark' ? 'bg-[#09090B]' : 'bg-[#F4F4F5]', 
+     panel: theme === 'dark' ? 'bg-[#18181B]/40 backdrop-blur-xl' : 'bg-white/40 backdrop-blur-xl', 
+     text: theme === 'dark' ? 'text-[#FAFAFA]' : 'text-[#18181B]', 
+     textMuted: theme === 'dark' ? 'text-[#A1A1AA]' : 'text-[#71717A]', 
+     gold: 'text-[#D4AF37]', 
+     goldBg: 'bg-[#D4AF37]', 
+     border: theme === 'dark' ? 'border-[#27272A]/50' : 'border-[#E4E4E7]/50', 
+     creamBg: theme === 'dark' ? 'bg-[#27272A]/40' : 'bg-[#F8FAFC]/40' 
+  };
 
   const handleLogin = (loggedInUser) => {
     setUser(loggedInUser);
     setActiveMenu(loggedInUser.role === 'kasir' ? 'pos' : 'dashboard');
   };
 
-  if (loading) return (<div className="min-h-screen w-full bg-[#121212] flex flex-col items-center justify-center font-sans"><div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin mb-4"></div><p className="text-[#FFFDD0] font-bold text-sm tracking-widest animate-pulse uppercase">Menghubungkan ke Cloud Server...</p></div>);
+  if (loading) return (
+    <div className="min-h-screen w-full bg-[#121212] flex flex-col items-center justify-center font-sans relative overflow-hidden">
+       {storeInfo?.banner && (
+          <div className="absolute inset-0 z-0 pointer-events-none opacity-40 transition-opacity duration-1000" 
+               style={{ 
+                  backgroundImage: `url(${storeInfo.banner})`, 
+                  backgroundSize: 'cover', 
+                  backgroundPosition: 'bottom',
+                  maskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
+                  WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)'
+               }}>
+          </div>
+       )}
+       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.15)_0%,transparent_60%)]"></div>
+       <div className="relative z-10 flex flex-col items-center animate-pulse">
+          {storeInfo?.logo ? (
+             <img src={storeInfo.logo} alt="Logo" className="w-24 h-24 object-cover rounded-2xl mb-6 shadow-[0_0_30px_rgba(212,175,55,0.3)]" />
+          ) : (
+             <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#B8860B] mb-6 flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.3)]">
+                <span className="text-4xl font-black text-[#121212]">{storeInfo?.name ? storeInfo.name.charAt(0) : 'M'}</span>
+             </div>
+          )}
+          <h1 className="text-[#D4AF37] font-black text-2xl tracking-widest uppercase mb-2">{storeInfo?.name || 'MONIKA MULYA'}</h1>
+          <p className="text-gray-400 text-xs tracking-[0.2em] uppercase">Memuat Sistem...</p>
+       </div>
+       <div className="absolute bottom-8 text-center text-[10px] text-gray-500 font-medium tracking-wide">
+          <span className="text-[#D4AF37]">HXPOS</span> by andrian chun &copy; 2026
+       </div>
+    </div>
+  );
   if (!user) return <LoginScreen onLogin={handleLogin} users={users} colors={themeColors} theme={theme} setTheme={setTheme} isSoundOn={true} storeInfo={storeInfo} showToast={showToast} />;
 
   return (
     <div className={`flex h-screen w-full ${themeColors.bg} ${themeColors.text} overflow-hidden relative`}>
+      {storeInfo?.banner && (
+         <div className="absolute inset-0 z-0 pointer-events-none opacity-40 dark:opacity-20 transition-opacity duration-1000" 
+              style={{ 
+                 backgroundImage: `url(${storeInfo.banner})`, 
+                 backgroundSize: 'cover', 
+                 backgroundPosition: 'bottom',
+                 maskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
+                 WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)'
+              }}>
+         </div>
+      )}
+      
       {syncCount > 0 && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-5 py-2 rounded-full shadow-2xl z-[9999] flex items-center gap-2 text-xs font-bold border border-blue-400">
           <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -394,7 +461,7 @@ export default function App() {
              {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} colors={themeColors} user={user} isSoundOn={true} showToast={showToast} />}
              {activeMenu === 'penjualan' && <POSHistory tab="penjualan" sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} />}
              {activeMenu === 'pembelian' && <POSHistory tab="pembelian" sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} />}
-             {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} colors={themeColors} isSoundOn={true} showToast={showToast} />}
+             {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} />}
              {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} colors={themeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} />}
              
              {activeMenu === 'pengaturan' && (

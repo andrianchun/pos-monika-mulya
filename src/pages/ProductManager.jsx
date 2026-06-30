@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Edit, DownloadCloud, UploadCloud, Trash2, X } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload } from '../utils/helpers';
 import DataTable from '../components/ui/DataTable';
@@ -11,12 +11,35 @@ export default function ProductManager({ products, setProducts, categories, unit
   const [editingId, setEditingId] = useState(null);
   const [deleteProdId, setDeleteProdId] = useState(null);
   
-  const sortedCats = Array.from(new Set((categories || []).map(c => typeof c === 'string' ? c : c.name))).sort();
-  const sortedUnits = Array.from(new Set((units || []).map(u => typeof u === 'string' ? u : u.name))).sort();
+  const sortedCats = Array.from(new Set((categories || []).map(c => typeof c === 'string' ? c : c.name)));
+  if (!sortedCats.some(c => c.toLowerCase() === 'tanpa kategori')) sortedCats.push('Tanpa Kategori');
+  sortedCats.sort();
+  
+  const sortedUnits = Array.from(new Set((units || []).map(u => typeof u === 'string' ? u : u.name)));
+  if (!sortedUnits.some(u => u.toLowerCase() === 'pcs')) sortedUnits.push('Pcs');
+  sortedUnits.sort();
 
-  const defaultForm = { barcode: '', name: '', category: sortedCats[0] || 'Lainnya', unit: sortedUnits[0] || 'Pcs', stock: 0, cost: 0, price: 0, img: '📦' };
+  const defaultCat = sortedCats.find(c => c.toLowerCase() === 'tanpa kategori') || 'Tanpa Kategori';
+  const defaultUnit = sortedUnits.find(u => u.toLowerCase() === 'pcs') || 'Pcs';
+  const defaultForm = { barcode: '', name: '', category: defaultCat, unit: defaultUnit, stock: 0, cost: 0, price: 0, img: '📦', margin: 0, marginStr: '0' };
   const [form, setForm] = useState(defaultForm);
   const importRef = useRef(null);
+
+  useEffect(() => {
+     if (products && products.length > 0) {
+        let needsMigration = false;
+        const newProducts = products.map(p => {
+           if (p.category && (p.category.toUpperCase() === 'LAINNYA' || p.category.toLowerCase() === 'lainnya')) {
+              needsMigration = true;
+              return { ...p, category: 'Tanpa Kategori' };
+           }
+           return p;
+        });
+        if (needsMigration) {
+           setProducts(newProducts);
+        }
+     }
+  }, [products, setProducts]);
 
   const columns = [
     { key: 'name', label: 'Nama Produk' },
@@ -28,9 +51,9 @@ export default function ProductManager({ products, setProducts, categories, unit
 
   const handleSave = (e) => {
     e.preventDefault();
-    if (parseIDR(form.price) <= parseIDR(form.cost)) {
+    if (parseIDR(form.price) < parseIDR(form.cost)) {
       playSound('pop', isSoundOn);
-      showToast('Harga jual harus lebih besar dari harga beli!', 'error');
+      showToast('Harga jual tidak boleh lebih kecil dari harga beli!', 'error');
       return;
     }
 
@@ -48,7 +71,8 @@ export default function ProductManager({ products, setProducts, categories, unit
   const handleEdit = (prod) => {
     playSound('pop', isSoundOn);
     setEditingId(prod.id);
-    setForm({ barcode: prod.barcode || '', name: prod.name, category: prod.category, unit: prod.unit, stock: prod.stock, minStock: prod.minStock !== undefined ? prod.minStock : 5, cost: prod.cost, price: prod.price, img: prod.img });
+    const margin = prod.cost > 0 ? ((prod.price - prod.cost) / prod.cost * 100) : 0;
+    setForm({ barcode: prod.barcode || '', name: prod.name, category: prod.category, unit: prod.unit, stock: prod.stock, minStock: prod.minStock !== undefined ? prod.minStock : 5, cost: prod.cost, price: prod.price, img: prod.img || '📦', margin: margin, marginStr: String(Number(margin.toFixed(2))).replace('.', ',') });
     setIsModalOpen(true);
   };
 
@@ -199,7 +223,7 @@ export default function ProductManager({ products, setProducts, categories, unit
   return (
     <div className="h-full flex flex-col relative">
       <DataTable 
-        title={customTitle} columns={columns} data={products} colors={colors} 
+        title={customTitle} columns={columns} data={[...products].sort((a, b) => a.name.localeCompare(b.name))} colors={colors} 
         onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }} 
         actions={[ { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-blue-200', onClick: handleEdit } ]}
         onDelete={(prod) => { playSound('pop', isSoundOn); setDeleteProdId(prod.id); }}
@@ -222,12 +246,15 @@ export default function ProductManager({ products, setProducts, categories, unit
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-          <div className={`w-full max-w-2xl p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] flex flex-col`}>
-            <div className="flex justify-between items-center mb-4 shrink-0">
-              <h2 className={`text-xl font-bold ${colors.text}`}>{editingId ? 'Edit Produk' : 'Tambah Produk Baru'}</h2>
-              <button onClick={() => { playSound('pop', isSoundOn); setIsModalOpen(false); }} className="text-red-500 hover:scale-110"><X size={24}/></button>
-            </div>
-            <form onSubmit={handleSave} className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+              <div className={`w-full max-w-xl p-6 rounded-3xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] flex flex-col`}>
+                 <div className="flex justify-between items-center mb-6 shrink-0">
+                    <h3 className={`text-xl font-bold ${colors.text}`}>{editingId ? 'Edit Produk' : 'Tambah Produk'}</h3>
+                     <div className="flex items-center gap-2">
+                        <button onClick={() => { playSound('pop', isSoundOn); setIsModalOpen(false); }} className="text-red-500 hover:scale-110 p-1"><X size={24}/></button>
+                     </div>
+                 </div>
+                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-4">
+                    <form id="productForm" onSubmit={handleSave} className="space-y-5">
               <div className="flex flex-col items-center mb-4">
                  <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`} title="Upload Thumbnail Produk">
                     {form.img && form.img.startsWith('data:image') ? <img src={form.img} className="w-full h-full object-cover" alt="Thumb" /> : <span className="text-4xl">{form.img}</span>}
@@ -253,30 +280,43 @@ export default function ProductManager({ products, setProducts, categories, unit
                  <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Stok Saat Ini *</label><input type="text" inputMode="decimal" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.stockStr !== undefined ? form.stockStr : (form.stock !== undefined && form.stock !== null && form.stock !== '' ? String(form.stock).replace('.', ',') : '')} onChange={e => setForm({...form, stock: parseIDR(e.target.value), stockStr: smartFormatInput(e.target.value)})} /></div>
                  <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Batas Notif Habis</label><input type="text" inputMode="decimal" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.minStockStr !== undefined ? form.minStockStr : (form.minStock !== undefined && form.minStock !== null && form.minStock !== '' ? String(form.minStock).replace('.', ',') : '')} onChange={e => setForm({...form, minStock: parseIDR(e.target.value), minStockStr: smartFormatInput(e.target.value)})} placeholder="Default: 5" /></div>
                  <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Harga Beli (Modal) *</label><input type="text" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.costStr !== undefined ? form.costStr : formatIDR(form.cost)} onChange={e => {
-                    const newCost = parseIDR(e.target.value);
-                    const currentPrice = form.price || 0;
-                    const newMargin = newCost > 0 ? ((currentPrice - newCost) / newCost * 100) : 0;
-                    setForm({...form, cost: newCost, costStr: smartFormatInput(e.target.value), margin: newMargin, marginStr: String(Number(newMargin.toFixed(2))).replace('.', ',')});
-                 }} /></div>
-                 <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Harga Jual (Rp) *</label><input type="text" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.priceStr !== undefined ? form.priceStr : formatIDR(form.price)} onChange={e => {
-                    const newPrice = parseIDR(e.target.value);
-                    const currentCost = form.cost || 0;
-                    const newMargin = currentCost > 0 ? ((newPrice - currentCost) / currentCost * 100) : 0;
-                    setForm({...form, price: newPrice, priceStr: smartFormatInput(e.target.value), margin: newMargin, marginStr: String(Number(newMargin.toFixed(2))).replace('.', ',')});
-                 }} /></div>
-                 <div className="md:col-span-2"><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Target Laba (%) - <span className="font-normal italic text-[10px]">Otomatis Terkalkulasi</span></label><input type="text" inputMode="decimal" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-[#D4AF37]/10 dark:bg-[#D4AF37]/20 font-bold ${colors.text} border-[#D4AF37]/50`} value={form.marginStr !== undefined ? form.marginStr : (form.margin !== undefined ? String(Number(form.margin.toFixed(2))).replace('.', ',') : '')} onChange={e => {
-                    const rawVal = e.target.value;
-                    const newMargin = parseIDR(rawVal);
-                    const currentCost = form.cost || 0;
-                    const newPrice = Math.round(currentCost * (1 + newMargin / 100));
-                    setForm({...form, margin: newMargin, marginStr: smartFormatInput(rawVal), price: newPrice, priceStr: formatIDR(newPrice)});
-                 }} placeholder="Cth: 25" /></div>
+                      const newCost = parseIDR(e.target.value);
+                      const currentPrice = form.price || 0;
+                      const newMargin = newCost > 0 ? ((currentPrice - newCost) / newCost * 100) : 0;
+                      setForm({...form, cost: newCost, costStr: smartFormatInput(e.target.value), margin: newMargin, marginStr: String(Number(newMargin.toFixed(2))).replace('.', ',')});
+                   }} /></div>
+                   <div>
+                      <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Harga Jual & Laba *</label>
+                      <div className={`flex flex-col border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#D4AF37] ${colors.border}`}>
+                         <div className="flex items-center bg-transparent">
+                            <span className={`pl-3 pr-1 text-sm font-bold ${colors.textMuted}`}>Rp</span>
+                            <input type="text" required className={`w-full p-2.5 bg-transparent border-none focus:ring-0 outline-none focus:outline-none text-base font-bold ${colors.text}`} value={form.priceStr !== undefined ? form.priceStr : formatIDR(form.price)} onChange={e => {
+                               const newPrice = parseIDR(e.target.value);
+                               const currentCost = form.cost || 0;
+                               const newMargin = currentCost > 0 ? ((newPrice - currentCost) / currentCost * 100) : 0;
+                               setForm({...form, price: newPrice, priceStr: smartFormatInput(e.target.value), margin: newMargin, marginStr: String(Number(newMargin.toFixed(2))).replace('.', ',')});
+                            }} />
+                         </div>
+                         <div className="flex items-center border-t border-dashed border-[#D4AF37]/50 bg-[#D4AF37]/10 dark:bg-[#D4AF37]/20">
+                            <span className="pl-3 pr-1 text-xs text-[#D4AF37] font-bold">Laba:</span>
+                            <input type="text" inputMode="decimal" className="w-full p-2 bg-transparent border-none focus:ring-0 outline-none focus:outline-none text-[#D4AF37] text-sm font-semibold" value={form.marginStr !== undefined ? form.marginStr : (form.margin !== undefined ? String(Number(form.margin.toFixed(2))).replace('.', ',') : '')} onChange={e => {
+                               const rawVal = e.target.value;
+                               const newMargin = parseIDR(rawVal);
+                               const currentCost = form.cost || 0;
+                               const newPrice = Math.round(currentCost * (1 + newMargin / 100));
+                               setForm({...form, margin: newMargin, marginStr: smartFormatInput(rawVal), price: newPrice, priceStr: formatIDR(newPrice)});
+                            }} placeholder="Cth: 25" />
+                            <span className="pr-3 text-xs text-[#D4AF37] font-bold">%</span>
+                         </div>
+                      </div>
+                   </div>
               </div>
               <div className="flex gap-3 pt-6 border-t border-dashed border-gray-300 dark:border-gray-700 mt-4 shrink-0">
                  <button type="button" onClick={() => { playSound('pop', isSoundOn); setIsModalOpen(false); }} className={`flex-1 py-3 border rounded-xl font-bold ${colors.text} ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A]`}>Batal</button>
                  <button type="submit" className={`flex-1 py-3 rounded-xl font-bold text-[#18181B] shadow-md ${colors.goldBg} hover:opacity-90`}>Simpan</button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

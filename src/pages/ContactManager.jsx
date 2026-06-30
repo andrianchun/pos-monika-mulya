@@ -1,16 +1,28 @@
 import React, { useState } from 'react';
-import { Edit, Phone, X } from 'lucide-react';
+import { Edit, Phone, X, User } from 'lucide-react';
 import { playSound } from '../utils/helpers';
 import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
+import ContactProfileModal from '../components/modals/ContactProfileModal';
 
-export default function ContactManager({ customers, setCustomers, suppliers, setSuppliers, colors, showToast, isSoundOn }) {
+export default function ContactManager({ customers, setCustomers, suppliers, setSuppliers, sales, setSales, purchases, setPurchases, products, setProducts, colors, showToast, isSoundOn }) {
   const [tab, setTab] = useState('customer');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [deleteContact, setDeleteContact] = useState(null);
+  const [activeProfile, setActiveProfile] = useState(null);
   const defaultForm = { name: '', phone: '', address: '', points: 0, distance: 0 };
   const [form, setForm] = useState(defaultForm);
+
+  const handleTopUpDeposit = (contact, amount) => {
+    playSound('cash', isSoundOn);
+    if (tab === 'customer') {
+       setCustomers(prev => prev.map(c => c.id === contact.id ? { ...c, deposit: (c.deposit || 0) + amount } : c));
+       // Perbarui profil aktif agar saldonya langsung terlihat berubah di modal
+       setActiveProfile(prev => ({...prev, deposit: (prev.deposit || 0) + amount}));
+       showToast(`Berhasil Top-Up Saldo Rp ${amount.toLocaleString('id-ID')} untuk ${contact.name}`, 'success');
+    }
+  };
 
   const handleWA = (phone) => {
       if(!phone || phone === '-') return;
@@ -58,12 +70,29 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
        </div>
        
        <div className="flex-1 overflow-hidden">
-         {tab === 'customer' ? (
-            <DataTable title="Data Pelanggan" columns={columnsCustomer} data={customers} colors={colors} onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }} actions={[{icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200', onClick: handleEdit}]} onDelete={(row) => { if(row.id === 1) showToast('Kontak default tidak bisa dihapus', 'error'); else { playSound('pop', isSoundOn); setDeleteContact(row); } }} />
-         ) : (
-            <DataTable title="Data Supplier" columns={columnsSupplier} data={suppliers} colors={colors} onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }} actions={[{icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200', onClick: handleEdit}]} onDelete={(row) => { playSound('pop', isSoundOn); setDeleteContact(row); }} />
-         )}
+         <DataTable 
+           title={tab === 'customer' ? "Data Pelanggan" : "Data Supplier"} 
+           columns={tab === 'customer' ? columnsCustomer : columnsSupplier} 
+           data={tab === 'customer' ? customers.filter(c => c.id !== 1) : suppliers} 
+           colors={colors} 
+           onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }}
+           actions={[
+             { icon: User, label: 'Lihat Profil & Riwayat', colorClass: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-200', onClick: (row) => setActiveProfile(row) },
+             { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-blue-200', onClick: handleEdit }
+           ]}
+           onDelete={(row) => { if(tab === 'customer' && row.id === 1) showToast('Kontak default tidak bisa dihapus', 'error'); else { playSound('pop', isSoundOn); setDeleteContact(row); } }} 
+         />
        </div>
+
+       <ContactProfileModal 
+         contact={activeProfile} 
+         type={tab} 
+         sales={sales} 
+         purchases={purchases} 
+         colors={colors} 
+         onClose={() => setActiveProfile(null)} 
+         onTopUpDeposit={handleTopUpDeposit}
+       />
 
        {deleteContact && (
          <DeleteConfirmModal 

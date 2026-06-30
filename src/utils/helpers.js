@@ -83,7 +83,7 @@ export const formatDate = (isoString) => {
   return `${day}-${month}-${year}`;
 };
 
-export const handleImageUpload = (e, callback, showToast) => {
+export const handleImageUpload = (e, callback, showToast, customMaxWidth = 300, customQuality = 0.7) => {
   const file = e.target.files[0];
   if (file) {
     if (file.size > 5 * 1024 * 1024) { showToast('Ukuran maksimal gambar 5MB!', 'error'); return; }
@@ -92,13 +92,16 @@ export const handleImageUpload = (e, callback, showToast) => {
        const img = new Image();
        img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 300;
-          const scaleSize = MAX_WIDTH / img.width;
-          canvas.width = MAX_WIDTH;
+          const MAX_WIDTH = customMaxWidth;
+          let scaleSize = 1;
+          if (img.width > MAX_WIDTH) {
+             scaleSize = MAX_WIDTH / img.width;
+          }
+          canvas.width = img.width * scaleSize;
           canvas.height = img.height * scaleSize;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          callback(canvas.toDataURL('image/jpeg', 0.7)); 
+          callback(canvas.toDataURL('image/jpeg', customQuality)); 
        };
        img.src = evt.target.result;
     };

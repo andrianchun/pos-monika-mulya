@@ -22,7 +22,7 @@ export default function Sidebar({ isOpen, setIsOpen, activeMenu, handleMenuClick
         <div className="fixed inset-0 bg-black/60 z-[60] lg:hidden" onClick={() => setIsOpen(false)}></div>
       )}
       
-      <div className={`fixed lg:relative top-0 left-0 h-full z-[70] flex flex-col ${colors.panel} border-r ${colors.border} transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'} shrink-0 print:hidden`}>
+      <div className={`fixed lg:relative top-0 left-0 h-full z-[70] flex flex-col ${colors.panel} border-r ${colors.border} transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'} shrink-0 print:hidden`}>
         
         {/* Tombol Silang khusus untuk menutup di HP */}
         <button onClick={() => setIsOpen(false)} className="absolute top-4 right-4 p-1.5 bg-red-100 text-red-500 rounded-lg lg:hidden">

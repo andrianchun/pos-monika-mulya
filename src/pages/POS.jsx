@@ -43,7 +43,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const [posOngkirStr, setPosOngkirStr] = useState('');
   const [useAutoOngkir, setUseAutoOngkir] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(customers[0]?.id || '');
-  const [selectedSupplier, setSelectedSupplier] = useState(suppliers[0]?.id || '');
+  const [selectedSupplier, setSelectedSupplier] = useState(1);
   const [transactionDate, setTransactionDate] = useState(''); 
   const [checkoutModal, setCheckoutModal] = useState(false);
   const [showMobileCart, setShowMobileCart] = useState(false);
@@ -65,10 +65,13 @@ export default function POS({ products, setProducts, customers, setCustomers, su
      name: c.phone && c.phone !== '-' && String(c.id) !== '1' ? `${c.name} (${c.phone})` : c.name
   }));
 
-  const supplierOptions = suppliers.map(s => ({
-     ...s,
-     name: s.phone && s.phone !== '-' ? `${s.name} (${s.phone})` : s.name
-  }));
+  const supplierOptions = [
+    { id: 1, name: '(anonim)' },
+    ...suppliers.map(s => ({
+       ...s,
+       name: s.phone && s.phone !== '-' ? `${s.name} (${s.phone})` : s.name
+    }))
+  ];
   // =========================================================================
 
   useEffect(() => {
@@ -136,7 +139,12 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   };
 
   const addToCart = (product) => {
-    if (posMode === 'penjualan' && product.currentStock <= 0) { playSound('pop', isSoundOn); showToast('Stok habis!', 'error'); return; }
+    if (posMode === 'penjualan' && product.currentStock <= 0) { 
+      playSound('pop', isSoundOn); 
+      showToast('Stok habis! Mengalihkan ke mode Pembelian.', 'warning'); 
+      setPosMode('pembelian');
+      return; 
+    }
     playSound('drop', isSoundOn);
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
@@ -154,7 +162,11 @@ export default function POS({ products, setProducts, customers, setCustomers, su
     const floatVal = parseFloat(cleanStr.replace(',', '.'));
     if (isNaN(floatVal) || floatVal <= 0) return;
     const product = products.find(p => p.id === id);
-    if (posMode === 'penjualan' && floatVal > product.stock) { showToast('Melebihi sisa stok!', 'error'); return; }
+    if (posMode === 'penjualan' && floatVal > product.stock) { 
+      showToast('Melebihi sisa stok! Mengalihkan ke mode Pembelian.', 'warning'); 
+      setPosMode('pembelian');
+      return;
+    }
     setCart(prev => prev.map(item => {
        if (item.id === id) {
            const pricing = calcItemPricing(product, floatVal);
@@ -206,12 +218,13 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const isCustomerUmum = String(selectedCustomer) === '1' || selectedCustomer === '';
   const earnedPoints = posMode === 'penjualan' && !isCustomerUmum ? Math.floor(total / ptMultiplier) * ptReward : 0;
 
-  const handleCheckout = (e, action) => {
+  const handleCheckout = (e, action, depositUsed = 0, depositAdded = 0) => {
     if(e) e.preventDefault();
-    const paid = paymentAmount === '' ? 0 : parseIDR(paymentAmount);
-    if(paid < 0) { showToast('Masukkan nominal valid!', 'error'); return; }
+    const paidCash = paymentAmount === '' ? 0 : parseIDR(paymentAmount);
+    const totalPaid = paidCash + depositUsed;
+    if(paidCash < 0) { showToast('Masukkan nominal valid!', 'error'); return; }
     
-    const isLunas = paid >= total;
+    const isLunas = totalPaid >= total;
     
     // --- TAMBAHAN VALIDASI PIUTANG / UTANG ---
     if (!isLunas) {
@@ -251,9 +264,13 @@ export default function POS({ products, setProducts, customers, setCustomers, su
       id: Date.now(), nota: genNota, date: docDate.toISOString(),
       customer: posMode === 'penjualan' ? cName : undefined, supplier: posMode === 'pembelian' ? sName : undefined,
       phone: posMode === 'penjualan' ? custObj?.phone : suppObj?.phone, 
-      items: cart, subtotal: subTotal, discount: actualDiscount, ongkir: actualOngkir, total, paid, status: isLunas ? 'Lunas' : 'Tempo', dueDate: isLunas ? null : dueDate,
+      items: cart, subtotal: subTotal, discount: actualDiscount, ongkir: actualOngkir, total, paid: totalPaid, status: isLunas ? 'Lunas' : 'Tempo', dueDate: isLunas ? null : dueDate,
+      depositUsed, depositAdded,
       kasir: user.name, earnedPoints,
-      paymentHistory: [{ date: docDate.toISOString(), amount: paid, method: activeAccount ? activeAccount.name : 'Unknown', accountId: Number(paymentMethodId) }]
+      paymentHistory: [
+         ...(depositUsed > 0 ? [{ date: docDate.toISOString(), amount: depositUsed, method: 'Saldo Deposit', accountId: null }] : []),
+         ...(paidCash > 0 ? [{ date: docDate.toISOString(), amount: paidCash, method: activeAccount ? activeAccount.name : 'Unknown', accountId: Number(paymentMethodId) }] : [])
+      ]
     };
 
     setCheckoutModal(false); 
@@ -267,7 +284,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
     setPaymentMethodId(financialAccounts[0]?.id || '');
     setUseAutoOngkir(false);
     setSelectedCustomer(customers[0]?.id || '');
-    setSelectedSupplier(suppliers[0]?.id || '');
+    setSelectedSupplier(1);
 
     if (action === 'simpan') {
        setCompletedDoc(null);
@@ -288,17 +305,19 @@ export default function POS({ products, setProducts, customers, setCustomers, su
           return p;
         }));
         
-        if (posMode === 'penjualan' && earnedPoints > 0 && !isCustomerUmum) {
+        if (posMode === 'penjualan' && (!isCustomerUmum || depositUsed > 0 || depositAdded > 0)) {
            setCustomers(prevCusts => prevCusts.map(c => {
-              if (String(c.id) === String(selectedCustomer)) {
-                 return { ...c, points: (Number(c.points) || 0) + earnedPoints };
-              }
-              return c;
+             if (String(c.id) === String(selectedCustomer)) {
+                 const updatedPoints = earnedPoints > 0 ? (c.points || 0) + earnedPoints : c.points;
+                 const updatedDeposit = (c.deposit || 0) - depositUsed + depositAdded;
+                 return { ...c, points: updatedPoints, deposit: updatedDeposit };
+             }
+             return c;
            }));
         }
 
-        if (paid > 0 && activeAccount) {
-            setAccounting(prev => [...prev, { id: Date.now()+1, type: 'kas', accountId: activeAccount.id, name: posMode === 'penjualan' ? `Penerimaan Nota ${genNota}` : `Pembayaran Nota ${genNota}`, amount: posMode === 'penjualan' ? paid : -paid, date: docDate.toISOString() }]);
+        if (paidCash > 0 && activeAccount) {
+            setAccounting(prev => [...prev, { id: Date.now()+1, type: 'kas', accountId: activeAccount.id, name: posMode === 'penjualan' ? `Penerimaan Nota ${genNota}` : `Pembayaran Nota ${genNota}`, amount: posMode === 'penjualan' ? paidCash : -paidCash, date: docDate.toISOString() }]);
         }
 
         if(posMode === 'penjualan') setSales(prev => [newRecord, ...prev]); 
@@ -322,12 +341,8 @@ export default function POS({ products, setProducts, customers, setCustomers, su
         <div className="flex flex-col lg:flex-row h-full relative overflow-hidden">
           <div className={`flex-1 flex-col p-2 sm:p-4 border-b lg:border-b-0 lg:border-r ${colors.border} ${colors.panel} h-full lg:h-auto overflow-hidden ${showMobileCart ? 'hidden lg:flex' : 'flex'}`}>
             <div className="flex flex-col gap-3 mb-4 shrink-0">
-              <div className="flex justify-between items-center gap-2">
+              <div className="flex justify-start items-center gap-2">
                  <ModeToggle mode={posMode} setMode={handleModeChange} colors={colors} isSoundOn={isSoundOn} />
-                 <div className={`flex items-center gap-2 ${colors.creamBg} px-2.5 py-1.5 rounded-lg border ${colors.border} ${colors.goldHoverBorder} transition-colors`}>
-                    <Calendar size={14} className={colors.textMuted}/>
-                    <input type="date" className={`bg-transparent text-[11px] sm:text-xs font-bold outline-none ${colors.text} cursor-pointer [color-scheme:light] dark:[color-scheme:dark]`} value={transactionDate ? transactionDate.split('T')[0] : new Date().toISOString().split('T')[0]} onChange={e => setTransactionDate(new Date(e.target.value).toISOString())} title="Ubah Waktu Transaksi" />
-                 </div>
               </div>
               <div className="relative w-full">
                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
@@ -337,53 +352,74 @@ export default function POS({ products, setProducts, customers, setCustomers, su
             <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar">
               <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 pb-10">
                 {displayProducts.map(p => (
-                   <div key={p.id} onClick={() => addToCart(p)} className={`bg-white dark:bg-[#1e1e1e] border ${colors.border} rounded-xl p-2 sm:p-3 cursor-pointer ${colors.goldHoverBorder} transition-all flex flex-col active:scale-95 relative overflow-hidden group`}>
-                     {posMode === 'penjualan' && p.currentStock <= 0 && <div className="absolute inset-0 bg-white/60 dark:bg-black/60 z-10 flex items-center justify-center font-bold text-red-500 backdrop-blur-[1px]">HABIS</div>}
-                     <div className="flex justify-center mb-2 h-12 sm:h-16 items-center">
-                       {p.img && p.img.startsWith('data:image') ? (
-                          <img src={p.img} className="object-cover rounded-md w-10 h-10 sm:w-12 sm:h-12 shadow-sm" alt="prod"/>
-                       ) : (
-                          <span className="w-10 h-10 flex items-center justify-center text-3xl">📦</span>
-                       )}
+                     <div key={p.id} onClick={() => addToCart(p)} className={`bg-black/10 dark:bg-black/30 backdrop-blur-md border ${colors.border} rounded-2xl cursor-pointer hover:border-[#D4AF37]/50 transition-all active:scale-95 relative overflow-hidden group min-h-[140px] sm:min-h-[160px] flex flex-col justify-end`}>
+                       
+                       {/* Background Image Layer */}
+                       <div className="absolute inset-0 z-0 bg-white/10 dark:bg-[#1e1e1e]/40 flex items-center justify-center overflow-hidden">
+                          {p.img && p.img.startsWith('data:image') ? (
+                             <img src={p.img} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 dark:opacity-75" alt={p.name} />
+                          ) : (
+                             <span className="text-6xl opacity-20 filter grayscale transition-transform duration-700 group-hover:scale-110">📦</span>
+                          )}
+                          {/* Gradient Overlay for Text Visibility */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#18181B] via-[#18181B]/60 to-transparent"></div>
+                       </div>
+
+                       {posMode === 'penjualan' && p.currentStock <= 0 && <div className="absolute inset-0 bg-white/60 dark:bg-black/60 z-20 flex items-center justify-center font-black text-xl text-red-600 backdrop-blur-[2px] tracking-widest">HABIS</div>}
+                       
+                       {/* Content Layer */}
+                       <div className="relative z-10 p-3 sm:p-4 text-left w-full">
+                         <div className={`font-bold text-[11px] sm:text-sm leading-tight mb-2 line-clamp-2 text-white drop-shadow-md group-hover:text-[#D4AF37] transition-colors`}>{p.name}</div>
+                         
+                         <div className="flex justify-between items-end">
+                            <div className={`font-black text-[13px] sm:text-base text-[#D4AF37] drop-shadow-md`}>Rp {formatIDR(posMode === 'penjualan' ? calcItemPricing(p, 1).unitPrice : p.cost)}</div>
+                            <div className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md backdrop-blur-sm bg-black/40 border border-white/10 ${posMode === 'penjualan' && p.currentStock < 5 ? 'text-red-400 font-bold border-red-500/30' : 'text-gray-300 font-medium'}`}>{String(p.currentStock).replace('.', ',')} {p.unit}</div>
+                         </div>
+                       </div>
                      </div>
-                     <div className={`font-semibold text-xs sm:text-sm leading-tight mb-1 line-clamp-2 text-center text-gray-800 dark:text-gray-100 group-${colors.goldHoverText}`}>{p.name}</div>
-                     <div className="mt-auto text-center border-t border-dashed border-gray-300 dark:border-gray-700 pt-2">
-                       <div className={`font-bold text-xs sm:text-sm ${colors.gold}`}>Rp {formatIDR(posMode === 'penjualan' ? calcItemPricing(p, 1).unitPrice : p.cost)}</div>
-                       <div className={`text-[10px] sm:text-xs mt-1 ${posMode === 'penjualan' && p.currentStock < 5 ? 'text-red-500 font-bold' : colors.textMuted}`}>Stok: {String(p.currentStock).replace('.', ',')} {p.unit}</div>
-                     </div>
-                   </div>
                 ))}
               </div>
             </div>
             <div className="lg:hidden mt-2 shrink-0">
-               <button onClick={() => { playSound('pop', isSoundOn); setShowMobileCart(true); }} className={`w-full py-3.5 rounded-xl font-bold text-[#18181B] shadow-md flex justify-between items-center px-4 active:scale-95 transition-transform ${posMode === 'penjualan' ? colors.goldBg : '${colors.goldBg}'}`}>
+               <button onClick={() => { playSound('pop', isSoundOn); setShowMobileCart(true); }} className={`w-full py-3.5 rounded-xl font-bold text-[#18181B] shadow-md flex justify-between items-center px-4 active:scale-95 transition-transform ${posMode === 'penjualan' ? colors.goldBg : colors.goldBg}`}>
                   <span className="flex items-center gap-2"><ShoppingCart size={18}/> {cart.length} Item</span><span className="flex items-center gap-1">Rp {formatIDR(total)} <ChevronRight size={18}/></span>
                </button>
             </div>
           </div>
-          <div className={`w-full lg:w-[400px] xl:w-[450px] flex-col ${colors.panel} shrink-0 h-full border-t lg:border-t-0 shadow-lg lg:shadow-none z-10 ${showMobileCart ? 'flex' : 'hidden lg:flex'}`}>
-            <div className="lg:hidden flex items-center p-2 border-b border-gray-200 dark:border-gray-800 bg-[#F8FAFC] dark:bg-[#27272A] shrink-0">
+          <div className={`w-full lg:w-[400px] xl:w-[450px] flex-col ${colors.panel} shrink-0 h-full border-t lg:border-t-0 shadow-lg lg:shadow-none z-10 relative overflow-hidden ${showMobileCart ? 'flex' : 'hidden lg:flex'}`}>
+            {storeInfo?.banner && (
+               <div className="absolute inset-0 z-0 pointer-events-none opacity-20 dark:opacity-10 mix-blend-overlay" 
+                    style={{ backgroundImage: `url(${storeInfo.banner})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+               </div>
+            )}
+            <div className="lg:hidden flex items-center p-2 border-b border-gray-200 dark:border-gray-800 bg-[#F8FAFC] dark:bg-[#27272A] shrink-0 relative z-10">
                <button onClick={() => { playSound('pop', isSoundOn); setShowMobileCart(false); }} className={`flex items-center gap-1 font-bold text-sm py-1.5 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 ${colors.text}`}><ChevronLeft size={18}/> Kembali</button>
             </div>
-            <div className={`p-3 sm:p-4 border-b ${colors.border} flex justify-between items-center bg-transparent shrink-0`}>
-              <div className="flex-1 mr-2 relative">
-                 <label className={`text-[10px] sm:text-xs font-semibold mb-1 block ${colors.textMuted}`}>{posMode === 'penjualan' ? 'Pilih Customer' : 'Pilih Supplier'}</label>
-                 <SearchableSelect options={posMode === 'penjualan' ? customerOptions : supplierOptions} value={posMode === 'penjualan' ? selectedCustomer : selectedSupplier} onChange={posMode === 'penjualan' ? setSelectedCustomer : setSelectedSupplier} placeholder={`Pilih ${posMode === 'penjualan' ? 'Customer' : 'Supplier'}...`} colors={colors} />
-                 
-                 {(posMode === 'penjualan' && earnedPoints > 0) && (
-                    <div className="absolute top-1 right-0 flex items-center gap-1 text-[9px] font-bold bg-orange-500/10 text-orange-600 px-2 py-0.5 rounded shadow-sm animate-pulse">
-                       <Gift size={10}/> +{earnedPoints} Poin
-                    </div>
-                 )}
+            <div className={`p-3 sm:p-4 border-b ${colors.border} flex flex-col gap-3 bg-transparent shrink-0 relative z-30`}>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 relative">
+                   <label className={`text-[10px] sm:text-xs font-semibold mb-1 block ${colors.textMuted}`}>{posMode === 'penjualan' ? 'Pilih Customer' : 'Pilih Supplier'}</label>
+                   <SearchableSelect options={posMode === 'penjualan' ? customerOptions : supplierOptions} value={posMode === 'penjualan' ? selectedCustomer : selectedSupplier} onChange={posMode === 'penjualan' ? setSelectedCustomer : setSelectedSupplier} placeholder={`Pilih ${posMode === 'penjualan' ? 'Customer' : 'Supplier'}...`} colors={colors} />
+                   
+                   {(posMode === 'penjualan' && earnedPoints > 0) && (
+                      <div className="absolute top-0 right-0 flex items-center gap-1 text-[9px] font-bold bg-orange-500/10 text-orange-600 px-2 py-0.5 rounded shadow-sm animate-pulse">
+                         <Gift size={10}/> +{earnedPoints} Poin
+                      </div>
+                   )}
+                </div>
+                <div className="w-[120px]">
+                   <label className={`text-[10px] sm:text-xs font-semibold mb-1 block ${colors.textMuted}`}>Tanggal</label>
+                   <input type="date" className={`w-full p-[9px] rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none text-xs [color-scheme:light] dark:[color-scheme:dark]`} value={transactionDate} onChange={e => setTransactionDate(e.target.value)} />
+                </div>
+                <button onClick={clearCart} className={`p-2.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors h-[42px]`}><Trash2 size={18} /></button>
               </div>
-              <button onClick={clearCart} className={`mt-5 p-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors`}><Trash2 size={18} /></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-3 custom-scrollbar bg-transparent">
+            <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-3 custom-scrollbar bg-transparent relative z-10">
               {cart.length === 0 ? (
                 <div className={`flex flex-col items-center justify-center h-full ${colors.textMuted}`}><ShoppingCart size={40} className="mb-2 opacity-30" /><p className="text-sm">Keranjang kosong</p></div>
               ) : (
                 cart.map(item => (
-                  <div key={item.id} className={`flex gap-2 sm:gap-3 p-2 sm:p-3 border rounded-xl shadow-sm ${colors.border} bg-white dark:bg-[#1e1e1e] relative overflow-hidden`}>
+                  <div key={item.id} className={`flex gap-2 sm:gap-3 p-2 sm:p-3 border rounded-xl shadow-sm ${colors.border} bg-white/15 dark:bg-[#1e1e1e]/15 backdrop-blur-md relative overflow-hidden`}>
                     {(item.isWholesale || item.appliedPromo) && (
                        <div className={`absolute top-0 left-0 w-1 h-full ${item.appliedPromo ? 'bg-blue-500' : 'bg-purple-500'}`}></div>
                     )}
@@ -423,23 +459,29 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                 ))
               )}
             </div>
-            <div className={`p-3 sm:p-4 border-t ${colors.border} bg-transparent shrink-0`}>
+            <div className={`p-3 sm:p-4 border-t ${colors.border} bg-transparent shrink-0 relative z-10`}>
               <div className="space-y-1 sm:space-y-2 mb-3 sm:mb-4 text-[11px] sm:text-sm">
                 <div className="flex justify-between"><span className={colors.textMuted}>Subtotal</span><span className={`font-semibold ${colors.text}`}>Rp {formatIDR(subTotal)}</span></div>
-                <div className="flex justify-between items-center"><span className={colors.textMuted}>Diskon (%, Rp)</span><input type="text" className={`w-32 sm:w-40 text-right p-1 sm:p-1.5 rounded border ${colors.border} bg-white dark:bg-[#1e1e1e] outline-none placeholder-gray-400/50 dark:placeholder-gray-500/40`} placeholder="Cth: 10% atau 5000" value={posDiscountStr} onChange={e => { let v = e.target.value; if(v.includes('%')) { let c = v.replace(/[^0-9,.%]/g, ''); if(c.endsWith('.')) c = c.slice(0,-1)+','; setPosDiscountStr(c); } else { setPosDiscountStr(smartFormatInput(v)); } }} /></div>
+                <div className="flex justify-between items-center"><span className={colors.textMuted}>Diskon (%, Rp)</span><input type="text" className={`w-32 sm:w-40 text-right p-1 sm:p-1.5 rounded border ${colors.border} bg-white/10 dark:bg-[#1e1e1e]/10 outline-none placeholder-gray-400/50 dark:placeholder-gray-500/40`} placeholder="Cth: 10% atau 5000" value={posDiscountStr} onChange={e => { let v = e.target.value; if(v.includes('%')) { let c = v.replace(/[^0-9,.%]/g, ''); if(c.endsWith('.')) c = c.slice(0,-1)+','; setPosDiscountStr(c); } else { setPosDiscountStr(smartFormatInput(v)); } }} /></div>
                 {actualDiscount > 0 && <div className="flex justify-between text-[10px] text-red-500"><span>Potongan:</span><span>- Rp {formatIDR(actualDiscount)}</span></div>}
                 <div className="flex justify-between items-center mt-1">
                   <span className={colors.textMuted}>Ongkir/Lain (Rp){(selectedCustomer !== 1 && posMode === 'penjualan') && (<label className="flex items-center gap-1 mt-0.5 cursor-pointer text-[10px] text-green-500"><input type="checkbox" checked={useAutoOngkir} onChange={(e) => setUseAutoOngkir(e.target.checked)} className="rounded w-3 h-3 text-green-500 focus:ring-green-500 border-green-500" />Auto ({customers.find(c=>String(c.id)===String(selectedCustomer))?.distance}km)</label>)}</span>
-                  <input type="text" className={`w-32 sm:w-40 text-right p-1 sm:p-1.5 rounded border ${colors.border} bg-white dark:bg-[#1e1e1e] outline-none placeholder-gray-400/50 dark:placeholder-gray-500/40`} placeholder="0" value={posOngkirStr} onChange={e => { setUseAutoOngkir(false); setPosOngkirStr(smartFormatInput(e.target.value)); }} />
+                  <input type="text" className={`w-32 sm:w-40 text-right p-1 sm:p-1.5 rounded border ${colors.border} bg-white/10 dark:bg-[#1e1e1e]/10 outline-none placeholder-gray-400/50 dark:placeholder-gray-500/40`} placeholder="0" value={posOngkirStr} onChange={e => { setUseAutoOngkir(false); setPosOngkirStr(smartFormatInput(e.target.value)); }} />
                 </div>
                 <div className="flex justify-between text-base sm:text-lg font-bold pt-2 border-t border-dashed border-gray-300 dark:border-gray-600"><span className={colors.text}>TOTAL</span><span className={posMode === 'penjualan' ? colors.gold : '${colors.gold}'}>Rp {formatIDR(total)}</span></div>
               </div>
-              <button disabled={cart.length === 0} onClick={() => { playSound('pop', isSoundOn); setCheckoutModal(true); }} className={`w-full py-3 sm:py-4 rounded-xl font-bold text-[#18181B] text-base sm:text-lg transition-transform ${cart.length === 0 ? 'bg-gray-400 cursor-not-allowed' : posMode === 'penjualan' ? `${colors.goldBg} hover:scale-[1.02] shadow-lg` : `${colors.goldBg} hover:scale-[1.02] shadow-lg`}`}>{posMode === 'penjualan' ? 'BAYAR SEKARANG' : 'PROSES PEMBELIAN'}</button>
+              <button disabled={cart.length === 0} onClick={() => { 
+                  if (posMode === 'pembelian' && String(selectedSupplier) === '1') {
+                      showToast('Nama supplier wajib dipilih!', 'error');
+                      return;
+                  }
+                  playSound('pop', isSoundOn); setCheckoutModal(true); 
+              }} className={`w-full py-3 sm:py-4 rounded-xl font-bold text-[#18181B] text-base sm:text-lg transition-transform ${cart.length === 0 ? 'bg-gray-400 cursor-not-allowed' : posMode === 'penjualan' ? `${colors.goldBg} hover:scale-[1.02] shadow-lg` : `${colors.goldBg} hover:scale-[1.02] shadow-lg`}`}>{posMode === 'penjualan' ? 'BAYAR SEKARANG' : 'PROSES PEMBELIAN'}</button>
             </div>
           </div>
         </div>
       </div>
-      {checkoutModal && <CheckoutModal posMode={posMode} total={total} financialAccounts={financialAccounts} paymentMethodId={paymentMethodId} setPaymentMethodId={setPaymentMethodId} dueDate={dueDate} setDueDate={setDueDate} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} handleCheckout={handleCheckout} setCheckoutModal={setCheckoutModal} colors={colors} isSoundOn={isSoundOn} />}
+      {checkoutModal && <CheckoutModal posMode={posMode} total={total} financialAccounts={financialAccounts} paymentMethodId={paymentMethodId} setPaymentMethodId={setPaymentMethodId} dueDate={dueDate} setDueDate={setDueDate} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} handleCheckout={handleCheckout} setCheckoutModal={setCheckoutModal} colors={colors} isSoundOn={isSoundOn} activeCustomerDeposit={customers.find(c => String(c.id) === String(selectedCustomer))?.deposit || 0} isCustomerUmum={isCustomerUmum} />}
       {completedDoc && <DocumentReceiptModal doc={completedDoc} onClose={() => setCompletedDoc(null)} storeInfo={storeInfo} colors={colors} isSoundOn={isSoundOn} />}
     </div>
   );

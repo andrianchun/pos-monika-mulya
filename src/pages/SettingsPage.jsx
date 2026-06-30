@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Lock, Store, Plus, Edit, Trash2, X, DownloadCloud, UploadCloud, Tags, Gift, Ticket, Camera, CheckSquare, Square } from 'lucide-react';
+import { Lock, Store, Plus, Edit, Trash2, X, DownloadCloud, UploadCloud, Tags, Gift, Ticket, Camera, CheckSquare, Square, Image } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload } from '../utils/helpers';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 
@@ -20,6 +20,7 @@ export default function SettingsPage({
   const [sAddress, setSAddress] = useState(storeInfo.address || '');
   const [sPhone, setSPhone] = useState(storeInfo.phone || '');
   const [sLogo, setSLogo] = useState(storeInfo.logo || null);
+  const [sBanner, setSBanner] = useState(storeInfo.banner || null);
   const [sOngkir, setSOngkir] = useState(storeInfo.ongkirPerKm || 0);
   
   const [sPrefSales, setSPrefSales] = useState(storeInfo.prefixSales || 'INV');
@@ -34,7 +35,7 @@ export default function SettingsPage({
      e.preventDefault(); 
      playSound('success', isSoundOn);
      setStoreInfo({ 
-       ...storeInfo, name: sName, tagline: sTagline, address: sAddress, phone: sPhone, logo: sLogo, 
+       ...storeInfo, name: sName, tagline: sTagline, address: sAddress, phone: sPhone, logo: sLogo, banner: sBanner,
        ongkirPerKm: Number(sOngkir) || 0, prefixSales: sPrefSales, prefixPurchase: sPrefPurch,
        nextSeqSales: Number(sNextSeqSales) || 1, nextSeqPurchase: Number(sNextSeqPurch) || 1
      });
@@ -200,7 +201,7 @@ export default function SettingsPage({
      setEditGenericModal(null);
   };
 
-  const deleteCategory = (label) => {
+  const handleDeleteCat = (label) => {
      if (label.toUpperCase() === 'TANPA KATEGORI') {
         playSound('pop', isSoundOn);
         showToast('Kategori default "Tanpa Kategori" tidak boleh dihapus!', 'error');
@@ -210,7 +211,7 @@ export default function SettingsPage({
 
      playSound('pop', isSoundOn);
      const newArr = categories.filter(c => c !== label);
-     if (!newArr.includes('TANPA KATEGORI')) newArr.push('TANPA KATEGORI');
+     if (!newArr.some(c => c.toLowerCase() === 'tanpa kategori')) newArr.push('Tanpa Kategori');
      setCategories(newArr.sort());
      
      if (products && setProducts) {
@@ -365,11 +366,21 @@ export default function SettingsPage({
          {activeTab === 'toko' && (
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-3xl`}>
                <form onSubmit={saveStoreInfo} className="space-y-6">
-                 <div className="flex flex-col items-center mb-4">
-                   <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
-                      {sLogo ? <img src={sLogo} className="w-full h-full object-cover" alt="Logo" /> : <Store size={32} />}
-                      <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSLogo, showToast)} />
-                   </label>
+                 <div className="flex justify-center gap-6 mb-4">
+                   <div className="flex flex-col items-center">
+                     <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
+                        {sLogo ? <img src={sLogo} className="w-full h-full object-cover" alt="Logo" /> : <Store size={32} />}
+                        <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSLogo, showToast, 600, 0.85)} />
+                     </label>
+                     <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase">Logo Toko</span>
+                   </div>
+                   <div className="flex flex-col items-center">
+                     <label className={`relative w-48 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
+                        {sBanner ? <img src={sBanner} className="w-full h-full object-cover" alt="Banner" /> : <Image size={32} />}
+                        <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSBanner, showToast, 1920, 0.85)} />
+                     </label>
+                     <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase">Banner Latar</span>
+                   </div>
                  </div>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
