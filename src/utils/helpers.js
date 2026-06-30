@@ -143,6 +143,14 @@ export const printReceipt = async (elementId) => {
   const printElement = document.getElementById(elementId);
   if (!printElement) return;
 
+  // Buka jendela SEBELUM proses async agar tidak diblokir popup blocker browser
+  const printWindow = window.open('', '_blank', 'width=400,height=600');
+  if (!printWindow) {
+    alert("Browser memblokir pop-up cetak. Mohon izinkan pop-up (di sebelah kanan address bar) untuk situs ini.");
+    return;
+  }
+  printWindow.document.write('<html><body style="font-family:sans-serif;text-align:center;padding-top:2rem;">Memproses struk cetak...</body></html>');
+
   try {
     const clone = printElement.cloneNode(true);
     clone.style.position = 'fixed';
@@ -160,11 +168,7 @@ export const printReceipt = async (elementId) => {
     document.body.removeChild(clone);
     const imgData = canvas.toDataURL('image/png');
 
-    const printWindow = window.open('', '_blank', 'width=400,height=600');
-    if (!printWindow) {
-      alert("Pop-up diblokir! Tolong izinkan browser untuk membuka pop-up.");
-      return;
-    }
+    printWindow.document.open(); // Reset isi dokumen yang tadi "Memproses..."
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -209,6 +213,7 @@ export const printReceipt = async (elementId) => {
     printWindow.focus();
 
   } catch (error) {
+    if (printWindow && !printWindow.closed) printWindow.close();
     console.error("Gagal membuat gambar struk:", error);
     alert("Maaf, terjadi kesalahan saat memproses gambar struk.");
   }
