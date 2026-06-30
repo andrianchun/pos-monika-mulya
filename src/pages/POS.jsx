@@ -222,8 +222,8 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const clearCart = () => { playSound('pop', isSoundOn); setCart([]); setPosDiscountStr(''); setPosOngkirStr(''); showToast('Keranjang dibersihkan', 'success'); }
 
   const subTotal = cart.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
-  let actualDiscount = posDiscountStr.includes('%') ? (subTotal * (parseFloat(posDiscountStr) || 0)) / 100 : parseInt(posDiscountStr || 0, 10);
-  const actualOngkir = parseInt(posOngkirStr || 0, 10);
+  let actualDiscount = posDiscountStr.includes('%') ? (subTotal * (parseFloat(posDiscountStr) || 0)) / 100 : parseIDR(posDiscountStr || 0);
+  const actualOngkir = parseIDR(posOngkirStr || 0);
   const total = subTotal - actualDiscount + actualOngkir;
 
   const ptMultiplier = storeInfo.pointMultiplier || 10000;
