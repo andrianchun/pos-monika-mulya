@@ -221,7 +221,7 @@ export default function ProductManager({ products, setProducts, categories, unit
   );
 
   return (
-    <div className="h-full flex flex-col relative">
+    <div className="h-full flex flex-col relative -m-4 md:-m-6 p-2 sm:p-4">
       <DataTable 
         title={customTitle} columns={columns} data={[...products].sort((a, b) => a.name.localeCompare(b.name))} colors={colors} 
         onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }} 

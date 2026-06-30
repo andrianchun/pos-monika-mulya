@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import useDebounce from '../../hooks/useDebounce';
 
-export default function DataTable({ columns, data, onDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' } }) {
+export default function DataTable({ columns, data, onDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState(defaultSort);
@@ -36,17 +36,39 @@ export default function DataTable({ columns, data, onDelete, colors, title, acti
   const paginated = filtered.slice((page - 1) * limit, page * limit);
   
   return (
-    <div className={`flex flex-col h-full bg-transparent`}>
-      <div className={`flex flex-col md:flex-row justify-between items-center mb-4 gap-4 p-4 rounded-xl ${colors.panel} border ${colors.border}`}>
-        <h2 className={`text-lg sm:text-xl font-bold ${colors.text}`}>{title}</h2>
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <div className="relative w-full md:w-64">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={18} />
-            <input type="text" placeholder="Cari / Filter..." className={`w-full pl-9 pr-4 py-2 text-sm rounded-lg border ${colors.border} bg-transparent ${colors.text} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={search} onChange={e => setSearch(e.target.value)} />
+    <div className={`flex flex-col h-full bg-transparent ${posLayout ? 'p-2 sm:p-4' : ''}`}>
+      {posLayout ? (
+        <div className="flex flex-col gap-3 mb-4 shrink-0">
+          <div className="flex justify-start items-center gap-2">
+            {typeof title === 'string' ? <h2 className={`text-lg sm:text-xl font-bold ${colors.text}`}>{title}</h2> : title}
           </div>
-          {onAdd && <button onClick={onAdd} className={`w-full sm:w-auto px-4 py-2 rounded-lg text-[#18181B] text-sm font-semibold whitespace-nowrap flex items-center justify-center gap-2 ${colors.goldBg} hover:opacity-90`}><Plus size={16}/> {typeof onAdd === 'function' ? 'Tambah Data' : onAdd.label}</button>}
+          <div className="relative w-full">
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
+            <input 
+              type="text" 
+              placeholder="Cari nama atau Barcode..." 
+              className={`w-full pl-10 pr-4 py-3 rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} 
+              value={search} 
+              onChange={e => setSearch(e.target.value)} 
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className={`flex flex-col md:flex-row justify-between items-center mb-4 gap-4 p-4 rounded-xl ${colors.panel} border ${colors.border}`}>
+          {typeof title === 'string' ? (
+            <h2 className={`text-lg sm:text-xl font-bold ${colors.text} shrink-0`}>{title}</h2>
+          ) : (
+            <div className="shrink-0">{title}</div>
+          )}
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <div className="relative w-full md:w-64">
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={18} />
+              <input type="text" placeholder="Cari / Filter..." className={`w-full pl-9 pr-4 py-2 text-sm rounded-lg border ${colors.border} bg-transparent ${colors.text} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            {onAdd && <button onClick={onAdd} className={`w-full sm:w-auto px-4 py-2 rounded-lg text-[#18181B] text-sm font-semibold whitespace-nowrap flex items-center justify-center gap-2 ${colors.goldBg} hover:opacity-90`}><Plus size={16}/> {typeof onAdd === 'function' ? 'Tambah Data' : onAdd.label}</button>}
+          </div>
+        </div>
+      )}
       <div className={`flex-1 overflow-hidden rounded-xl border ${colors.border} ${colors.panel} flex flex-col shadow-sm`}>
         <div className="flex-1 overflow-auto custom-scrollbar">
           <table className={`w-full text-sm text-left ${colors.text}`}>

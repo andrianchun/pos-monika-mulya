@@ -278,7 +278,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
     ];
 
   return (
-    <div className="space-y-4 pb-10 select-none">
+    <div className="space-y-4 pb-10 select-none -m-4 md:-m-6 p-2 sm:p-4">
       <div className="flex justify-between items-center mb-4">
          <h2 className={`text-xl sm:text-2xl font-extrabold ${colors.text}`}>Dashboard Overview</h2>
          <div className="relative">

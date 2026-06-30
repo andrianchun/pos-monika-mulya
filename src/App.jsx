@@ -302,6 +302,7 @@ export default function App() {
 
     } catch (err) { 
       console.error(`Sync compute error:`, err); 
+      showToast(`Sinkronisasi Error: ${err.message}`, "error");
       return Promise.resolve();
     }
   };

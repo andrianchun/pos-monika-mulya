@@ -82,18 +82,6 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
      playSound('pop', isSoundOn);
      setIsRendering(true);
      
-     let currentBlob = notaBlob;
-     if (!currentBlob) {
-        try {
-            const el = document.getElementById('receipt-print-area');
-            if (el) {
-                const canvas = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
-                currentBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                setNotaBlob(currentBlob);
-            }
-        } catch(e) { console.error(e); }
-     }
-     
      let text = `*NOTA TRANSAKSI - ${storeInfo.name}*\n`;
      text += `No: ${doc.nota}\n`;
      text += `Tgl: ${new Date(doc.date).toLocaleString('id-ID')}\n`;
@@ -109,28 +97,56 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
      text += `Bayar: Rp ${formatIDR(doc.paid)}\n`;
      text += `Kembali: Rp ${formatIDR(doc.paid - doc.total)}\n\n`;
 
-     // 🔥 PERBAIKAN: Format Nomor HP Super Ketat agar WA langsung tancap ke chat tanpa error
-     let phone = doc.phone ? String(doc.phone).replace(/\D/g, '') : ''; // Hapus semua spasi, strip, tanda plus
+     try {
+         if (navigator.clipboard && window.isSecureContext) {
+             await navigator.clipboard.writeText(text);
+         } else {
+             const tempTextArea = document.createElement('textarea');
+             tempTextArea.value = text;
+             document.body.appendChild(tempTextArea);
+             tempTextArea.select();
+             document.execCommand('copy');
+             document.body.removeChild(tempTextArea);
+         }
+     } catch(err) {
+         console.warn("Gagal copy teks:", err);
+     }
+     
+     let currentBlob = notaBlob;
+     if (!currentBlob) {
+        try {
+            const el = document.getElementById('receipt-print-area');
+            if (el) {
+                const canvas = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
+                currentBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                setNotaBlob(currentBlob);
+            }
+        } catch(e) { console.error("Gambar nota WA:", e); }
+     }
+
+     if (currentBlob && typeof ClipboardItem !== 'undefined' && navigator.clipboard) {
+         try {
+             const item = new ClipboardItem({ "image/png": currentBlob });
+             await navigator.clipboard.write([item]);
+         } catch (clipboardErr) {
+             console.warn("Gambar gagal di-copy:", clipboardErr);
+         }
+     }
+
+     let phone = doc.phone ? String(doc.phone).replace(/\D/g, '') : '';
      if (phone.startsWith('0')) phone = '62' + phone.substring(1);
      
-     // URL Universal untuk pancingan buka Desktop App / Mobile App
-     const appUrl = phone 
-        ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}` 
-        : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-
      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
      if (isMobile) {
-         // OPSI 2 (MOBILE): Fitur Share Bawaan HP (Jika netlify / HTTPS)
-         if (notaBlob && navigator.share) {
+         if (currentBlob && navigator.share) {
              try {
-                 const file = new File([notaBlob], `Nota_${doc.nota}.png`, { type: 'image/png' });
+                 const file = new File([currentBlob], `Nota_${doc.nota}.png`, { type: 'image/png' });
                  await navigator.share({
                      title: `Nota Transaksi`,
                      text: text,
                      files: [file]
                  });
-                 return; 
              } catch (shareErr) {
                  window.location.href = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}` : `whatsapp://send?text=${encodeURIComponent(text)}`;
              }
@@ -138,29 +154,8 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
              window.location.href = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}` : `whatsapp://send?text=${encodeURIComponent(text)}`;
          }
      } else {
-         // OPSI 1 (PC / LAPTOP): Buka WA Desktop App + Auto Clipboard
-         // Fallback copy text via textarea (works almost anywhere)
-         try { 
-             const tempTextArea = document.createElement('textarea');
-             tempTextArea.value = text;
-             document.body.appendChild(tempTextArea);
-             tempTextArea.select();
-             document.execCommand('copy');
-             document.body.removeChild(tempTextArea);
-         } catch(e){}
-
-         // Try copy image if possible
-         if (notaBlob && typeof ClipboardItem !== 'undefined' && navigator.clipboard) {
-             try {
-                 const item = new ClipboardItem({ "image/png": notaBlob });
-                 await navigator.clipboard.write([item]);
-             } catch (clipboardErr) {
-                 console.log("Gambar gagal di-copy ke clipboard, teks sudah di-copy");
-             }
-         }
-         
          const desktopAppUrl = phone 
-            ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}` 
+            ? `whatsapp://send?phone=${phone}` 
             : `whatsapp://send?text=${encodeURIComponent(text)}`;
          
          window.location.href = desktopAppUrl;

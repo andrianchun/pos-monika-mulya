@@ -20,6 +20,8 @@ export default function POSHistory({
   const [deleteConfirmId, setDeleteConfirmId] = useState(null); 
 
   const activeData = tab === 'penjualan' ? sales : purchases; 
+
+  console.log("POSHistory Render. Sales length:", sales.length, "Purchases length:", purchases.length);
   
   const confirmDeleteAction = () => {
     playSound('pop', isSoundOn);
@@ -145,16 +147,20 @@ export default function POSHistory({
   ];
 
   return (
-    <div className="h-full flex flex-col relative overflow-hidden">
-      <div className="flex-1 overflow-hidden print:hidden">
+    <div className="h-full flex flex-col gap-4 relative overflow-hidden -m-4 md:-m-6 print:m-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 px-4 md:px-6 pt-4 md:pt-6 print:hidden">
+        <h1 className={`text-xl md:text-2xl font-bold ${colors.text} shrink-0`}>Riwayat Transaksi</h1>
+        <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
+          <button onClick={() => setTab('penjualan')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'penjualan' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
+          <button onClick={() => setTab('pembelian')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-hidden print:hidden px-4 md:px-6 pb-4 md:pb-6">
          <DataTable 
-            title={
-              <div className="flex gap-2">
-                <button onClick={() => setTab('penjualan')} className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${tab==='penjualan' ? colors.goldBg + ' text-[#18181B]' : colors.panel + ' ' + colors.text + ' border ' + colors.border}`}>Penjualan</button>
-                <button onClick={() => setTab('pembelian')} className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${tab==='pembelian' ? 'bg-blue-600 text-white' : colors.panel + ' ' + colors.text + ' border ' + colors.border}`}>Pembelian</button>
-              </div>
-            } 
+            title={`Data ${tab === 'penjualan' ? 'Penjualan' : 'Pembelian'}`}
             columns={columns} data={activeData} colors={colors} 
+            posLayout={true}
             onDelete={(r) => { playSound('pop', isSoundOn); setDeleteConfirmId(r.id); }} 
             actions={actions} 
             defaultSort={{key: 'date', direction: 'desc'}}

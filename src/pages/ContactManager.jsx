@@ -63,15 +63,19 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
   };
   
   return (
-    <div className="h-full flex flex-col relative">
-       <div className="flex-1 overflow-hidden">
-         <DataTable 
-           title={
-             <div className="flex gap-2">
-               <button onClick={() => setTab('customer')} className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${tab==='customer' ? colors.goldBg + ' text-[#18181B]' : colors.panel + ' ' + colors.text + ' border ' + colors.border}`}>Customer</button>
-               <button onClick={() => setTab('supplier')} className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${tab==='supplier' ? 'bg-blue-600 text-white' : colors.panel + ' ' + colors.text + ' border ' + colors.border}`}>Supplier</button>
-             </div>
-           } 
+    <div className="h-full flex flex-col gap-4 relative overflow-hidden -m-4 md:-m-6 print:m-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 px-4 md:px-6 pt-4 md:pt-6 print:hidden">
+        <h1 className={`text-xl md:text-2xl font-bold ${colors.text} shrink-0`}>Manajemen Kontak</h1>
+        <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
+          <button onClick={() => setTab('customer')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'customer' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Customer</button>
+          <button onClick={() => setTab('supplier')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'supplier' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Supplier</button>
+        </div>
+      </div>
+      
+      <div className="flex-1 overflow-hidden print:hidden px-4 md:px-6 pb-4 md:pb-6">
+        <DataTable 
+           title={null}
+           posLayout={true}
            columns={tab === 'customer' ? columnsCustomer : columnsSupplier} 
            data={tab === 'customer' ? customers.filter(c => c.id !== 1) : suppliers} 
            colors={colors} 
@@ -81,7 +85,7 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
              { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-blue-200', onClick: handleEdit }
            ]}
            onDelete={(row) => { if(tab === 'customer' && row.id === 1) showToast('Kontak default tidak bisa dihapus', 'error'); else { playSound('pop', isSoundOn); setDeleteContact(row); } }} 
-         />
+        />
        </div>
 
        <ContactProfileModal 

@@ -246,7 +246,7 @@ export default function Header({
                                        <div className="flex items-center gap-2 min-w-0">
                                           <span className={`text-xs font-bold ${colors.text} truncate`}>Order ke: {group.supplier.name}</span>
                                        </div>
-                                       <button onClick={() => handleSendBulkSupplierWA(group)} className={`px-3 py-1.5 ${colors.goldBg} text-[#18181B] rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 text-[10px] font-bold shadow-sm shrink-0`}>
+                                       <button onClick={() => handleSendBulkSupplierWA(group)} className={`px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1 text-[10px] font-bold shadow-sm shrink-0`}>
                                           <Send size={12}/> Pesan
                                        </button>
                                     </div>

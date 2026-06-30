@@ -159,6 +159,29 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
   const leaderboardFull = calculateLeaderboard(activeReport === 'pembelian' ? filteredPurchases : filteredSales);
   const topItems = leaderboardFull.slice(0, 5); const slowestItems = [...leaderboardFull].reverse().slice(0, 5);
 
+  const enrichedReportData = useMemo(() => {
+     return activeDataArray.map(s => {
+        const hpp = s.items.reduce((sum, i) => sum + (i.cost * i.qty), 0);
+        return {
+           ...s,
+           hpp,
+           itemCount: s.items.length,
+           laba: s.total - hpp
+        };
+     });
+  }, [activeDataArray]);
+
+  const reportColumns = [
+    { key: 'date', label: 'Tgl', render: r => new Date(r.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+    { key: 'nota', label: 'Nota', render: r => <span className="font-semibold text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedDoc(r)}>{r.nota}</span> },
+    { key: 'itemCount', label: 'Item', render: r => `${r.itemCount} Macam` },
+    { key: 'hpp', label: 'Modal Pokok', render: r => `Rp ${formatIDR(r.hpp)}` },
+    { key: 'total', label: 'Total (Neto)', render: r => <span className={`font-bold ${activeReport === 'pembelian' ? 'text-blue-600' : 'text-green-600'}`}>Rp {formatIDR(r.total)}</span> }
+  ];
+  if (activeReport === 'penjualan') {
+    reportColumns.push({ key: 'laba', label: 'Laba', render: r => <span className="font-bold text-purple-600">Rp {formatIDR(r.laba)}</span> });
+  }
+
   const calculateNeraca = () => {
      const totalPenjualan = filteredSales.reduce((sum, s) => sum + s.total, 0);
      const totalHPP = filteredSales.reduce((sum, s) => sum + s.items.reduce((itemSum, item) => itemSum + (item.cost * item.qty), 0), 0);
@@ -207,7 +230,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
   const filteredAccountingTable = enrichedAccounting.filter(a => selectedAccFilter === '' || a.accountId === Number(selectedAccFilter));
 
   const accColumns = [
-    { key: 'date', label: 'Tanggal', render: r => new Date(r.date).toLocaleDateString('id-ID') },
+    { key: 'date', label: 'Tanggal', render: r => new Date(r.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
     { key: 'accNameDisplay', label: 'Jenis Akun', render: r => <span className="capitalize text-[10px] font-semibold px-2 py-1 rounded bg-[#F8FAFC] dark:bg-[#27272A] whitespace-nowrap">{r.accNameDisplay}</span> },
     { key: 'name', label: 'Keterangan' },
     { key: 'amount', label: 'Nominal', render: r => <span className={`font-bold ${r.amount < 0 ? 'text-red-500' : 'text-green-600'}`}>{r.amount < 0 ? '-' : ''} Rp {formatIDR(Math.abs(r.amount))}</span> }
@@ -227,7 +250,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
   }
 
   return (
-    <div className="flex flex-col h-full gap-4">
+    <div className="flex flex-col h-full gap-4 -m-4 md:-m-6 p-2 sm:p-4">
        <div className={`p-4 rounded-xl border ${colors.border} ${colors.panel} flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-4`}>
          <div className="flex items-center gap-4">
             <button onClick={() => { playSound('pop', isSoundOn); setActiveReport(null); }} className={`p-2 rounded-full hover:bg-[#F8FAFC] dark:bg-[#27272A] ${colors.text}`}><ChevronLeft size={24}/></button>
@@ -300,31 +323,14 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
                    </div>
                 )}
 
-                <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-                   <table className={`w-full text-sm text-left ${colors.text} mb-0`}>
-                      <thead className={`text-xs uppercase ${activeReport === 'pembelian' ? 'bg-blue-50 dark:bg-blue-900/20' : colors.creamBg} border-b ${colors.border}`}>
-                        <tr><th className="px-4 py-3">Tgl</th><th className="px-4 py-3">Nota</th><th className="px-4 py-3">Item</th><th className="px-4 py-3 text-right">Modal Pokok</th><th className="px-4 py-3 text-right">Total (Neto)</th>{activeReport==='penjualan' && <th className="px-4 py-3 text-right">Laba</th>}</tr>
-                      </thead>
-                      <tbody>
-                        {activeDataArray.length === 0 ? (
-                           <tr><td colSpan={6} className="text-center py-10 italic text-gray-500 border-b border-gray-200 dark:border-gray-800">Tidak ada data di periode ini.</td></tr>
-                        ) : (
-                           activeDataArray.map(s => {
-                              const hpp = s.items.reduce((sum, i) => sum + (i.cost * i.qty), 0);
-                              return (
-                                 <tr key={s.id} className={`border-b ${colors.border} hover:${colors.creamBg}`}>
-                                    <td className="px-4 py-3">{new Date(s.date).toLocaleDateString('id-ID')}</td>
-                                    <td className="px-4 py-3 font-semibold text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedDoc(s)}>{s.nota}</td>
-                                    <td className="px-4 py-3">{s.items.length} Macam</td>
-                                    <td className="px-4 py-3 text-right">Rp {formatIDR(hpp)}</td>
-                                    <td className={`px-4 py-3 text-right font-bold ${activeReport === 'pembelian' ? 'text-blue-600' : 'text-green-600'}`}>Rp {formatIDR(s.total)}</td>
-                                    {activeReport==='penjualan' && <td className="px-4 py-3 text-right font-bold text-purple-600">Rp {formatIDR(s.total - hpp)}</td>}
-                                 </tr>
-                              )
-                           })
-                        )}
-                      </tbody>
-                   </table>
+                <div className="overflow-hidden print:hidden mb-4">
+                   <DataTable 
+                      title="Rincian Transaksi" 
+                      columns={reportColumns} 
+                      data={enrichedReportData} 
+                      defaultSort={{key: 'date', direction: 'desc'}} 
+                      colors={colors} 
+                   />
                 </div>
              </div>
           )}

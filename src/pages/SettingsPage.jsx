@@ -341,7 +341,8 @@ export default function SettingsPage({
   };
 
   return (
-    <div className="h-full flex flex-col max-w-6xl mx-auto pb-10 select-none">
+    <div className="h-full flex flex-col -m-4 md:-m-6 p-2 sm:p-4 overflow-hidden relative">
+      <div className="h-full flex flex-col max-w-6xl mx-auto w-full pb-10 select-none overflow-y-auto custom-scrollbar pr-2">
       <h2 className={`text-2xl font-bold mb-4 shrink-0 ${colors.text}`}>Pengaturan Sistem</h2>
       <div className={`flex overflow-x-auto custom-scrollbar border-b ${colors.border} mb-6 shrink-0`}>
         {[
@@ -882,6 +883,7 @@ export default function SettingsPage({
 
       {deleteUsr && <DeleteConfirmModal title="Hapus Akun User?" desc="Yakin hapus akun ini?" btnText="Hapus" onConfirm={() => { setUsers((users||[]).filter(u => u !== deleteUsr)); setDeleteUsr(null); showToast('User dihapus', 'success'); }} onCancel={() => setDeleteUsr(null)} colors={colors} isSoundOn={isSoundOn} />}
       {deleteFin && <DeleteConfirmModal title="Hapus Akun Keuangan?" desc="Yakin hapus akun ini?" btnText="Hapus" onConfirm={() => { setFinancialAccounts((financialAccounts||[]).filter(f => f.id !== deleteFin)); setDeleteFin(null); showToast('Akun dihapus', 'success'); }} onCancel={() => setDeleteFin(null)} colors={colors} isSoundOn={isSoundOn} />}
+      </div>
     </div>
   );
 }

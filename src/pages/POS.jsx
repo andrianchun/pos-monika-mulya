@@ -9,8 +9,8 @@ import DocumentReceiptModal from '../components/modals/DocumentReceiptModal';
 function ModeToggle({ mode, setMode, colors, isSoundOn }) {
   return (
      <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
-        <button onClick={() => { playSound('pop', isSoundOn); setMode('penjualan') }} className={`px-4 sm:px-6 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'penjualan' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
-        <button onClick={() => { playSound('pop', isSoundOn); setMode('pembelian') }} className={`px-4 sm:px-6 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
+        <button onClick={() => { playSound('pop', isSoundOn); setMode('penjualan') }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${mode === 'penjualan' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
+        <button onClick={() => { playSound('pop', isSoundOn); setMode('pembelian') }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${mode === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
      </div>
   );
 }
@@ -234,117 +234,129 @@ export default function POS({ products, setProducts, customers, setCustomers, su
 
   const handleCheckout = (e, action, depositUsed = 0, depositAdded = 0) => {
     if(e) e.preventDefault();
-    const paidCash = paymentAmount === '' ? 0 : parseIDR(paymentAmount);
-    const totalPaid = paidCash + depositUsed;
-    if(paidCash < 0) { showToast('Masukkan nominal valid!', 'error'); return; }
-    
-    const isLunas = totalPaid >= total;
-    
-    // Hitung uang fisik yang benar-benar masuk laci kasir (potong kembalian jika tidak masuk deposit)
-    let actualCashToKas = paidCash;
-    if (totalPaid > total && depositAdded === 0) {
-      const kembalian = totalPaid - total;
-      actualCashToKas = paidCash - kembalian;
-    }
-    
-    // --- TAMBAHAN VALIDASI PIUTANG / UTANG ---
-    if (!isLunas) {
-      if (!dueDate) {
-        showToast('Tanggal Jatuh Tempo WAJIB diisi untuk transaksi Tempo/Piutang/Utang!', 'error');
-        return;
+    try {
+      const paidCash = paymentAmount === '' ? 0 : parseIDR(paymentAmount);
+      const totalPaid = paidCash + depositUsed;
+      if(paidCash < 0) { showToast('Masukkan nominal valid!', 'error'); return; }
+      
+      const isLunas = totalPaid >= total;
+      
+      // Hitung uang fisik yang benar-benar masuk laci kasir (potong kembalian jika tidak masuk deposit)
+      let actualCashToKas = paidCash;
+      if (totalPaid > total && depositAdded === 0) {
+        const kembalian = totalPaid - total;
+        actualCashToKas = paidCash - kembalian;
       }
-      if (posMode === 'penjualan') {
-        const custObj = customers.find(c => String(c.id) === String(selectedCustomer));
-        if (!custObj || String(custObj.id) === '1' || !custObj.name || custObj.name === '(anonim)' || !custObj.phone) {
-          showToast('Transaksi PIUTANG wajib memilih Pelanggan dengan Nama & No. HP!', 'error');
+      
+      // --- TAMBAHAN VALIDASI PIUTANG / UTANG ---
+      if (!isLunas) {
+        if (!dueDate) {
+          showToast('Tanggal Jatuh Tempo WAJIB diisi untuk transaksi Tempo/Piutang/Utang!', 'error');
           return;
         }
-      } else {
-        const suppObj = suppliers.find(c => String(c.id) === String(selectedSupplier));
-        if (!suppObj || String(suppObj.id) === '1' || !suppObj.name || suppObj.name === '(anonim)' || !suppObj.phone) {
-          showToast('Transaksi UTANG wajib memilih Supplier dengan Nama & No. HP!', 'error');
-          return;
+        if (posMode === 'penjualan') {
+          const custObj = customers.find(c => String(c.id) === String(selectedCustomer));
+          if (!custObj || String(custObj.id) === '1' || !custObj.name || custObj.name === '(anonim)' || !custObj.phone) {
+            showToast('Transaksi PIUTANG wajib memilih Pelanggan dengan Nama & No. HP!', 'error');
+            return;
+          }
+        } else {
+          const suppObj = suppliers.find(c => String(c.id) === String(selectedSupplier));
+          if (!suppObj || String(suppObj.id) === '1' || !suppObj.name || suppObj.name === '(anonim)' || !suppObj.phone) {
+            showToast('Transaksi UTANG wajib memilih Supplier dengan Nama & No. HP!', 'error');
+            return;
+          }
         }
       }
+
+      playSound('cash', isSoundOn);
+      
+      let docDate = new Date();
+      if (transactionDate && transactionDate !== getTodayStr()) {
+          const [y, m, d] = transactionDate.split('-');
+          docDate.setFullYear(Number(y), Number(m) - 1, Number(d));
+      }
+      const dstr = `${String(docDate.getDate()).padStart(2,'0')}${String(docDate.getMonth()+1).padStart(2,'0')}${docDate.getFullYear()}`;
+      let genNota = posMode === 'penjualan' ? `${storeInfo?.prefixSales || 'INV'}${dstr}-${String(storeInfo?.nextSeqSales || 1).padStart(4,'0')}` : `${storeInfo?.prefixPurchase || 'PO'}${dstr}-${String(storeInfo?.nextSeqPurchase || 1).padStart(4,'0')}`;
+      
+      const custObj = customers.find(c => String(c.id) === String(selectedCustomer));
+      const suppObj = suppliers.find(c => String(c.id) === String(selectedSupplier));
+      const cName = custObj?.name || '-';
+      const sName = suppObj?.name || '-';
+      const activeAccount = financialAccounts.find(a => a.id === Number(paymentMethodId));
+
+      const newRecord = {
+        id: Date.now(), nota: genNota, date: docDate.toISOString(),
+        customer: posMode === 'penjualan' ? cName : undefined, supplier: posMode === 'pembelian' ? sName : undefined,
+        phone: posMode === 'penjualan' ? custObj?.phone : suppObj?.phone, 
+        items: cart, subtotal: subTotal, discount: actualDiscount, ongkir: actualOngkir, total, paid: totalPaid, status: isLunas ? 'Lunas' : 'Tempo', dueDate: isLunas ? null : dueDate,
+        depositUsed, depositAdded,
+        kasir: user?.name || 'Kasir', earnedPoints,
+        paymentHistory: [
+           ...(depositUsed > 0 ? [{ date: docDate.toISOString(), amount: depositUsed, method: 'Saldo Deposit', accountId: null }] : []),
+           ...(paidCash > 0 ? [{ date: docDate.toISOString(), amount: paidCash, method: activeAccount ? activeAccount.name : 'Unknown', accountId: Number(paymentMethodId) }] : [])
+        ]
+      };
+
+      setCheckoutModal(false); 
+      setShowMobileCart(false); 
+      setCart([]); 
+      setPosDiscountStr(''); 
+      setPosOngkirStr(''); 
+      setPaymentAmount(''); 
+      setDueDate(''); 
+      setTransactionDate(getTodayStr()); 
+      setPaymentMethodId(financialAccounts[0]?.id || '');
+      setUseAutoOngkir(false);
+      setSelectedCustomer(customers[0]?.id || '');
+      setSelectedSupplier(1);
+
+      if (action === 'simpan') {
+         setCompletedDoc(null);
+         showToast(`Transaksi Berhasil! ${earnedPoints > 0 ? `(+${earnedPoints} Poin)` : ''}`, 'success');
+      } else if (action === 'cetak') {
+         setCompletedDoc({ ...newRecord, autoAction: 'cetak' });
+      } else if (action === 'wa') {
+         setCompletedDoc({ ...newRecord, autoAction: 'wa' });
+      }
+
+      setTimeout(() => {
+          try {
+            if(posMode === 'penjualan') setStoreInfo({...storeInfo, nextSeqSales: (storeInfo?.nextSeqSales || 1) + 1});
+            else setStoreInfo({...storeInfo, nextSeqPurchase: (storeInfo?.nextSeqPurchase || 1) + 1});
+
+            setProducts(prevProducts => prevProducts.map(p => {
+              const cartItem = cart.find(c => c.id === p.id);
+              if (cartItem) return { ...p, stock: posMode === 'penjualan' ? p.stock - Number(cartItem.qty) : p.stock + Number(cartItem.qty) };
+              return p;
+            }));
+            
+            if (posMode === 'penjualan' && (!isCustomerUmum || depositUsed > 0 || depositAdded > 0)) {
+               setCustomers(prevCusts => prevCusts.map(c => {
+                 if (String(c.id) === String(selectedCustomer)) {
+                     const updatedPoints = earnedPoints > 0 ? (c.points || 0) + earnedPoints : c.points;
+                     const updatedDeposit = (c.deposit || 0) - depositUsed + depositAdded;
+                     return { ...c, points: updatedPoints, deposit: updatedDeposit };
+                 }
+                 return c;
+               }));
+            }
+
+            if (actualCashToKas > 0 && activeAccount) {
+                setAccounting(prev => [...prev, { id: Date.now()+1, type: 'kas', accountId: activeAccount.id, name: posMode === 'penjualan' ? `Penerimaan Nota ${genNota}` : `Pembayaran Nota ${genNota}`, amount: posMode === 'penjualan' ? actualCashToKas : -actualCashToKas, date: docDate.toISOString() }]);
+            }
+
+            if(posMode === 'penjualan') setSales(prev => [newRecord, ...prev]); 
+            else setPurchases(prev => [newRecord, ...prev]);
+          } catch (innerErr) {
+            console.error("SetTimeout HandleCheckout Error:", innerErr);
+            showToast(`Error Update State: ${innerErr.message}`, 'error');
+          }
+      }, 50); 
+    } catch (err) {
+      console.error("HandleCheckout Error:", err);
+      showToast(`Gagal memproses transaksi: ${err.message}`, 'error');
     }
-    // -----------------------------------------
-
-    playSound('cash', isSoundOn);
-    
-    const docDate = transactionDate ? new Date(transactionDate) : new Date();
-    const dstr = `${String(docDate.getDate()).padStart(2,'0')}${String(docDate.getMonth()+1).padStart(2,'0')}${docDate.getFullYear()}`;
-    let genNota = posMode === 'penjualan' ? `${storeInfo.prefixSales}${dstr}-${String(storeInfo.nextSeqSales).padStart(4,'0')}` : `${storeInfo.prefixPurchase}${dstr}-${String(storeInfo.nextSeqPurchase).padStart(4,'0')}`;
-    
-    const custObj = customers.find(c => String(c.id) === String(selectedCustomer));
-    const suppObj = suppliers.find(c => String(c.id) === String(selectedSupplier));
-    const cName = custObj?.name || '-';
-    const sName = suppObj?.name || '-';
-    const activeAccount = financialAccounts.find(a => a.id === Number(paymentMethodId));
-
-    const newRecord = {
-      id: Date.now(), nota: genNota, date: docDate.toISOString(),
-      customer: posMode === 'penjualan' ? cName : undefined, supplier: posMode === 'pembelian' ? sName : undefined,
-      phone: posMode === 'penjualan' ? custObj?.phone : suppObj?.phone, 
-      items: cart, subtotal: subTotal, discount: actualDiscount, ongkir: actualOngkir, total, paid: totalPaid, status: isLunas ? 'Lunas' : 'Tempo', dueDate: isLunas ? null : dueDate,
-      depositUsed, depositAdded,
-      kasir: user.name, earnedPoints,
-      paymentHistory: [
-         ...(depositUsed > 0 ? [{ date: docDate.toISOString(), amount: depositUsed, method: 'Saldo Deposit', accountId: null }] : []),
-         ...(paidCash > 0 ? [{ date: docDate.toISOString(), amount: paidCash, method: activeAccount ? activeAccount.name : 'Unknown', accountId: Number(paymentMethodId) }] : [])
-      ]
-    };
-
-    setCheckoutModal(false); 
-    setShowMobileCart(false); 
-    setCart([]); 
-    setPosDiscountStr(''); 
-    setPosOngkirStr(''); 
-    setPaymentAmount(''); 
-    setDueDate(''); 
-    setTransactionDate(getTodayStr()); 
-    setPaymentMethodId(financialAccounts[0]?.id || '');
-    setUseAutoOngkir(false);
-    setSelectedCustomer(customers[0]?.id || '');
-    setSelectedSupplier(1);
-
-    if (action === 'simpan') {
-       setCompletedDoc(null);
-       showToast(`Transaksi Berhasil! ${earnedPoints > 0 ? `(+${earnedPoints} Poin)` : ''}`, 'success');
-    } else if (action === 'cetak') {
-       setCompletedDoc({ ...newRecord, autoAction: 'cetak' });
-    } else if (action === 'wa') {
-       setCompletedDoc({ ...newRecord, autoAction: 'wa' });
-    }
-
-    setTimeout(() => {
-        if(posMode === 'penjualan') setStoreInfo({...storeInfo, nextSeqSales: storeInfo.nextSeqSales + 1});
-        else setStoreInfo({...storeInfo, nextSeqPurchase: storeInfo.nextSeqPurchase + 1});
-
-        setProducts(prevProducts => prevProducts.map(p => {
-          const cartItem = cart.find(c => c.id === p.id);
-          if (cartItem) return { ...p, stock: posMode === 'penjualan' ? p.stock - Number(cartItem.qty) : p.stock + Number(cartItem.qty) };
-          return p;
-        }));
-        
-        if (posMode === 'penjualan' && (!isCustomerUmum || depositUsed > 0 || depositAdded > 0)) {
-           setCustomers(prevCusts => prevCusts.map(c => {
-             if (String(c.id) === String(selectedCustomer)) {
-                 const updatedPoints = earnedPoints > 0 ? (c.points || 0) + earnedPoints : c.points;
-                 const updatedDeposit = (c.deposit || 0) - depositUsed + depositAdded;
-                 return { ...c, points: updatedPoints, deposit: updatedDeposit };
-             }
-             return c;
-           }));
-        }
-
-        if (actualCashToKas > 0 && activeAccount) {
-            setAccounting(prev => [...prev, { id: Date.now()+1, type: 'kas', accountId: activeAccount.id, name: posMode === 'penjualan' ? `Penerimaan Nota ${genNota}` : `Pembayaran Nota ${genNota}`, amount: posMode === 'penjualan' ? actualCashToKas : -actualCashToKas, date: docDate.toISOString() }]);
-        }
-
-        if(posMode === 'penjualan') setSales(prev => [newRecord, ...prev]); 
-        else setPurchases(prev => [newRecord, ...prev]);
-
-    }, 50); 
   };
 
   const handleSearchKeyDown = (e) => {
@@ -357,7 +369,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   }
 
   return (
-    <div className="h-full flex flex-col -m-4 lg:-m-6 print:m-0">
+    <div className="h-full flex flex-col -m-4 md:-m-6 print:m-0">
       <div className="flex-1 overflow-hidden print:overflow-visible bg-gray-50 dark:bg-[#121212]">
         <div className="flex flex-col lg:flex-row h-full relative overflow-hidden">
           <div className={`flex-1 flex-col p-2 sm:p-4 border-b lg:border-b-0 lg:border-r ${colors.border} ${colors.panel} h-full lg:h-auto overflow-hidden ${showMobileCart ? 'hidden lg:flex' : 'flex'}`}>
