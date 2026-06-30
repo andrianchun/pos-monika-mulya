@@ -68,8 +68,10 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
     iframeDoc.close();
     
     setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }
       
       if (doc?.autoAction === 'cetak') {
         setTimeout(onClose, 1000);

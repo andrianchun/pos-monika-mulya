@@ -248,36 +248,36 @@ export default function TransactionEditModal({
                             </div>
                          ))}
                       </div>
-                      <div className={`flex justify-between p-2 rounded bg-gray-100 dark:bg-gray-700 font-bold text-sm`}>
+                      <div className={`flex justify-between p-2 rounded-lg ${colors.creamBg} font-bold text-sm border ${colors.border}`}>
                          <span className={colors.text}>TOTAL TERBAYAR:</span><span className="text-green-600">Rp {formatIDR(editedDoc.paid)}</span>
                       </div>
                       {editedDoc.total > editedDoc.paid && (
-                         <div className={`flex justify-between p-2 rounded bg-red-100 dark:bg-red-900/30 font-bold text-sm text-red-600 mt-2`}>
+                         <div className={`flex justify-between p-2 rounded-lg bg-red-500/5 border border-red-500/20 font-bold text-sm text-red-500 mt-2`}>
                             <span>KEKURANGAN / SISA:</span><span>Rp {formatIDR(editedDoc.total - editedDoc.paid)}</span>
                          </div>
                       )}
                       {editedDoc.total < editedDoc.paid && (
-                         <div className={`flex justify-between p-2 rounded bg-orange-100 dark:bg-orange-900/30 font-bold text-sm text-orange-600 mt-2`}>
+                         <div className={`flex justify-between p-2 rounded-lg bg-orange-500/5 border border-orange-500/20 font-bold text-sm text-orange-500 mt-2`}>
                             <span>KEMBALIAN / LEBIH BAYAR:</span><span>Rp {formatIDR(editedDoc.paid - editedDoc.total)}</span>
                          </div>
                       )}
                    </div>
 
                    {editedDoc.total > editedDoc.paid && (
-                      <form onSubmit={addPayment} className={`p-4 rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-900/10`}>
-                         <h4 className="font-bold text-sm text-blue-800 dark:text-blue-300 mb-3">Tambah Cicilan / Pelunasan</h4>
+                      <form onSubmit={addPayment} className={`p-4 rounded-xl border ${colors.border} ${colors.creamBg}`}>
+                         <h4 className={`font-bold text-sm ${colors.text} mb-3`}>Tambah Cicilan / Pelunasan</h4>
                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                            <div><label className="block text-xs font-semibold mb-1 ${colors.text} dark:text-stone-400">Tanggal Bayar</label><input type="date" required className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none [color-scheme:light] dark:[color-scheme:dark]`} value={newPayment.date} onChange={e => setNewPayment({...newPayment, date: e.target.value})} /></div>
-                            <div><label className="block text-xs font-semibold mb-1 ${colors.text} dark:text-stone-400">Akun Keuangan</label><select required className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} value={newPayment.accountId} onChange={e => setNewPayment({...newPayment, accountId: e.target.value})}>{financialAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+                            <div><label className={`block text-xs font-semibold mb-1 ${colors.text}`}>Tanggal Bayar</label><input type="date" required className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none [color-scheme:light] dark:[color-scheme:dark]`} value={newPayment.date} onChange={e => setNewPayment({...newPayment, date: e.target.value})} /></div>
+                            <div><label className={`block text-xs font-semibold mb-1 ${colors.text}`}>Akun Keuangan</label><select required className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} value={newPayment.accountId} onChange={e => setNewPayment({...newPayment, accountId: e.target.value})}>{financialAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
                              <div>
-                                <label className="block text-xs font-semibold mb-1 ${colors.text} dark:text-stone-400">Nominal (Rp)</label>
+                                <label className={`block text-xs font-semibold mb-1 ${colors.text}`}>Nominal (Rp)</label>
                                 <div className="flex gap-2">
                                    <input type="text" required className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none font-bold placeholder-gray-300 dark:placeholder-gray-600`} value={newPayment.amount ? formatIDR(newPayment.amount) : ''} onChange={e => setNewPayment({...newPayment, amount: e.target.value.replace(/[^0-9]/g, '')})} placeholder={formatIDR(editedDoc.total - editedDoc.paid)} />
-                                   <button type="button" onClick={() => setNewPayment({...newPayment, amount: editedDoc.total - editedDoc.paid})} className="${colors.goldBg} text-[#18181B] text-xs px-3 rounded-lg font-bold hover:bg-blue-700 shrink-0 shadow-sm">Lunasi</button>
+                                   <button type="button" onClick={() => setNewPayment({...newPayment, amount: editedDoc.total - editedDoc.paid})} className={`${colors.goldBg} text-[#18181B] text-xs px-3 rounded-lg font-bold hover:opacity-90 shrink-0 shadow-sm`}>Lunasi</button>
                                 </div>
                              </div>
                          </div>
-                         <button type="submit" className="w-full py-2 ${colors.goldBg} hover:opacity-90 text-[#18181B] font-bold rounded-lg shadow-sm">Tambahkan Pembayaran</button>
+                         <button type="submit" className={`w-full py-2 ${colors.goldBg} hover:opacity-90 text-[#18181B] font-bold rounded-lg shadow-sm`}>Tambahkan Pembayaran</button>
                       </form>
                    )}
                 </div>

@@ -2,13 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { TrendingUp, BarChart2, ShoppingCart, Users, ChevronDown, Activity, Package, Star, AlertTriangle, Wallet } from 'lucide-react';
 import { formatIDR, playSound } from '../utils/helpers';
 
-export default function Dashboard({ products, sales, purchases, customers, colors, theme, handleMenuClick, isSoundOn }) {
-  const [timeRange, setTimeRange] = useState('bulan'); 
-  const [chartType, setChartType] = useState('bar'); 
-  const [chartTab, setChartTab] = useState('penjualan'); 
-  const [listTab, setListTab] = useState('laris'); 
+export default function Dashboard({ products, sales, purchases, customers, colors, theme, handleMenuClick, isSoundOn, globalChartMode, setGlobalChartMode }) {
+  const [timeRange, setTimeRange] = useState('bulan');
+  const [chartTab, setChartTab] = useState('penjualan');
+  const [listTab, setListTab] = useState('laris');
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
-
   const ranges = {
     hari: 'Hari Ini',
     minggu: 'Minggu Ini',
@@ -18,17 +16,19 @@ export default function Dashboard({ products, sales, purchases, customers, color
   };
 
   const filteredSales = useMemo(() => {
-    const now = new Date();
     return sales.filter(s => {
       const d = new Date(s.date);
-      if (timeRange === 'hari') return d.toDateString() === now.toDateString();
+      const now = new Date();
+      if (timeRange === 'hari') {
+        return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }
       if (timeRange === 'minggu') {
-        const weekAgo = new Date(); weekAgo.setDate(now.getDate() - 6);
+        const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 6);
         weekAgo.setHours(0,0,0,0);
         return d >= weekAgo;
       }
       if (timeRange === 'bulan') {
-        const monthAgo = new Date(); monthAgo.setDate(now.getDate() - 29);
+        const monthAgo = new Date(now); monthAgo.setDate(now.getDate() - 29);
         monthAgo.setHours(0,0,0,0);
         return d >= monthAgo;
       }
@@ -37,8 +37,8 @@ export default function Dashboard({ products, sales, purchases, customers, color
         yearAgo.setHours(0,0,0,0);
         return d >= yearAgo;
       }
-      if (timeRange === 'semua') return true; 
-      return true; 
+      if (timeRange === 'semua') return true;
+      return true;
     });
   }, [sales, timeRange]);
 
@@ -49,12 +49,13 @@ export default function Dashboard({ products, sales, purchases, customers, color
     const totalTransaksi = filteredSales.length;
     const uniqueCusts = new Set(filteredSales.map(s => s.customer).filter(c => c && c !== '(anonim)' && c !== '-' && c !== 'Konsumen Umum')).size;
     
-    const now = new Date();
+    // Hitung tren (bandingkan dengan periode sebelumnya)
     const prevSales = sales.filter(s => {
       const d = new Date(s.date);
+      const now = new Date();
       if (timeRange === 'hari') {
         const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-        return d.toDateString() === yesterday.toDateString();
+        return d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear();
       }
       if (timeRange === 'minggu') {
         const twoWeeksAgo = new Date(now); twoWeeksAgo.setDate(now.getDate() - 13);
@@ -278,7 +279,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
     ];
 
   return (
-    <div className="space-y-4 pb-10 select-none -m-4 md:-m-6 p-2 sm:p-4">
+    <div className="space-y-4 select-none -m-4 md:-m-6 p-4 sm:p-6 min-h-full bg-gray-50 dark:bg-[#121212] pb-10">
       <div className="flex justify-between items-center mb-4">
          <h2 className={`text-xl sm:text-2xl font-extrabold ${colors.text}`}>Dashboard Overview</h2>
          <div className="relative">
@@ -333,8 +334,8 @@ export default function Dashboard({ products, sales, purchases, customers, color
             <div className="flex justify-between items-center mb-6">
                <h3 className={`font-black text-base ${colors.text}`}>Grafik {ranges[timeRange]}</h3>
                <div className={`flex bg-gray-100 dark:bg-[#121212] rounded-xl p-1 border ${colors.border}`}>
-                  <button onClick={() => setChartType('bar')} className={`px-4 py-1.5 rounded-lg transition-all ${chartType === 'bar' ? 'bg-white dark:bg-[#27272A] shadow-sm text-[#D4AF37]' : 'text-gray-400'}`}><BarChart2 size={16}/></button>
-                  <button onClick={() => setChartType('line')} className={`px-4 py-1.5 rounded-lg transition-all ${chartType === 'line' ? 'bg-white dark:bg-[#27272A] shadow-sm text-[#D4AF37]' : 'text-gray-400'}`}><Activity size={16}/></button>
+                  <button onClick={() => setGlobalChartMode('bar')} className={`px-4 py-1.5 rounded-lg transition-all ${globalChartMode === 'bar' ? 'bg-white dark:bg-[#27272A] shadow-sm text-[#D4AF37]' : 'text-gray-400'}`}><BarChart2 size={16}/></button>
+                  <button onClick={() => setGlobalChartMode('line')} className={`px-4 py-1.5 rounded-lg transition-all ${globalChartMode === 'line' ? 'bg-white dark:bg-[#27272A] shadow-sm text-[#D4AF37]' : 'text-gray-400'}`}><Activity size={16}/></button>
                </div>
             </div>
 
@@ -356,7 +357,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
                   ))}
                </div>
 
-               {chartType === 'bar' ? (
+               {globalChartMode === 'bar' ? (
                   <div className="w-full h-[220px] flex items-end justify-between gap-1 sm:gap-3 relative z-10 pb-6">
                     {chartData.map((d, i) => {
                       const h = (d.value / maxChartVal) * 100;

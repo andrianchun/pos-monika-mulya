@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, Search, ChevronLeft, ChevronRight, X, Trash2, Calendar, Ticket, Gift } from 'lucide-react';
+import { ShoppingCart, Search, ChevronLeft, ChevronRight, X, Trash2, Calendar, Ticket, Gift, Package } from 'lucide-react';
 import { formatIDR, parseIDR, playSound, calculateDynamicPrice, smartFormatInput } from '../utils/helpers';
 import useDebounce from '../hooks/useDebounce';
 import SearchableSelect from '../components/ui/SearchableSelect';
@@ -15,27 +15,9 @@ function ModeToggle({ mode, setMode, colors, isSoundOn }) {
   );
 }
 
-export default function POS({ products, setProducts, customers, setCustomers, suppliers, sales, setSales, purchases, setPurchases, colors: baseColors, showToast, user, isSoundOn, theme, storeInfo, setStoreInfo, accounting, setAccounting, financialAccounts }) {
-  const [posMode, setPosMode] = useState('penjualan'); 
-  
-  const colors = useMemo(() => {
-    if (posMode === 'pembelian') {
-      return {
-        ...baseColors,
-        gold: 'text-blue-500',
-        goldBg: 'bg-blue-500',
-        goldHoverText: 'hover:text-blue-500',
-        goldHoverBorder: 'hover:border-blue-500',
-        goldRing: 'focus:ring-blue-500'
-      };
-    }
-    return {
-      ...baseColors,
-      goldHoverText: 'hover:text-[#D4AF37]',
-      goldHoverBorder: 'hover:border-[#D4AF37]',
-      goldRing: 'focus:ring-[#D4AF37]'
-    };
-  }, [posMode, baseColors]);
+export default function POS({ products, setProducts, customers, setCustomers, suppliers, sales, setSales, purchases, setPurchases, colors, showToast, user, isSoundOn, theme, storeInfo, setStoreInfo, accounting, setAccounting, financialAccounts, globalMode, setGlobalMode }) {
+  const posMode = globalMode;
+  const setPosMode = setGlobalMode;
 
   const [salesCart, setSalesCart] = useState([]);
   const [purchaseCart, setPurchaseCart] = useState([]);
@@ -371,26 +353,26 @@ export default function POS({ products, setProducts, customers, setCustomers, su
       <div className="flex-1 overflow-hidden print:overflow-visible bg-gray-50 dark:bg-[#121212]">
         <div className="flex flex-col lg:flex-row h-full relative overflow-hidden">
           <div className={`flex-1 flex-col p-2 sm:p-4 border-b lg:border-b-0 lg:border-r ${colors.border} ${colors.panel} h-full lg:h-auto overflow-hidden ${showMobileCart ? 'hidden lg:flex' : 'flex'}`}>
-            <div className="flex flex-col gap-3 mb-4 shrink-0">
-              <div className="flex justify-start items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4 shrink-0">
+              <div className="shrink-0">
                  <ModeToggle mode={posMode} setMode={handleModeChange} colors={colors} isSoundOn={isSoundOn} />
               </div>
-              <div className="relative w-full">
+              <div className="relative flex-1">
                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
-                 <input type="text" placeholder="Cari nama atau Barcode..." className={`w-full pl-10 pr-4 py-3 rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} value={posSearch} onChange={e => setPosSearch(e.target.value)} onKeyDown={handleSearchKeyDown} />
+                 <input type="text" placeholder="Cari nama atau Barcode..." className={`w-full pl-10 pr-4 py-3 sm:py-1.5 h-[44px] rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} value={posSearch} onChange={e => setPosSearch(e.target.value)} onKeyDown={handleSearchKeyDown} />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar">
               <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 pb-10">
                 {displayProducts.map(p => (
-                     <div key={p.id} onClick={() => addToCart(p)} className={`bg-black/10 dark:bg-black/30 backdrop-blur-md border ${colors.border} rounded-2xl cursor-pointer hover:border-[#D4AF37]/50 transition-all active:scale-95 relative overflow-hidden group min-h-[140px] sm:min-h-[160px] flex flex-col justify-end`}>
+                     <div key={p.id} onClick={() => addToCart(p)} className={`bg-black/10 dark:bg-black/30 backdrop-blur-md border ${colors.border} rounded-2xl cursor-pointer ${globalMode === 'penjualan' ? 'hover:border-[#D4AF37]/50' : 'hover:border-blue-500/50'} transition-all active:scale-95 relative overflow-hidden group min-h-[140px] sm:min-h-[160px] flex flex-col justify-end`}>
                        
                        {/* Background Image Layer */}
                        <div className="absolute inset-0 z-0 bg-white/10 dark:bg-[#1e1e1e]/40 flex items-center justify-center overflow-hidden">
                           {p.img && p.img.startsWith('data:image') ? (
                              <img src={p.img} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 dark:opacity-75" alt={p.name} />
                           ) : (
-                             <span className="text-6xl opacity-20 filter grayscale transition-transform duration-700 group-hover:scale-110">📦</span>
+                             <Package size={80} className="text-gray-300 dark:text-gray-600/50 transform -rotate-12 group-hover:scale-110 transition-transform duration-700" />
                           )}
                           {/* Gradient Overlay for Text Visibility */}
                           <div className="absolute inset-0 bg-gradient-to-t from-[#18181B] via-[#18181B]/60 to-transparent"></div>
@@ -400,7 +382,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                        
                        {/* Content Layer */}
                        <div className="relative z-10 p-3 sm:p-4 text-left w-full">
-                         <div className={`font-bold text-[11px] sm:text-sm leading-tight mb-2 line-clamp-2 text-white drop-shadow-md group-hover:text-[#D4AF37] transition-colors`}>{p.name}</div>
+                         <div className={`font-bold text-[11px] sm:text-sm leading-tight mb-2 line-clamp-2 text-white drop-shadow-md ${globalMode === 'penjualan' ? 'group-hover:text-[#D4AF37]' : 'group-hover:text-blue-400'} transition-colors`}>{p.name}</div>
                          
                          <div className="flex justify-between items-end">
                             <div className={`font-black text-[13px] sm:text-base ${posMode === 'penjualan' ? 'text-[#D4AF37]' : 'text-blue-500'} drop-shadow-md`}>Rp {formatIDR(posMode === 'penjualan' ? calcItemPricing(p, 1).unitPrice : p.cost)}</div>

@@ -5,7 +5,7 @@ import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import PasswordConfirmModal from '../components/modals/PasswordConfirmModal';
 
-export default function ProductManager({ products, setProducts, categories, units, colors, showToast, user, isSoundOn }) {
+export default function ProductManager({ products, setProducts, categories, units, colors, showToast, user, isSoundOn, editIntent }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -21,9 +21,21 @@ export default function ProductManager({ products, setProducts, categories, unit
 
   const defaultCat = sortedCats.find(c => c.toLowerCase() === 'tanpa kategori') || 'Tanpa Kategori';
   const defaultUnit = sortedUnits.find(u => u.toLowerCase() === 'pcs') || 'Pcs';
-  const defaultForm = { barcode: '', name: '', category: defaultCat, unit: defaultUnit, stock: 0, cost: 0, price: 0, img: '📦', margin: 0, marginStr: '0' };
+  const defaultForm = { barcode: '', name: '', category: defaultCat, unit: defaultUnit, stock: 0, cost: 0, price: 0, img: '', margin: 0, marginStr: '0' };
   const [form, setForm] = useState(defaultForm);
   const importRef = useRef(null);
+
+  useEffect(() => {
+     if (editIntent && editIntent.menu === 'produk') {
+        const prod = products.find(p => p.id === editIntent.id);
+        if (prod) {
+           setEditingId(prod.id);
+           setForm(prod);
+           setIsModalOpen(true);
+           if (editIntent.clearIntent) editIntent.clearIntent();
+        }
+     }
+  }, [editIntent, products]);
 
   useEffect(() => {
      if (products && products.length > 0) {
@@ -206,28 +218,32 @@ export default function ProductManager({ products, setProducts, categories, unit
     if(importRef.current) importRef.current.value = '';
   };
 
-  const customTitle = (
-    <div className="flex flex-col xl:flex-row xl:items-center gap-3 w-full overflow-hidden">
-      <span className="whitespace-nowrap font-bold">Manajemen Produk</span>
-      <div className="flex flex-row flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-normal w-full">
-        <button onClick={exportToExcel} className={`px-2 sm:px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 border ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A] text-[#D4AF37]`}><DownloadCloud size={14}/> <span className="hidden sm:inline">Ekspor Data (.csv)</span><span className="inline sm:hidden">Ekspor CSV</span></button>
-        <button onClick={() => { playSound('pop', isSoundOn); importRef.current.click(); }} className={`px-2 sm:px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-300 hover:bg-blue-200 border border-blue-200`}><UploadCloud size={14}/> <span className="hidden sm:inline">Impor & Update Bulk</span><span className="inline sm:hidden">Impor Bulk</span></button>
-        {user.role === 'admin' && (
-          <button onClick={() => { playSound('pop', isSoundOn); setIsDeleteAllOpen(true); }} className={`px-2 sm:px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 bg-red-100 text-red-700 hover:bg-red-200 border border-red-200`}><Trash2 size={14}/> <span className="hidden sm:inline">Kosongkan Data</span><span className="inline sm:hidden">Kosongkan</span></button>
-        )}
-        <input type="file" accept=".xls,.csv,.txt" className="hidden" ref={importRef} onChange={handleImport} />
-      </div>
-    </div>
+  const customHeaderRight = (
+    <>
+       <button onClick={() => { playSound('pop', isSoundOn); exportToExcel(); }} className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg border ${colors.border} flex items-center gap-1.5 ${colors.textMuted} hover:${colors.text} hover:border-[#D4AF37] transition-all whitespace-nowrap`}><DownloadCloud size={16}/> Template Excel</button>
+       <button onClick={() => { playSound('pop', isSoundOn); importRef.current?.click(); }} className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg border ${colors.border} flex items-center gap-1.5 ${colors.textMuted} hover:${colors.text} hover:border-blue-500 transition-all whitespace-nowrap`}><UploadCloud size={16}/> Impor Excel</button>
+       {user.role === 'admin' && (
+         <button onClick={() => { playSound('pop', isSoundOn); setIsDeleteAllOpen(true); }} className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 transition-all flex items-center gap-1.5 whitespace-nowrap`}><Trash2 size={16}/> Kosongkan</button>
+       )}
+       <input type="file" accept=".xls,.csv,.txt" className="hidden" ref={importRef} onChange={handleImport} />
+    </>
   );
 
   return (
-    <div className="h-full flex flex-col relative -m-4 md:-m-6 p-2 sm:p-4">
-      <DataTable 
-        title={customTitle} columns={columns} data={[...products].sort((a, b) => a.name.localeCompare(b.name))} colors={colors} 
-        onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }} 
-        actions={[ { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-blue-200', onClick: handleEdit } ]}
-        onDelete={(prod) => { playSound('pop', isSoundOn); setDeleteProdId(prod.id); }}
-      />
+    <div className="h-full flex flex-col relative -m-4 md:-m-6 print:m-0 bg-gray-50 dark:bg-[#121212]">
+      <div className="flex-1 overflow-hidden print:hidden p-2 sm:p-4">
+        <DataTable 
+          title={null} 
+          headerRight={customHeaderRight}
+          posLayout={true}
+          columns={columns} 
+          data={[...products].sort((a, b) => a.name.localeCompare(b.name))} 
+          colors={colors} 
+          onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }} 
+          actions={[ { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-stone-300', onClick: handleEdit } ]}
+          onDelete={(prod) => { playSound('pop', isSoundOn); setDeleteProdId(prod.id); }}
+        />
+      </div>
       
       {deleteProdId && (
         <DeleteConfirmModal 
@@ -278,7 +294,7 @@ export default function ProductManager({ products, setProducts, categories, unit
                     </select>
                  </div>
                  <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Stok Saat Ini *</label><input type="text" inputMode="decimal" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.stockStr !== undefined ? form.stockStr : (form.stock !== undefined && form.stock !== null && form.stock !== '' ? String(form.stock).replace('.', ',') : '')} onChange={e => setForm({...form, stock: parseIDR(e.target.value), stockStr: smartFormatInput(e.target.value)})} /></div>
-                 <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Batas Notif Habis</label><input type="text" inputMode="decimal" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.minStockStr !== undefined ? form.minStockStr : (form.minStock !== undefined && form.minStock !== null && form.minStock !== '' ? String(form.minStock).replace('.', ',') : '')} onChange={e => setForm({...form, minStock: parseIDR(e.target.value), minStockStr: smartFormatInput(e.target.value)})} placeholder="Default: 5" /></div>
+                 <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Stok Minimum</label><input type="text" inputMode="decimal" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.minStockStr !== undefined ? form.minStockStr : (form.minStock !== undefined && form.minStock !== null && form.minStock !== '' ? String(form.minStock).replace('.', ',') : '')} onChange={e => setForm({...form, minStock: parseIDR(e.target.value), minStockStr: smartFormatInput(e.target.value)})} placeholder="Default: 5" /></div>
                  <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Harga Beli (Modal) *</label><input type="text" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.costStr !== undefined ? form.costStr : formatIDR(form.cost)} onChange={e => {
                       const newCost = parseIDR(e.target.value);
                       const currentPrice = form.price || 0;

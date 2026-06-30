@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { initialProducts, initialCustomers, initialSuppliers, initialUsers, initialFinancialAccounts, initialAccounting } from './data/initialData';
 import { playSound } from './utils/helpers';
 import Sidebar from './components/Sidebar';
@@ -29,9 +29,18 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [theme, setTheme] = useState('dark');
   const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [globalMode, setGlobalMode] = useState('penjualan');
+  const [globalChartMode, setGlobalChartMode] = useState('line');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  const [editIntent, setEditIntent] = useState(null);
+  const handleNavigateAndEdit = (menu, id, mode = null) => {
+     setActiveMenu(menu);
+     if (mode) setGlobalMode(mode);
+     setEditIntent({ menu, id, clearIntent: () => setEditIntent(null) });
+  };
   
   const [syncCount, setSyncCount] = useState(0); 
   
@@ -406,16 +415,50 @@ export default function App() {
      }
   }, [users]);
 
-  const themeColors = { 
-     bg: theme === 'dark' ? 'bg-[#09090B]' : 'bg-[#F4F4F5]', 
-     panel: theme === 'dark' ? 'bg-[#18181B]/40 backdrop-blur-xl' : 'bg-white/40 backdrop-blur-xl', 
-     text: theme === 'dark' ? 'text-[#FAFAFA]' : 'text-[#18181B]', 
-     textMuted: theme === 'dark' ? 'text-[#A1A1AA]' : 'text-[#71717A]', 
-     gold: 'text-[#D4AF37]', 
-     goldBg: 'bg-[#D4AF37]', 
-     border: theme === 'dark' ? 'border-[#27272A]/50' : 'border-[#E4E4E7]/50', 
-     creamBg: theme === 'dark' ? 'bg-[#27272A]/40' : 'bg-[#F8FAFC]/40' 
-  };
+  const baseThemeColors = useMemo(() => {
+    return {
+       bg: theme === 'dark' ? 'bg-[#09090B]' : 'bg-[#F4F4F5]', 
+       panel: theme === 'dark' ? 'bg-[#18181B]/40 backdrop-blur-xl' : 'bg-white/40 backdrop-blur-xl', 
+       text: theme === 'dark' ? 'text-[#FAFAFA]' : 'text-[#18181B]', 
+       textMuted: theme === 'dark' ? 'text-[#A1A1AA]' : 'text-[#71717A]', 
+       border: theme === 'dark' ? 'border-[#27272A]/50' : 'border-[#E4E4E7]/50', 
+       creamBg: theme === 'dark' ? 'bg-[#27272A]/40' : 'bg-[#F8FAFC]/40',
+       gold: 'text-[#D4AF37]', 
+       goldBg: 'bg-[#D4AF37]', 
+       goldHoverText: 'hover:text-[#D4AF37]',
+       goldHoverBorder: 'hover:border-[#D4AF37]',
+       goldRing: 'focus:ring-[#D4AF37]'
+    };
+  }, [theme]);
+
+  const themeColors = useMemo(() => {
+    const base = { 
+       bg: theme === 'dark' ? 'bg-[#09090B]' : 'bg-[#F4F4F5]', 
+       panel: theme === 'dark' ? 'bg-[#18181B]/40 backdrop-blur-xl' : 'bg-white/40 backdrop-blur-xl', 
+       text: theme === 'dark' ? 'text-[#FAFAFA]' : 'text-[#18181B]', 
+       textMuted: theme === 'dark' ? 'text-[#A1A1AA]' : 'text-[#71717A]', 
+       border: theme === 'dark' ? 'border-[#27272A]/50' : 'border-[#E4E4E7]/50', 
+       creamBg: theme === 'dark' ? 'bg-[#27272A]/40' : 'bg-[#F8FAFC]/40' 
+    };
+    if (globalMode === 'pembelian') {
+       return {
+          ...base,
+          gold: 'text-blue-500', 
+          goldBg: 'bg-blue-600', 
+          goldHoverText: 'hover:text-blue-500',
+          goldHoverBorder: 'hover:border-blue-500',
+          goldRing: 'focus:ring-blue-500'
+       };
+    }
+    return {
+       ...base,
+       gold: 'text-[#D4AF37]', 
+       goldBg: 'bg-[#D4AF37]', 
+       goldHoverText: 'hover:text-[#D4AF37]',
+       goldHoverBorder: 'hover:border-[#D4AF37]',
+       goldRing: 'focus:ring-[#D4AF37]'
+    };
+  }, [theme, globalMode]);
 
   const handleLogin = (loggedInUser) => {
     setUser(loggedInUser);
@@ -468,30 +511,29 @@ export default function App() {
          </div>
       )}
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} activeMenu={activeMenu} handleMenuClick={setActiveMenu} colors={themeColors} user={user} storeInfo={storeInfo} />
-      <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
-         <Header 
-            user={user} setUser={setUser} users={users} setUsers={customSetUsers} 
-            theme={theme} setTheme={setTheme} colors={themeColors} isSoundOn={true} 
-            storeInfo={storeInfo} showToast={showToast} 
+      <div className="flex-1 flex flex-col min-w-0 z-10 relative">
+         <Header activeMenu={activeMenu} user={user} setUser={setUser} 
             isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}
+            theme={theme} setTheme={setTheme} colors={themeColors} isSoundOn={true} 
+            storeInfo={storeInfo} onNavigateAndEdit={handleNavigateAndEdit}
             products={products} sales={sales} purchases={purchases} suppliers={suppliers} 
             syncCount={syncCount}
          />
          
          <main className="flex-1 overflow-auto p-4 md:p-6 custom-scrollbar relative">
              <div className={activeMenu === 'pos' ? 'block h-full' : 'hidden'}>
-                <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} />
+                <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} />
              </div>
              
-             {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={themeColors} theme={theme} handleMenuClick={setActiveMenu} isSoundOn={true} />}
-             {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} colors={themeColors} user={user} isSoundOn={true} showToast={showToast} />}
-             {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} />}
-             {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} />}
-             {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} />}
+             {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={setActiveMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
+             {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} colors={baseThemeColors} user={user} isSoundOn={true} showToast={showToast} editIntent={editIntent} />}
+             {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} editIntent={editIntent} />}
+             {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} />}
+             {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
              
              {activeMenu === 'pengaturan' && (
                 <SettingsPage 
-                   colors={themeColors} user={user} 
+                   colors={baseThemeColors} user={user} 
                    storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} 
                    users={users} setUsers={customSetUsers} 
                    categories={categories} setCategories={customSetCategories} 

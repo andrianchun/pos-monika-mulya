@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import useDebounce from '../../hooks/useDebounce';
 
-export default function DataTable({ columns, data, onDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false }) {
+export default function DataTable({ columns, data, onDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false, headerRight }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState(defaultSort);
@@ -36,22 +36,32 @@ export default function DataTable({ columns, data, onDelete, colors, title, acti
   const paginated = filtered.slice((page - 1) * limit, page * limit);
   
   return (
-    <div className={`flex flex-col h-full bg-transparent ${posLayout ? 'p-2 sm:p-4' : ''}`}>
+    <div className={`flex flex-col h-full bg-transparent ${posLayout ? 'p-0' : ''}`}>
       {posLayout ? (
-        <div className="flex flex-col gap-3 mb-4 shrink-0">
-          <div className="flex justify-start items-center gap-2">
-            {typeof title === 'string' ? <h2 className={`text-lg sm:text-xl font-bold ${colors.text}`}>{title}</h2> : title}
-          </div>
-          <div className="relative w-full">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4 shrink-0">
+          {title && (
+            <div className="shrink-0">
+              {typeof title === 'string' ? <h2 className={`text-lg sm:text-xl font-bold ${colors.text}`}>{title}</h2> : title}
+            </div>
+          )}
+          <div className="relative flex-1">
             <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
             <input 
               type="text" 
               placeholder="Cari nama atau Barcode..." 
-              className={`w-full pl-10 pr-4 py-3 rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} 
+              className={`w-full pl-10 pr-4 py-3 sm:py-1.5 h-[44px] rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
             />
           </div>
+          {headerRight && (
+            <div className="shrink-0 flex items-center gap-2">
+              {headerRight}
+            </div>
+          )}
+          {onAdd && (
+            <button onClick={onAdd} className={`w-[110px] sm:w-[130px] h-[44px] text-sm font-bold rounded-lg transition-all flex items-center justify-center ${colors.goldBg} text-[#18181B] shadow hover:opacity-90 shrink-0`}><Plus size={16} className="mr-1"/> Tambah</button>
+          )}
         </div>
       ) : (
         <div className={`flex flex-col md:flex-row justify-between items-center mb-4 gap-4 p-4 rounded-xl ${colors.panel} border ${colors.border}`}>

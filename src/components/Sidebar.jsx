@@ -78,8 +78,11 @@ export default function Sidebar({ isOpen, setIsOpen, activeMenu, handleMenuClick
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
           {permittedMenu.map((item) => {
             const isActive = activeMenu === item.id;
+            const forceYellow = ['dashboard', 'produk', 'pengaturan'].includes(item.id);
+            const activeBg = forceYellow ? 'bg-[#D4AF37]' : colors.goldBg;
+            const activeText = forceYellow ? 'text-[#18181B]' : (colors.goldBg.includes('blue') ? 'text-white' : 'text-[#18181B]');
             return (
-              <button key={item.id} onClick={() => { handleMenuClick(item.id); if(window.innerWidth < 1024) setIsOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${isActive ? `${colors.goldBg} text-[#18181B] shadow-md` : `hover:${colors.creamBg} ${colors.text} opacity-80 hover:opacity-100`}`}>
+              <button key={item.id} onClick={() => { handleMenuClick(item.id); if(window.innerWidth < 1024) setIsOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${isActive ? `${activeBg} ${activeText} shadow-md` : `hover:${colors.creamBg} ${colors.text} opacity-80 hover:opacity-100`}`}>
                 <item.icon size={22} className={isOpen ? '' : 'mx-auto'} />
                 <span className={`font-medium whitespace-nowrap ${isOpen ? 'block' : 'hidden'}`}>{item.label}</span>
               </button>

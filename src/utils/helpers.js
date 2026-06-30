@@ -139,6 +139,55 @@ export const calculateDynamicPrice = (item, qty) => {
   return { unitPrice: Math.max(0, currentPrice), isWholesale, basePrice: item.price };
 };
 
+export const calculateDateRange = (filterMode, offset = 0) => {
+  const now = new Date();
+  let start = new Date(now);
+  let end = new Date(now);
+  let label = '';
+
+  const getWeekStart = (d) => {
+    const date = new Date(d);
+    const day = date.getDay() || 7; 
+    if (day !== 1) date.setHours(-24 * (day - 1));
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  };
+
+  if (filterMode === 'Harian' || filterMode === 'Hari Ini' || filterMode === 'hari') {
+    start.setDate(now.getDate() + offset);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(start);
+    end.setHours(23, 59, 59, 999);
+    label = formatDate(start.toISOString());
+  } else if (filterMode === 'Mingguan' || filterMode === 'Minggu Ini' || filterMode === 'minggu') {
+    start = getWeekStart(now);
+    start.setDate(start.getDate() + (offset * 7));
+    start.setHours(0, 0, 0, 0);
+    end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    label = `${formatDate(start.toISOString())} s/d ${formatDate(end.toISOString())}`;
+  } else if (filterMode === 'Bulanan' || filterMode === 'Bulan Ini' || filterMode === 'bulan') {
+    start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
+    end.setHours(23, 59, 59, 999);
+    label = start.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+  } else if (filterMode === 'Tahunan' || filterMode === 'Tahun Ini' || filterMode === 'tahun') {
+    start = new Date(now.getFullYear() + offset, 0, 1);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(now.getFullYear() + offset, 11, 31);
+    end.setHours(23, 59, 59, 999);
+    label = `${start.getFullYear()}`;
+  } else {
+    // Keseluruhan or Manual
+    start = new Date(0);
+    end = new Date(9999, 11, 31);
+    label = 'Semua Waktu';
+  }
+
+  return { start, end, label };
+};
+
 export const printReceipt = async (elementId) => {
   const printElement = document.getElementById(elementId);
   if (!printElement) return;

@@ -14,6 +14,16 @@ export default function SettingsPage({
   const [activeTab, setActiveTab] = useState('toko');
   const importDbRef = useRef(null);
 
+  // --- SELF-HEALING: PURGE GHOST USERS ---
+  React.useEffect(() => {
+     if (users && users.length > 0) {
+        const validUsers = users.filter(u => u && u.id && u.username && String(u.username).trim() !== '' && u.name && String(u.name).trim() !== '');
+        if (validUsers.length < users.length) {
+           setUsers(validUsers);
+        }
+     }
+  }, [users, setUsers]);
+
   // --- STATE PROFIL TOKO ---
   const [sName, setSName] = useState(storeInfo.name || 'MONIKA MULYA');
   const [sTagline, setSTagline] = useState(storeInfo.tagline || '');
@@ -81,6 +91,7 @@ export default function SettingsPage({
   // --- LOGIKA POIN LOYALITAS ---
   const [sPointMult, setSPointMult] = useState(storeInfo.pointMultiplier || 10000);
   const [sPointRew, setSPointRew] = useState(storeInfo.pointReward || 1);
+  const [sPointRewStr, setSPointRewStr] = useState(formatIDR(storeInfo.pointReward || 1));
 
   const savePointsInfo = (e) => {
      e.preventDefault(); 
@@ -341,25 +352,29 @@ export default function SettingsPage({
   };
 
   return (
-    <div className="h-full flex flex-col -m-4 md:-m-6 p-2 sm:p-4 overflow-hidden relative">
-      <div className="h-full flex flex-col max-w-6xl mx-auto w-full pb-10 select-none overflow-y-auto custom-scrollbar pr-2">
-      <h2 className={`text-2xl font-bold mb-4 shrink-0 ${colors.text}`}>Pengaturan Sistem</h2>
-      <div className={`flex overflow-x-auto custom-scrollbar border-b ${colors.border} mb-6 shrink-0`}>
-        {[
-          { id: 'toko', label: 'Profil Toko' }, 
-          { id: 'grosir', label: 'Harga Grosir' }, 
-          { id: 'promo', label: 'Promo Diskon' }, 
-          { id: 'loyalitas', label: 'Poin Pelanggan' }, 
-          { id: 'akun', label: 'Hak Akses User' }, 
-          { id: 'finance', label: 'Akun Keuangan' }, 
-          { id: 'kategori', label: 'Kategori/Satuan' }, 
-          { id: 'database', label: 'Database & Backup' }
-        ].map(t => (
-          <button key={t.id} onClick={() => { playSound('pop', isSoundOn); setActiveTab(t.id); }} className={`px-4 sm:px-6 py-3 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === t.id ? `border-[#D4AF37] ${colors.gold}` : `border-transparent ${colors.textMuted} hover:${colors.text}`}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+    <div className="h-full flex flex-col relative overflow-hidden -m-4 md:-m-6 bg-gray-50 dark:bg-[#121212]">
+      <div className="flex-1 overflow-y-auto p-2 sm:p-4 custom-scrollbar">
+        <div className="flex flex-col w-full pb-10 select-none">
+        
+        <div className="flex items-center shrink-0 mb-4 overflow-x-auto custom-scrollbar pb-2 sm:pb-0 min-h-[44px]">
+           <div className={`flex items-center rounded-lg p-1 ${colors.creamBg} border ${colors.border} w-fit h-fit shrink-0`}>
+           {[
+             { id: 'toko', label: 'Profil Toko' }, 
+             { id: 'harga', label: 'Harga' }, 
+             { id: 'akun', label: 'Akun' }, 
+             { id: 'kategori', label: 'Kategori' }, 
+             { id: 'database', label: 'Database' }
+           ].map(t => (
+             <button 
+               key={t.id} 
+               onClick={() => { playSound('pop', isSoundOn); setActiveTab(t.id); }} 
+               className={`w-[110px] sm:w-[130px] py-1.5 text-[13px] sm:text-sm font-bold rounded-md transition-all flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis ${activeTab === t.id ? `${colors.goldBg} text-[#18181B] shadow` : `${colors.textMuted} ${colors.goldHoverText}`}`}
+             >
+               {t.label}
+             </button>
+           ))}
+           </div>
+        </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
          
@@ -418,8 +433,9 @@ export default function SettingsPage({
             </div>
          )}
 
-         {/* 2. TAB HARGA GROSIR */}
-         {activeTab === 'grosir' && (
+         {/* 2. TAB HARGA (GROSIR, PROMO, LOYALITAS) */}
+         {activeTab === 'harga' && (
+            <div className="space-y-6 w-full">
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-4xl`}>
                <div className="flex justify-between items-center mb-6">
                   <h3 className={`font-bold text-lg flex items-center gap-2 ${colors.text}`}><Tags className="${colors.gold}"/> Aturan Harga Grosir Sentral</h3>
@@ -463,10 +479,7 @@ export default function SettingsPage({
                   )}
                </div>
             </div>
-         )}
-
          {/* 3. TAB PROMO DISKON OTOMATIS */}
-         {activeTab === 'promo' && (
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-4xl`}>
                <div className="flex justify-between items-center mb-6">
                   <h3 className={`font-bold text-lg flex items-center gap-2 ${colors.text}`}><Ticket className="${colors.gold}"/> Aturan Promo & Diskon Otomatis</h3>
@@ -514,10 +527,7 @@ export default function SettingsPage({
                   )}
                </div>
             </div>
-         )}
-
          {/* 4. TAB POIN LOYALITAS CUSTOMER */}
-         {activeTab === 'loyalitas' && (
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-xl`}>
                <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${colors.text}`}><Gift className="text-orange-500"/> Aturan Poin Kelipatan Belanja</h3>
                <form onSubmit={savePointsInfo} className="space-y-4">
@@ -535,10 +545,12 @@ export default function SettingsPage({
                   <button type="submit" className="w-full py-3 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-md">Simpan Konfigurasi Poin</button>
                </form>
             </div>
+            </div>
          )}
 
-         {/* 5. HAK AKSES USER */}
+         {/* 5. HAK AKSES USER & AKUN KEUANGAN */}
          {activeTab === 'akun' && (
+            <div className="space-y-6 w-full">
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm`}>
                <div className="flex justify-between items-center mb-4">
                   <h3 className={`font-bold text-lg ${colors.text}`}>Hak Akses & Manajemen User</h3>
@@ -571,10 +583,7 @@ export default function SettingsPage({
                  </tbody>
                </table>
             </div>
-         )}
-
          {/* 6. TAB AKUN KEUANGAN (SAFE GUARDED) */}
-         {activeTab === 'finance' && (
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-3xl`}>
                <h3 className={`font-bold text-lg mb-2 ${colors.text}`}>Kelola Akun Keuangan</h3>
                <div className="flex gap-3 mb-6">
@@ -594,6 +603,7 @@ export default function SettingsPage({
                      </div>
                   ))}
                </div>
+            </div>
             </div>
          )}
          
@@ -814,7 +824,7 @@ export default function SettingsPage({
                         <input required type="text" inputMode="decimal" placeholder={pForm.discType==='%' ? 'Cth: 10' : 'Cth: 5000'} className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm`} value={pForm.discValueStr !== undefined ? pForm.discValueStr : (pForm.discValue || '')} onChange={e=>{ let v = e.target.value; if(pForm.discType==='%'){ let c = v.replace(/[^0-9,.%]/g, ''); if(c.endsWith('.')) c=c.slice(0,-1)+','; setPForm({...pForm, discValue: parseIDR(c), discValueStr: c}); } else { setPForm({...pForm, discValue: parseIDR(v), discValueStr: smartFormatInput(v)}); } }} />
                      </div>
                   </div>
-                  <button type="submit" className="w-full py-3.5 mt-2 rounded-xl text-[#18181B] font-bold ${colors.goldBg} shadow-md hover:bg-blue-700">Simpan Aturan Promo</button>
+                  <button type="submit" className={`w-full py-3.5 mt-2 rounded-xl text-[#18181B] font-bold ${colors.goldBg} shadow-md hover:opacity-90`}>Simpan Aturan Promo</button>
                </form>
             </div>
          </div>
@@ -883,6 +893,7 @@ export default function SettingsPage({
 
       {deleteUsr && <DeleteConfirmModal title="Hapus Akun User?" desc="Yakin hapus akun ini?" btnText="Hapus" onConfirm={() => { setUsers((users||[]).filter(u => u !== deleteUsr)); setDeleteUsr(null); showToast('User dihapus', 'success'); }} onCancel={() => setDeleteUsr(null)} colors={colors} isSoundOn={isSoundOn} />}
       {deleteFin && <DeleteConfirmModal title="Hapus Akun Keuangan?" desc="Yakin hapus akun ini?" btnText="Hapus" onConfirm={() => { setFinancialAccounts((financialAccounts||[]).filter(f => f.id !== deleteFin)); setDeleteFin(null); showToast('Akun dihapus', 'success'); }} onCancel={() => setDeleteFin(null)} colors={colors} isSoundOn={isSoundOn} />}
+        </div>
       </div>
     </div>
   );

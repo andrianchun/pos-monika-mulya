@@ -29,7 +29,7 @@ const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children,
 
 export default function Header({ 
   user, setUser, users, setUsers, theme, setTheme, colors, isSoundOn, storeInfo, showToast, 
-  isSidebarOpen, setIsSidebarOpen, products = [], sales = [], purchases = [], suppliers = [], syncCount = 0 
+  isSidebarOpen, setIsSidebarOpen, products = [], sales = [], purchases = [], suppliers = [], syncCount = 0, onNavigateAndEdit 
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -140,7 +140,7 @@ export default function Header({
 
   return (
     <>
-      <header className={`h-16 flex justify-between items-center px-4 md:px-6 shrink-0 border-b ${colors.border} ${colors.panel} z-50 print:hidden shadow-sm`}>
+      <header className={`h-16 flex justify-between items-center px-2 sm:px-4 shrink-0 border-b ${colors.border} ${colors.panel} z-50 print:hidden shadow-sm`}>
         <div className="flex items-center gap-3">
            <button onClick={() => { playSound('pop', isSoundOn); setIsSidebarOpen(!isSidebarOpen); }} className={`p-2 rounded-lg border ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors lg:hidden`}>
               <Menu size={20} className={colors.text} />
@@ -183,15 +183,14 @@ export default function Header({
              </button>
 
              {showNotifDropdown && (
-                // PERBAIKAN: CSS Ajaib! Kotak akan melayang Fixed di HP agar tidak meluber, tapi Absolute (Normal) di PC
-                <div className={`fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-3 w-auto sm:w-[420px] rounded-2xl shadow-2xl bg-white dark:bg-[#18181B] border ${colors.border} z-[150] overflow-hidden max-h-[80vh] flex flex-col`}>
-                   <div className="p-4 border-b border-solid border-gray-200 dark:border-gray-800 bg-[#F8FAFC] dark:bg-[#27272A]/50 flex justify-between items-center shrink-0">
-                      <h4 className={`font-black text-sm ${colors.text}`}>Pemberitahuan Sistem</h4>
+                <div className={`fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-3 w-auto sm:w-[420px] rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.25)] dark:shadow-[0_10px_50px_rgba(0,0,0,0.5)] bg-white dark:bg-[#222226] border-2 border-gray-200 dark:border-gray-700 z-[150] overflow-hidden max-h-[80vh] flex flex-col transform transition-all`}>
+                   <div className="p-4 border-b border-solid border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#2a2a2e] flex justify-between items-center shrink-0">
+                      <h4 className={`font-black text-sm ${colors.text}`}>Notifikasi</h4>
                    </div>
 
-                   <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-[#18181B] p-3 space-y-3">
+                   <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-[#222226] p-3 space-y-3">
                       {totalNotifCount === 0 ? (
-                         <div className="p-8 text-center text-xs text-gray-500 font-bold">Semua sistem aman. Tidak ada pemberitahuan baru. ✨</div>
+                         <div className="p-8 text-center text-xs text-gray-500 font-bold">Semua sistem aman. Tidak ada pemberitahuan baru. 🛡️</div>
                       ) : (
                          <>
                            {/* 1. KELOMPOK PIUTANG JATUH TEMPO */}
@@ -199,9 +198,9 @@ export default function Header({
                               {incomingReceivables.map(s => {
                                  const daysLeft = Math.ceil((new Date(s.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
                                  const isLate = daysLeft < 0;
-                                 return (
-                                    <div key={`rec-${s.id}`} className={`p-3 rounded-xl ${isLate ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm`}>
-                                       <div className="min-w-0 flex-1">
+                                   return (
+                                      <div key={`rec-${s.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('riwayat', s.id, 'penjualan'); } }} className={`p-3 rounded-xl ${isLate ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity`}>
+                                         <div className="min-w-0 flex-1">
                                           <p className={`text-xs font-bold ${colors.text} truncate`}>Customer: {s.customer}</p>
                                           <p className={`text-[10px] ${colors.textMuted}`}>Nota: {s.nota}</p>
                                           <div className="flex justify-between items-center mt-1">
@@ -221,9 +220,9 @@ export default function Header({
                               {incomingDebts.map(p => {
                                  const daysLeft = Math.ceil((new Date(p.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
                                  const isLate = daysLeft < 0;
-                                 return (
-                                    <div key={`debt-${p.id}`} className={`p-3 rounded-xl ${isLate ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm`}>
-                                       <div className="min-w-0 flex-1">
+                                   return (
+                                      <div key={`debt-${p.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('riwayat', p.id, 'pembelian'); } }} className={`p-3 rounded-xl ${isLate ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity`}>
+                                         <div className="min-w-0 flex-1">
                                           <p className={`text-xs font-bold ${colors.text} truncate`}>Supplier: {p.supplier}</p>
                                           <p className={`text-[10px] ${colors.textMuted}`}>Nota: {p.nota}</p>
                                           <div className="flex justify-between items-center mt-1">
@@ -252,7 +251,7 @@ export default function Header({
                                     </div>
                                     <div className="pl-2 space-y-1">
                                        {group.items.map(item => (
-                                          <div key={item.id} className="flex justify-between text-[10px]">
+                                          <div key={item.id} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className={`flex justify-between text-[10px] cursor-pointer hover:bg-gray-100 dark:hover:bg-[#3f3f46] p-1 rounded transition-colors`}>
                                              <span className={`${colors.textMuted} truncate pr-2`}>• {item.name}</span>
                                              <span className="text-red-500 font-bold shrink-0">Sisa {String(item.stock).replace('.', ',')}</span>
                                           </div>
@@ -267,9 +266,9 @@ export default function Header({
                               {expiringItems.map(item => {
                                  const daysLeft = Math.ceil((new Date(item.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
                                  const isExpired = daysLeft <= 0;
-                                 return (
-                                    <div key={`exp-${item.id}`} className={`p-3 rounded-xl ${isExpired ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm`}>
-                                       <div className="min-w-0">
+                                   return (
+                                      <div key={`exp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className={`p-3 rounded-xl ${isExpired ? 'bg-red-500/5 border-red-500/20' : 'bg-orange-500/5 border-orange-500/20'} border flex flex-col gap-1 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity`}>
+                                         <div className="flex justify-between items-center min-w-0">
                                           <p className={`text-xs font-bold ${colors.text} truncate`}>{item.name}</p>
                                           <p className={`text-[10px] font-black uppercase ${isExpired ? 'text-red-500' : 'text-[#D4AF37]'}`}>
                                              {isExpired ? 'TELAH KEDALUWARSA!' : `KEDALUWARSA DALAM ${daysLeft} HARI`}

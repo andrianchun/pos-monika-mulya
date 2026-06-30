@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 // PERBAIKAN 1: Import Share2 untuk icon Kirim WA
 import { Printer, Edit, RotateCcw, Send } from 'lucide-react';
 import { formatIDR, playSound } from '../utils/helpers';
@@ -11,15 +11,26 @@ import TransactionEditModal from '../components/modals/TransactionEditModal';
 export default function POSHistory({ 
   sales, setSales, purchases, setPurchases, colors, showToast, 
   isSoundOn, products, setProducts, storeInfo, accounting, setAccounting, 
-  customers, setCustomers, suppliers, financialAccounts 
+  customers, setCustomers, suppliers, financialAccounts, globalMode, setGlobalMode, editIntent
 }) {
-  const [tab, setTab] = useState('penjualan');
+  const tab = globalMode;
+  const setTab = setGlobalMode;
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [returnDoc, setReturnDoc] = useState(null); 
   const [editDoc, setEditDoc] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null); 
 
   const activeData = tab === 'penjualan' ? sales : purchases; 
+
+  useEffect(() => {
+     if (editIntent && editIntent.menu === 'riwayat') {
+        const doc = activeData.find(d => d.id === editIntent.id);
+        if (doc) {
+           setEditDoc(doc);
+           if (editIntent.clearIntent) editIntent.clearIntent();
+        }
+     }
+  }, [editIntent, activeData]);
 
   console.log("POSHistory Render. Sales length:", sales.length, "Purchases length:", purchases.length);
   
@@ -111,10 +122,10 @@ export default function POSHistory({
   };
 
   const columns = [
-    { key: 'nota', label: 'No. Nota', render: (r) => <span className="font-bold text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedDoc(r)}>{r.nota}</span> },
+    { key: 'nota', label: 'No. Nota', render: (r) => <span className={`font-bold ${colors.gold} cursor-pointer hover:underline`} onClick={() => setSelectedDoc(r)}>{r.nota}</span> },
     { key: 'date', label: 'Tanggal & Waktu', render: (r) => new Date(r.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
     { key: tab === 'penjualan' ? 'customer' : 'supplier', label: tab === 'penjualan' ? 'Customer' : 'Supplier' },
-    { key: 'total', label: 'Total', render: (r) => <span className="font-bold text-blue-600">Rp {formatIDR(r.total)}</span> },
+    { key: 'total', label: 'Total', render: (r) => <span className={`font-bold ${colors.gold}`}>Rp {formatIDR(r.total)}</span> },
     { key: 'status', label: 'Status', render: (r) => <span className={`px-2 py-1 rounded text-xs font-bold ${r.status === 'Lunas' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{r.status}</span> }
   ];
 
@@ -135,7 +146,7 @@ export default function POSHistory({
     { 
       icon: Edit, 
       label: 'Edit Transaksi', 
-      colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-blue-200', 
+      colorClass: `${colors.active} hover:opacity-80 transition-opacity`, 
       onClick: (r) => { playSound('pop', isSoundOn); setEditDoc(r); } 
     },
     { 
@@ -147,18 +158,15 @@ export default function POSHistory({
   ];
 
   return (
-    <div className="h-full flex flex-col gap-4 relative overflow-hidden -m-4 md:-m-6 print:m-0">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 px-4 md:px-6 pt-4 md:pt-6 print:hidden">
-        <h1 className={`text-xl md:text-2xl font-bold ${colors.text} shrink-0`}>Riwayat Transaksi</h1>
-        <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
-          <button onClick={() => setTab('penjualan')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'penjualan' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
-          <button onClick={() => setTab('pembelian')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-hidden print:hidden px-4 md:px-6 pb-4 md:pb-6">
+    <div className="h-full flex flex-col relative overflow-hidden -m-4 md:-m-6 print:m-0 bg-gray-50 dark:bg-[#121212]">
+      <div className="flex-1 overflow-hidden print:hidden p-2 sm:p-4">
          <DataTable 
-            title={`Data ${tab === 'penjualan' ? 'Penjualan' : 'Pembelian'}`}
+            title={
+              <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
+                <button onClick={() => setTab('penjualan')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'penjualan' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
+                <button onClick={() => setTab('pembelian')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
+              </div>
+            }
             columns={columns} data={activeData} colors={colors} 
             posLayout={true}
             onDelete={(r) => { playSound('pop', isSoundOn); setDeleteConfirmId(r.id); }} 
