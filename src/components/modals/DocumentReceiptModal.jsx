@@ -5,33 +5,7 @@ import html2canvas from 'html2canvas';
 
 export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, isSoundOn }) {
   const [notaBlob, setNotaBlob] = useState(null);
-  const [isRendering, setIsRendering] = useState(true);
-
-  // PRE-RENDER NOTA SAAT MODAL DIBUKA
-  useEffect(() => {
-    if (doc) {
-      const timer = setTimeout(async () => {
-        try {
-          const el = document.getElementById('receipt-print-area');
-          if (el) {
-            const canvas = await html2canvas(el, { 
-                scale: 3, 
-                backgroundColor: '#ffffff', 
-                useCORS: true 
-            });
-            canvas.toBlob(blob => {
-              setNotaBlob(blob);
-              setIsRendering(false);
-            }, 'image/png');
-          }
-        } catch (e) {
-          console.error("Gagal pre-render gambar:", e);
-          setIsRendering(false);
-        }
-      }, 800);
-      return () => clearTimeout(timer);
-    }
-  }, [doc]);
+  const [isRendering, setIsRendering] = useState(false); // Default false, cuma true kalau klik WA
 
   useEffect(() => {
     if (!isRendering) {
@@ -102,6 +76,19 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
   const handleWA = async () => {
      if (isRendering) return;
      playSound('pop', isSoundOn);
+     setIsRendering(true);
+     
+     let currentBlob = notaBlob;
+     if (!currentBlob) {
+        try {
+            const el = document.getElementById('receipt-print-area');
+            if (el) {
+                const canvas = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
+                currentBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                setNotaBlob(currentBlob);
+            }
+        } catch(e) { console.error(e); }
+     }
      
      let text = `*NOTA TRANSAKSI - ${storeInfo.name}*\n`;
      text += `No: ${doc.nota}\n`;
@@ -162,12 +149,13 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
              try { await navigator.clipboard.writeText(text); } catch(e){}
          }
          
-         if(waTab) {
-             waTab.location.href = appUrl;
-         } else {
-             window.open(appUrl, '_blank');
-         }
+         setTimeout(() => { 
+             if(waTab) waTab.location.href = appUrl; 
+             else window.open(appUrl, '_blank');
+         }, 1500);
      }
+     
+     setIsRendering(false);
   };
 
   if (!doc) return null;
