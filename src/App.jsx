@@ -218,7 +218,10 @@ export default function App() {
         if (now - parseInt(lastActive, 10) > 5 * 60 * 60 * 1000) {
           localStorage.removeItem('mmpos_user'); localStorage.removeItem('mmpos_last_active'); setUser(null);
         } else {
-          setUser(JSON.parse(storedUser)); localStorage.setItem('mmpos_last_active', now.toString());
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser); 
+          setActiveMenu(parsedUser.role === 'kasir' ? 'pos' : 'dashboard');
+          localStorage.setItem('mmpos_last_active', now.toString());
         }
       }
     };
