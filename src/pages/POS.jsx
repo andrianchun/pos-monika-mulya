@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ShoppingCart, Search, ChevronLeft, ChevronRight, X, Trash2, Calendar, Ticket, Gift } from 'lucide-react';
 import { formatIDR, parseIDR, playSound, calculateDynamicPrice, smartFormatInput } from '../utils/helpers';
+import useDebounce from '../hooks/useDebounce';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import CheckoutModal from '../components/modals/CheckoutModal';
 import DocumentReceiptModal from '../components/modals/DocumentReceiptModal';
@@ -39,6 +40,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const [salesCart, setSalesCart] = useState([]);
   const [purchaseCart, setPurchaseCart] = useState([]);
   const [posSearch, setPosSearch] = useState('');
+  const debouncedPosSearch = useDebounce(posSearch, 300);
   const [posDiscountStr, setPosDiscountStr] = useState('');
   const [posOngkirStr, setPosOngkirStr] = useState('');
   const [useAutoOngkir, setUseAutoOngkir] = useState(false);
@@ -81,13 +83,24 @@ export default function POS({ products, setProducts, customers, setCustomers, su
      else if (cust?.id === 1) setPosOngkirStr('');
   }, [selectedCustomer, storeInfo.ongkirPerKm, useAutoOngkir, cart.length, customers]); 
 
-  // PERBAIKAN: Mengurutkan list barang grid POS secara abjad
-  const displayProducts = products.map(p => {
-     const cartItem = cart.find(c => c.id === p.id);
-     const qtyInCart = cartItem ? Number(cartItem.qty) || 0 : 0;
-     return { ...p, currentStock: posMode === 'penjualan' ? p.stock - qtyInCart : p.stock };
-  }).filter(p => p.name.toLowerCase().includes(posSearch.toLowerCase()) || (p.barcode && p.barcode.includes(posSearch)))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // PERBAIKAN: Mengurutkan list barang grid POS secara abjad dan optimasi performa (useMemo + dictionary cart)
+  const displayProducts = useMemo(() => {
+     // Buat map (dictionary) untuk cart agar lookup O(1) alih-alih O(N) menggunakan .find() pada setiap produk
+     const cartMap = new Map();
+     for (let i = 0; i < cart.length; i++) {
+        cartMap.set(cart[i].id, Number(cart[i].qty) || 0);
+     }
+     
+     const lowerSearch = debouncedPosSearch.toLowerCase();
+
+     return products.map(p => {
+        const qtyInCart = cartMap.get(p.id) || 0;
+        return { ...p, currentStock: posMode === 'penjualan' ? p.stock - qtyInCart : p.stock };
+     }).filter(p => {
+        if (!lowerSearch) return true;
+        return p.name.toLowerCase().includes(lowerSearch) || (p.barcode && p.barcode.includes(debouncedPosSearch));
+     }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [products, cart, posMode, debouncedPosSearch]);
 
   const calcItemPricing = (product, newQty) => {
     if (posMode !== 'penjualan') return { unitPrice: product.cost, isWholesale: false, basePrice: product.cost, appliedPromo: null };

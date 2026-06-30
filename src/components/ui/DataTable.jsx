@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import useDebounce from '../../hooks/useDebounce';
 
 export default function DataTable({ columns, data, onDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' } }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState(defaultSort);
+  const debouncedSearch = useDebounce(search, 300);
   const limit = 10;
 
   const handleSort = (key) => {
@@ -13,16 +15,23 @@ export default function DataTable({ columns, data, onDelete, colors, title, acti
     setSortConfig({ key, direction });
   };
 
-  const sortedData = [...data].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const valA = a[sortConfig.key];
-    const valB = b[sortConfig.key];
-    if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
-  });
+  const sortedData = useMemo(() => {
+    return [...data].sort((a, b) => {
+      if (!sortConfig.key) return 0;
+      const valA = a[sortConfig.key];
+      const valB = b[sortConfig.key];
+      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [data, sortConfig]);
 
-  const filtered = sortedData.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(search.toLowerCase())));
+  const filtered = useMemo(() => {
+    if (!debouncedSearch) return sortedData;
+    const lowerSearch = debouncedSearch.toLowerCase();
+    return sortedData.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(lowerSearch)));
+  }, [sortedData, debouncedSearch]);
+
   const totalPages = Math.ceil(filtered.length / limit);
   const paginated = filtered.slice((page - 1) * limit, page * limit);
   
