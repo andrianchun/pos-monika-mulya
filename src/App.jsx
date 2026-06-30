@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import { initialProducts, initialCustomers, initialSuppliers, initialUsers, initialFinancialAccounts, initialAccounting } from './data/initialData';
 import { playSound } from './utils/helpers';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import LoginScreen from './pages/LoginScreen';
-import Dashboard from './pages/Dashboard';
 import POS from './pages/POS';
-import ProductManager from './pages/ProductManager';
-import ContactManager from './pages/ContactManager';
-import Reports from './pages/Reports';
-import SettingsPage from './pages/SettingsPage';
-import POSHistory from './pages/POSHistory';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const ProductManager = lazy(() => import('./pages/ProductManager'));
+const ContactManager = lazy(() => import('./pages/ContactManager'));
+const Reports = lazy(() => import('./pages/Reports'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const POSHistory = lazy(() => import('./pages/POSHistory'));
 
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, getDocs, writeBatch, onSnapshot } from 'firebase/firestore';
@@ -525,10 +526,11 @@ export default function App() {
                 <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} />
              </div>
              
-             {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={setActiveMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
+             <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white"></div></div>}>
+                 {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={setActiveMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
              {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} colors={baseThemeColors} user={user} isSoundOn={true} showToast={showToast} editIntent={editIntent} />}
              {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} editIntent={editIntent} />}
-             {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} />}
+               {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} handleNavigateAndEdit={handleNavigateAndEdit} />}
              {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
              
              {activeMenu === 'pengaturan' && (
@@ -544,6 +546,7 @@ export default function App() {
                    setAllDatabase={handleRestoreDatabase} isSoundOn={true} showToast={showToast} 
                 />
              )}
+             </Suspense>
          </main>
       </div>
       {toast && (<div className={`fixed top-12 left-1/2 transform -translate-x-1/2 px-8 py-3.5 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.4)] z-[9999] font-bold transition-all text-white ${toast.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'}`}>{toast.msg}</div>)}

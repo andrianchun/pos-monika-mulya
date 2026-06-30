@@ -1,8 +1,8 @@
 import React from 'react';
-import { X, PackageCheck, ShoppingBag, Clock, CheckCircle, Wallet, Plus } from 'lucide-react';
+import { X, PackageCheck, ShoppingBag, Clock, CheckCircle, Wallet, Plus, Edit } from 'lucide-react';
 import { formatIDR } from '../../utils/helpers';
 
-export default function ContactProfileModal({ contact, type, sales, purchases, onClose, onTopUpDeposit, colors }) {
+export default function ContactProfileModal({ contact, type, sales, purchases, onClose, onTopUpDeposit, colors, handleNavigateAndEdit }) {
   if (!contact) return null;
 
   // Calculate statistics
@@ -88,23 +88,31 @@ export default function ContactProfileModal({ contact, type, sales, purchases, o
                        <th className="p-3 font-semibold text-gray-600 dark:text-gray-300 rounded-tl-xl">Tanggal</th>
                        <th className="p-3 font-semibold text-gray-600 dark:text-gray-300">Nota</th>
                        <th className="p-3 font-semibold text-gray-600 dark:text-gray-300">Total</th>
-                       <th className="p-3 font-semibold text-gray-600 dark:text-gray-300 rounded-tr-xl">Status Bayar</th>
+                       <th className="p-3 font-semibold text-gray-600 dark:text-gray-300">Status Bayar</th>
+                       <th className="p-3 font-semibold text-gray-600 dark:text-gray-300 rounded-tr-xl text-right">Aksi</th>
                     </tr>
                  </thead>
                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {history.map(h => (
-                       <tr key={h.id} className="hover:bg-gray-50 dark:hover:bg-[#1e1e1e]/50">
+                       <tr key={h.id} 
+                           onClick={() => { if(handleNavigateAndEdit) { onClose(); handleNavigateAndEdit('riwayat', h.id, type === 'customer' ? 'penjualan' : 'pembelian'); } }}
+                           className="hover:bg-gray-50 dark:hover:bg-[#1e1e1e]/50 cursor-pointer group transition-colors">
                           <td className={`p-3 ${colors.textMuted}`}>{new Date(h.date).toLocaleDateString('id-ID')}</td>
                           <td className={`p-3 font-bold ${colors.text}`}>{h.nota}</td>
                           <td className={`p-3 font-semibold ${colors.text}`}>Rp {formatIDR(h.total)}</td>
                           <td className="p-3">
                              <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${h.status === 'Lunas' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{h.status}</span>
                           </td>
+                          <td className="p-3 text-right">
+                             <button className="p-1.5 rounded-lg text-gray-400 group-hover:text-blue-600 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 dark:group-hover:text-blue-400 transition-colors">
+                                <Edit size={14}/>
+                             </button>
+                          </td>
                        </tr>
                     ))}
                     {history.length === 0 && (
                        <tr>
-                          <td colSpan="4" className={`p-8 text-center ${colors.textMuted}`}>Belum ada transaksi</td>
+                          <td colSpan="5" className={`p-8 text-center ${colors.textMuted}`}>Belum ada transaksi</td>
                        </tr>
                     )}
                  </tbody>

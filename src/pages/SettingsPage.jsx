@@ -1,7 +1,8 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Lock, Store, Plus, Edit, Trash2, X, DownloadCloud, UploadCloud, Tags, Gift, Ticket, Camera, CheckSquare, Square, Image } from 'lucide-react';
-import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload } from '../utils/helpers';
+import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload, formatWhatsAppNumber } from '../utils/helpers';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
+import SearchableSelect from '../components/ui/SearchableSelect';
 
 export default function SettingsPage({ 
   colors, user, showToast, isSoundOn, 
@@ -13,6 +14,9 @@ export default function SettingsPage({
   
   const [activeTab, setActiveTab] = useState('toko');
   const importDbRef = useRef(null);
+
+  const [pendingTabSwitch, setPendingTabSwitch] = useState(null);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
 
   // --- SELF-HEALING: PURGE GHOST USERS ---
   React.useEffect(() => {
@@ -35,19 +39,91 @@ export default function SettingsPage({
   
   const [sPrefSales, setSPrefSales] = useState(storeInfo.prefixSales || 'INV');
   const [sPrefPurch, setSPrefPurch] = useState(storeInfo.prefixPurchase || 'PO');
-  const [sNextSeqSales, setSNextSeqSales] = useState(storeInfo.nextSeqSales || 1);
-  const [sNextSeqPurch, setSNextSeqPurch] = useState(storeInfo.nextSeqPurchase || 1);
+  const [sPointMult, setSPointMult] = useState(storeInfo.pointMultiplier || 10000);
+  const [sPointMultStr, setSPointMultStr] = useState(formatIDR(storeInfo.pointMultiplier || 10000));
+  const [sPointRew, setSPointRew] = useState(storeInfo.pointReward || 1);
+  const [sPointRewStr, setSPointRewStr] = useState(formatIDR(storeInfo.pointReward || 1));
+  const [sPointValue, setSPointValue] = useState(storeInfo.pointValue || 100);
+  const [sPointValueStr, setSPointValueStr] = useState(formatIDR(storeInfo.pointValue || 100));
+  const [sMinPointRedeem, setSMinPointRedeem] = useState(storeInfo.minPointRedeem || 100);
+  const [sMinPointRedeemStr, setSMinPointRedeemStr] = useState(formatIDR(storeInfo.minPointRedeem || 100));
 
   const [deleteUsr, setDeleteUsr] = useState(null);
   const [deleteFin, setDeleteFin] = useState(null);
+
+  const isTokoChanged = 
+     sName !== (storeInfo.name || 'MONIKA MULYA') ||
+     sTagline !== (storeInfo.tagline || '') ||
+     sAddress !== (storeInfo.address || '') ||
+     sPhone !== (storeInfo.phone || '') ||
+     sLogo !== (storeInfo.logo || null) ||
+     sBanner !== (storeInfo.banner || null) ||
+     sPrefSales !== (storeInfo.prefixSales || 'INV') ||
+     sPrefPurch !== (storeInfo.prefixPurchase || 'PO');
+
+  const isHargaChanged = 
+     Number(sPointMult) !== (storeInfo.pointMultiplier || 10000) ||
+     Number(sPointRew) !== (storeInfo.pointReward || 1) ||
+     Number(sPointValue) !== (storeInfo.pointValue || 100) ||
+     Number(sMinPointRedeem) !== (storeInfo.minPointRedeem || 100) ||
+     Number(sOngkir) !== (storeInfo.ongkirPerKm || 0);
+
+  const resetTokoState = () => {
+     setSName(storeInfo.name || 'MONIKA MULYA');
+     setSTagline(storeInfo.tagline || '');
+     setSAddress(storeInfo.address || '');
+     setSPhone(storeInfo.phone || '');
+     setSLogo(storeInfo.logo || null);
+     setSBanner(storeInfo.banner || null);
+     setSPrefSales(storeInfo.prefixSales || 'INV');
+     setSPrefPurch(storeInfo.prefixPurchase || 'PO');
+  };
+
+  const resetHargaState = () => {
+     setSPointMult(storeInfo.pointMultiplier || 10000);
+     setSPointRew(storeInfo.pointReward || 1);
+     setSPointRewStr(formatIDR(storeInfo.pointReward || 1));
+     setSOngkir(storeInfo.ongkirPerKm || 0);
+  };
+
+  const handleTabClick = (tabId) => {
+      playSound('pop', isSoundOn);
+      if (activeTab === tabId) return;
+
+      let hasChanges = false;
+      if (activeTab === 'toko' && isTokoChanged) hasChanges = true;
+      if (activeTab === 'harga' && isHargaChanged) hasChanges = true;
+
+      if (hasChanges) {
+          setPendingTabSwitch(tabId);
+          setShowUnsavedModal(true);
+      } else {
+          if (activeTab === 'toko') resetTokoState();
+          if (activeTab === 'harga') resetHargaState();
+          setActiveTab(tabId);
+      }
+  };
+
+  const saveHargaSettings = (e) => {
+     if(e) e.preventDefault();
+     playSound('success', isSoundOn);
+     setStoreInfo({ 
+         ...storeInfo, 
+         pointMultiplier: Number(sPointMult), 
+         pointReward: Number(sPointRew),
+         pointValue: Number(sPointValue),
+         minPointRedeem: Number(sMinPointRedeem),
+         ongkirPerKm: Number(sOngkir) || 0
+     });
+     showToast('Pengaturan poin & ongkir diperbarui.', 'success');
+  };
 
   const saveStoreInfo = (e) => {
      e.preventDefault(); 
      playSound('success', isSoundOn);
      setStoreInfo({ 
        ...storeInfo, name: sName, tagline: sTagline, address: sAddress, phone: sPhone, logo: sLogo, banner: sBanner,
-       ongkirPerKm: Number(sOngkir) || 0, prefixSales: sPrefSales, prefixPurchase: sPrefPurch,
-       nextSeqSales: Number(sNextSeqSales) || 1, nextSeqPurchase: Number(sNextSeqPurch) || 1
+       ongkirPerKm: Number(sOngkir) || 0, prefixSales: sPrefSales, prefixPurchase: sPrefPurch
      });
      showToast('Pengaturan profil & kode nota berhasil diperbarui.', 'success');
   };
@@ -55,7 +131,7 @@ export default function SettingsPage({
   // --- LOGIKA HARGA GROSIR ---
   const wholesales = storeInfo.wholesales || [];
   const [isGrosirModal, setIsGrosirModal] = useState(false);
-  const [wForm, setWForm] = useState({ id: '', productId: '', minQty: '', wholesalePrice: '' });
+  const [wForm, setWForm] = useState({ productId: '', tiers: [{ id: '', minQty: '', wholesalePrice: '' }] });
 
   const selectedProductOriginalPrice = useMemo(() => {
      if (!wForm.productId) return 0;
@@ -63,47 +139,64 @@ export default function SettingsPage({
      return prod ? prod.price : 0;
   }, [wForm.productId, products]);
 
+  const selectedProductCostPrice = useMemo(() => {
+     if (!wForm.productId) return 0;
+     const prod = products.find(p => String(p.id) === String(wForm.productId));
+     return prod ? (prod.cost || 0) : 0;
+  }, [wForm.productId, products]);
+
   const saveWholesale = (e) => {
      e.preventDefault(); 
      playSound('success', isSoundOn);
      let newWholesales = [...wholesales];
      if (!wForm.productId) { showToast('Pilih produk terlebih dahulu!', 'error'); return; }
+     
+     if (!wForm.tiers || wForm.tiers.length === 0) { showToast('Tambahkan minimal 1 lapis grosir!', 'error'); return; }
 
-     if (wForm.id) {
-       newWholesales = newWholesales.map(w => w.id === wForm.id ? { ...wForm, minQty: Number(wForm.minQty), wholesalePrice: parseIDR(wForm.wholesalePrice) } : w);
-     } else {
-       if (newWholesales.find(w => String(w.productId) === String(wForm.productId))) {
-          showToast('Aturan grosir untuk produk ini sudah ada!', 'error'); return;
-       }
-       newWholesales.push({ ...wForm, id: Date.now(), minQty: Number(wForm.minQty), wholesalePrice: parseIDR(wForm.wholesalePrice) });
+     for (let t of wForm.tiers) {
+        if (!t.minQty || !t.wholesalePrice) { showToast('Harap lengkapi semua baris lapis grosir!', 'error'); return; }
+        const minQ = Number(parseIDR(t.minQty));
+        const wP = Number(parseIDR(t.wholesalePrice));
+        if (minQ <= 1) { showToast('Minimal beli harus lebih dari 1!', 'error'); return; }
+        if (wP >= selectedProductOriginalPrice) { showToast(`Harga grosir (min ${minQ}) harus di bawah harga ritel!`, 'error'); return; }
+        if (wP <= selectedProductCostPrice) { showToast(`Harga grosir (min ${minQ}) harus di atas harga modal!`, 'error'); return; }
      }
+
+     const minQtys = wForm.tiers.map(t => Number(parseIDR(t.minQty)));
+     if (new Set(minQtys).size !== minQtys.length) {
+        showToast('Terdapat Minimal Beli yang sama di dalam aturan ini!', 'error'); return;
+     }
+
+     newWholesales = newWholesales.filter(w => String(w.productId) !== String(wForm.productId));
+     
+     const timestamp = Date.now();
+     wForm.tiers.forEach((t, i) => {
+        newWholesales.push({
+           id: t.id || `${timestamp}_${i}`,
+           productId: wForm.productId,
+           minQty: Number(parseIDR(t.minQty)),
+           wholesalePrice: Number(parseIDR(t.wholesalePrice))
+        });
+     });
+
      setStoreInfo({ ...storeInfo, wholesales: newWholesales });
      setIsGrosirModal(false);
      showToast('Aturan grosir disimpan', 'success');
   };
 
-  const deleteWholesale = (id) => {
+  const deleteWholesalesByProduct = (productId) => {
      playSound('pop', isSoundOn);
-     setStoreInfo({ ...storeInfo, wholesales: wholesales.filter(w => w.id !== id) });
-     showToast('Aturan grosir dihapus', 'success');
+     setStoreInfo({ ...storeInfo, wholesales: wholesales.filter(w => String(w.productId) !== String(productId)) });
+     showToast('Semua aturan grosir produk dihapus', 'success');
   };
 
-  // --- LOGIKA POIN LOYALITAS ---
-  const [sPointMult, setSPointMult] = useState(storeInfo.pointMultiplier || 10000);
-  const [sPointRew, setSPointRew] = useState(storeInfo.pointReward || 1);
-  const [sPointRewStr, setSPointRewStr] = useState(formatIDR(storeInfo.pointReward || 1));
 
-  const savePointsInfo = (e) => {
-     e.preventDefault(); 
-     playSound('success', isSoundOn);
-     setStoreInfo({ ...storeInfo, pointMultiplier: Number(sPointMult), pointReward: Number(sPointRew) });
-     showToast('Aturan poin loyalitas diperbarui.', 'success');
-  };
 
   // --- LOGIKA DISKON PROMO ---
   const promos = storeInfo.promos || [];
   const [isPromoModal, setIsPromoModal] = useState(false);
   const [pForm, setPForm] = useState({ id: '', name: '', targetType: 'semua', targetItems: [], targetCustomerType: 'semua', targetCustomers: [], startDate: '', endDate: '', discType: '%', discValue: '' });
+  const [promoSimProductId, setPromoSimProductId] = useState('');
 
   const savePromo = (e) => {
      e.preventDefault(); 
@@ -360,14 +453,14 @@ export default function SettingsPage({
            <div className={`flex items-center rounded-lg p-1 ${colors.creamBg} border ${colors.border} w-fit h-fit shrink-0`}>
            {[
              { id: 'toko', label: 'Profil Toko' }, 
-             { id: 'harga', label: 'Harga' }, 
-             { id: 'akun', label: 'Akun' }, 
+             { id: 'harga', label: 'Harga & Promo' }, 
+             { id: 'akun', label: 'Akun & Akses' }, 
              { id: 'kategori', label: 'Kategori' }, 
              { id: 'database', label: 'Database' }
            ].map(t => (
              <button 
                key={t.id} 
-               onClick={() => { playSound('pop', isSoundOn); setActiveTab(t.id); }} 
+               onClick={() => handleTabClick(t.id)} 
                className={`w-[110px] sm:w-[130px] py-1.5 text-[13px] sm:text-sm font-bold rounded-md transition-all flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis ${activeTab === t.id ? `${colors.goldBg} text-[#18181B] shadow` : `${colors.textMuted} ${colors.goldHoverText}`}`}
              >
                {t.label}
@@ -380,66 +473,77 @@ export default function SettingsPage({
          
          {/* 1. PROFIL TOKO & ATURAN KODE NOTA */}
          {activeTab === 'toko' && (
-            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-3xl`}>
+            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
                <form onSubmit={saveStoreInfo} className="space-y-6">
-                 <div className="flex justify-center gap-6 mb-4">
-                   <div className="flex flex-col items-center">
-                     <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
-                        {sLogo ? <img src={sLogo} className="w-full h-full object-cover" alt="Logo" /> : <Store size={32} />}
-                        <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSLogo, showToast, 600, 0.85)} />
-                     </label>
-                     <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase">Logo Toko</span>
-                   </div>
-                   <div className="flex flex-col items-center">
-                     <label className={`relative w-48 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
-                        {sBanner ? <img src={sBanner} className="w-full h-full object-cover" alt="Banner" /> : <Image size={32} />}
-                        <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSBanner, showToast, 1920, 0.85)} />
-                     </label>
-                     <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase">Banner Latar</span>
-                   </div>
-                 </div>
-                 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2"><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nama Toko</label><input required type="text" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none`} value={sName} onChange={e => setSName(e.target.value)} /></div>
-                    <div className="md:col-span-2"><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tagline / Moto Toko</label><input type="text" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none`} value={sTagline} onChange={e => setSTagline(e.target.value)} placeholder="Bismillah / Melayani Grosir & Ritel" /></div>
-                    <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Alamat Toko</label><textarea rows="2" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none`} value={sAddress} onChange={e => setSAddress(e.target.value)}></textarea></div>
-                    <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>No. WhatsApp Toko</label><input type="text" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none`} value={sPhone} onChange={e => setSPhone(e.target.value)} /></div>
-                    <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tarif Ongkir (Per Km)</label><input type="number" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none`} value={sOngkir} onChange={e => setSOngkir(e.target.value)} /></div>
-                    
-                    <div className="md:col-span-2 border-t border-dashed border-gray-300 dark:border-gray-700 pt-4 mt-2">
-                       <h4 className="text-sm font-extrabold mb-3 text-[#D4AF37]">Konfigurasi Penomoran Kode Nota Kasir</h4>
-                       <div className="grid grid-cols-2 gap-4">
-                          <div>
-                             <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Prefix Nota Jual (Sales)</label>
-                             <input required type="text" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} font-mono uppercase outline-none`} value={sPrefSales} onChange={e => setSPrefSales(e.target.value)} placeholder="Cth: INV" />
+                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                    {/* Kiri: Gambar, Alamat, No WA */}
+                    <div className="md:col-span-5 flex flex-col gap-4">
+                       <div className="flex flex-wrap gap-4 items-end mb-2">
+                         <div className="flex flex-col items-start">
+                           <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
+                              {sLogo ? <img src={sLogo} className="w-full h-full object-cover" alt="Logo" /> : <Store size={32} />}
+                              <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSLogo, showToast, 600, 0.85)} />
+                           </label>
+                           <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase w-full text-center">Logo Toko</span>
+                         </div>
+                         <div className="flex flex-col items-start flex-1">
+                           <label className={`relative w-full h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
+                              {sBanner ? <img src={sBanner} className="w-full h-full object-cover" alt="Banner" /> : <Image size={32} />}
+                              <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSBanner, showToast, 1920, 0.85)} />
+                           </label>
+                           <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase w-full text-center">Banner Latar</span>
+                         </div>
+                       </div>
+                       
+                       <div>
+                          <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Alamat Lengkap Toko</label>
+                          <textarea rows="3" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sAddress} onChange={e => setSAddress(e.target.value)}></textarea>
+                       </div>
+                       <div>
+                          <label className={`block text-xs font-bold mb-1 ${colors.text}`}>No. WhatsApp Toko</label>
+                          <input type="text" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPhone} onChange={e => setSPhone(formatWhatsAppNumber(e.target.value))} placeholder="08..." />
+                       </div>
+                    </div>
+
+                    {/* Kanan: Nama, Tagline, Kode Nota */}
+                    <div className="md:col-span-7 flex flex-col gap-4">
+                       <div>
+                          <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nama Toko</label>
+                          <input required type="text" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none font-black text-xl focus:ring-1 focus:ring-[#D4AF37]`} value={sName} onChange={e => setSName(e.target.value)} />
+                       </div>
+                       <div>
+                          <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tagline / Moto Toko</label>
+                          <input type="text" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sTagline} onChange={e => setSTagline(e.target.value)} placeholder="Bismillah / Melayani Grosir & Ritel" />
+                       </div>
+                       
+                       <div className="border-t border-dashed border-gray-300 dark:border-gray-700 pt-6 mt-4">
+                          <h4 className="text-sm font-extrabold mb-4 text-[#D4AF37]">Konfigurasi Penomoran Kode Nota Kasir</h4>
+                          <div className="grid grid-cols-2 gap-4">
+                             <div>
+                                <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Prefix Nota Jual (Sales)</label>
+                                <input required type="text" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} font-mono uppercase outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPrefSales} onChange={e => setSPrefSales(e.target.value)} placeholder="Cth: INV" />
+                             </div>
+                             <div>
+                                <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Prefix Nota Beli (Purchase)</label>
+                                <input required type="text" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} font-mono uppercase outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPrefPurch} onChange={e => setSPrefPurch(e.target.value)} placeholder="Cth: PO" />
+                             </div>
                           </div>
-                          <div>
-                             <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nomor Urut Jual Berikutnya</label>
-                             <input required type="number" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none`} value={sNextSeqSales} onChange={e => setSNextSeqSales(e.target.value)} />
-                          </div>
-                          <div>
-                             <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Prefix Nota Beli (Purchase)</label>
-                             <input required type="text" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} font-mono uppercase outline-none`} value={sPrefPurch} onChange={e => setSPrefPurch(e.target.value)} placeholder="Cth: PO" />
-                          </div>
-                          <div>
-                             <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nomor Urut Beli Berikutnya</label>
-                             <input required type="number" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none`} value={sNextSeqPurch} onChange={e => setSNextSeqPurch(e.target.value)} />
-                          </div>
+                          <p className="text-[11px] text-gray-500 mt-3 italic">Profil toko akan ditampilkan pada aplikasi dan nota.</p>
                        </div>
                     </div>
                  </div>
-                 <button type="submit" className={`w-full py-3.5 rounded-xl text-[#18181B] font-bold text-base shadow-md ${colors.goldBg}`}>Simpan Profil & Struktur Nota</button>
+                 <button type="submit" disabled={!isTokoChanged} className={`w-full py-3.5 rounded-xl text-center font-bold text-base shadow-md transition-all ${isTokoChanged ? `${colors.goldBg} text-[#18181B] hover:opacity-90` : 'bg-gray-300 dark:bg-[#27272A] text-gray-500 opacity-50 cursor-not-allowed'}`}>Simpan</button>
                </form>
             </div>
          )}
 
-         {/* 2. TAB HARGA (GROSIR, PROMO, LOYALITAS) */}
+         {/* 2. TAB HARGA & PROMO */}
          {activeTab === 'harga' && (
             <div className="space-y-6 w-full">
-            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-4xl`}>
+            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
                <div className="flex justify-between items-center mb-6">
-                  <h3 className={`font-bold text-lg flex items-center gap-2 ${colors.text}`}><Tags className="${colors.gold}"/> Aturan Harga Grosir Sentral</h3>
-                  <button onClick={() => { playSound('pop', isSoundOn); setWForm({id:'', productId:'', minQty:'', wholesalePrice:''}); setIsGrosirModal(true); }} className="px-4 py-2 rounded-xl text-[#18181B] text-sm font-bold ${colors.goldBg} hover:opacity-90 flex items-center gap-1 shadow-sm"><Plus size={16}/> Tambah Aturan</button>
+                  <h3 className={`font-bold text-lg flex items-center gap-2 ${colors.text}`}><Tags className={colors.gold}/> Harga Grosir</h3>
+                  <button onClick={() => { playSound('pop', isSoundOn); setWForm({productId:'', tiers: [{ id: '', minQty: '', wholesalePrice: '' }]}); setIsGrosirModal(true); }} className={`px-4 py-2 rounded-xl text-[#18181B] text-sm font-bold ${colors.goldBg} hover:opacity-90 flex items-center gap-1 shadow-sm`}><Plus size={16}/> Tambah Aturan</button>
                </div>
                
                <div className="space-y-3">
@@ -450,25 +554,37 @@ export default function SettingsPage({
                         <thead className={`text-xs uppercase ${colors.creamBg} border-b ${colors.border}`}>
                            <tr>
                               <th className="py-3 px-4">Nama Produk</th>
-                              <th className="py-3 px-4 text-right">Harga Ritel (Awal)</th>
-                              <th className="py-3 px-4 text-center">Minimal Beli</th>
-                              <th className="py-3 px-4 text-right">Harga Grosir (Baru)</th>
+                              <th className="py-3 px-4 text-right">Harga Ritel</th>
+                              <th className="py-3 px-4 text-center">Lapis Grosir</th>
+                              <th className="py-3 px-4 text-right">Harga Terendah</th>
                               <th className="py-3 px-4 text-center">Aksi</th>
                            </tr>
                         </thead>
                         <tbody>
-                           {wholesales.map((w, i) => {
-                              const pInfo = products?.find(p => String(p.id) === String(w.productId));
+                           {Object.values(wholesales.reduce((acc, w) => {
+                               if(!acc[w.productId]) acc[w.productId] = [];
+                               acc[w.productId].push(w);
+                               return acc;
+                           }, {})).map((productTiers, i) => {
+                              const pInfo = products?.find(p => String(p.id) === String(productTiers[0].productId));
+                              productTiers.sort((a,b) => b.minQty - a.minQty);
                               return (
-                                 <tr key={w.id ? `${w.id}_${i}` : i} className={`border-b border-dashed ${colors.border}`}>
+                                 <tr key={i} className={`border-b border-dashed ${colors.border}`}>
                                     <td className="py-3 px-4 font-bold">{pInfo ? pInfo.name : 'Produk Tidak Ditemukan'}</td>
                                     <td className="py-3 px-4 text-right text-gray-400">Rp {formatIDR(pInfo?.price || 0)}</td>
-                                    <td className="py-3 px-4 text-center font-bold ${colors.gold} bg-black/5 dark:bg-white/5 rounded-lg">{w.minQty} {pInfo?.unit || 'Pcs'}</td>
-                                    <td className="py-3 px-4 text-right font-bold text-green-500">Rp {formatIDR(w.wholesalePrice)}</td>
+                                    <td className={`py-3 px-4 text-center font-bold ${colors.gold}`}>{productTiers.length} Lapis</td>
+                                    <td className="py-3 px-4 text-right font-bold text-blue-600 dark:text-blue-400">Rp {formatIDR(productTiers[0].wholesalePrice)}</td>
                                     <td className="py-3 px-4 text-center">
                                        <div className="flex justify-center gap-2">
-                                          <button onClick={() => { playSound('pop', isSoundOn); setWForm({...w, wholesalePrice: formatIDR(w.wholesalePrice)}); setIsGrosirModal(true); }} className="p-1.5 rounded bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:scale-105"><Edit size={16}/></button>
-                                          <button onClick={() => deleteWholesale(w.id)} className="p-1.5 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 hover:scale-105"><Trash2 size={16}/></button>
+                                          <button onClick={() => { 
+                                             playSound('pop', isSoundOn); 
+                                             setWForm({
+                                                productId: productTiers[0].productId,
+                                                tiers: productTiers.map(t => ({ id: t.id, minQty: t.minQty, wholesalePrice: smartFormatInput(t.wholesalePrice) })).sort((a,b) => a.minQty - b.minQty)
+                                             }); 
+                                             setIsGrosirModal(true); 
+                                          }} className="p-1.5 rounded bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:scale-105"><Edit size={16}/></button>
+                                          <button onClick={() => deleteWholesalesByProduct(productTiers[0].productId)} className="p-1.5 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 hover:scale-105"><Trash2 size={16}/></button>
                                        </div>
                                     </td>
                                  </tr>
@@ -480,10 +596,10 @@ export default function SettingsPage({
                </div>
             </div>
          {/* 3. TAB PROMO DISKON OTOMATIS */}
-            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-4xl`}>
+            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
                <div className="flex justify-between items-center mb-6">
-                  <h3 className={`font-bold text-lg flex items-center gap-2 ${colors.text}`}><Ticket className="${colors.gold}"/> Aturan Promo & Diskon Otomatis</h3>
-                  <button onClick={() => { playSound('pop', isSoundOn); setPForm({id:'', name:'', targetType:'semua', targetItems:[], targetCustomerType:'semua', targetCustomers:[], startDate:'', endDate:'', discType:'%', discValue:''}); setIsPromoModal(true); }} className="px-4 py-2 rounded-xl text-[#18181B] text-sm font-bold ${colors.goldBg} hover:opacity-90 flex items-center gap-1 shadow-sm"><Plus size={16}/> Tambah Promo</button>
+                  <h3 className={`font-bold text-lg flex items-center gap-2 ${colors.text}`}><Ticket className={colors.gold}/> Promo & Diskon</h3>
+                  <button onClick={() => { playSound('pop', isSoundOn); setPForm({id:'', name:'', targetType:'semua', targetItems:[], targetCustomerType:'semua', targetCustomers:[], startDate:'', endDate:'', discType:'%', discValue:''}); setPromoSimProductId(''); setIsPromoModal(true); }} className={`px-4 py-2 rounded-xl text-[#18181B] text-sm font-bold ${colors.goldBg} hover:opacity-90 flex items-center gap-1 shadow-sm`}><Plus size={16}/> Tambah Promo</button>
                </div>
                
                <div className="space-y-3">
@@ -515,7 +631,7 @@ export default function SettingsPage({
                                     <td className="py-3 px-4 text-center text-xs text-gray-400 font-medium">{pr.startDate.split('-').reverse().join('-')} s/d {pr.endDate.split('-').reverse().join('-')}</td>
                                     <td className="py-3 px-4 text-center">
                                        <div className="flex justify-center gap-2">
-                                          <button onClick={() => { playSound('pop', isSoundOn); setPForm({ ...pr, targetItems: tItems, targetCustomers: tCusts, targetCustomerType: pr.targetCustomerType || (pr.targetCustomer==='semua' ? 'semua':'spesifik') }); setIsPromoModal(true); }} className="p-1.5 rounded bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:scale-105"><Edit size={16}/></button>
+                                          <button onClick={() => { playSound('pop', isSoundOn); setPForm({ ...pr, targetItems: tItems, targetCustomers: tCusts, targetCustomerType: pr.targetCustomerType || (pr.targetCustomer==='semua' ? 'semua':'spesifik') }); setPromoSimProductId(''); setIsPromoModal(true); }} className="p-1.5 rounded bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:scale-105"><Edit size={16}/></button>
                                           <button onClick={() => deletePromo(pr.id)} className="p-1.5 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 hover:scale-105"><Trash2 size={16}/></button>
                                        </div>
                                     </td>
@@ -528,23 +644,48 @@ export default function SettingsPage({
                </div>
             </div>
          {/* 4. TAB POIN LOYALITAS CUSTOMER */}
-            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-xl`}>
-               <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${colors.text}`}><Gift className="text-orange-500"/> Aturan Poin Kelipatan Belanja</h3>
-               <form onSubmit={savePointsInfo} className="space-y-4">
-                  <div>
-                     <label className={`block text-xs font-bold mb-2 ${colors.text}`}>Setiap Nominal Belanja Kelipatan (Rp)</label>
-                     <input required type="number" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPointMult} onChange={e => setSPointMult(e.target.value)} />
+            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
+               <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${colors.text}`}><Gift className="text-orange-500"/> Poin Customer</h3>
+               <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                     <div>
+                        <label className={`block text-xs font-bold mb-2 ${colors.text}`}>Setiap Kelipatan Belanja (Rp)</label>
+                        <input required type="text" inputMode="decimal" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPointMultStr !== undefined ? sPointMultStr : (sPointMult || '')} onChange={e => { setSPointMult(parseIDR(e.target.value)); setSPointMultStr(smartFormatInput(e.target.value)); }} />
+                     </div>
+                     <div>
+                        <label className={`block text-xs font-bold mb-2 ${colors.text}`}>Dapat Reward Poin Sejumlah</label>
+                        <input required type="text" inputMode="decimal" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPointRewStr !== undefined ? sPointRewStr : (sPointRew || '')} onChange={e => { setSPointRew(parseIDR(e.target.value)); setSPointRewStr(smartFormatInput(e.target.value)); }} />
+                     </div>
+                     <div>
+                        <label className={`block text-xs font-bold mb-2 ${colors.text}`}>Nilai Tukar 1 Poin (Rp)</label>
+                        <input required type="text" inputMode="decimal" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPointValueStr !== undefined ? sPointValueStr : (sPointValue || '')} onChange={e => { setSPointValue(parseIDR(e.target.value)); setSPointValueStr(smartFormatInput(e.target.value)); }} />
+                     </div>
+                     <div>
+                        <label className={`block text-xs font-bold mb-2 ${colors.text}`}>Minimal Poin untuk Ditukar</label>
+                        <input required type="text" inputMode="decimal" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sMinPointRedeemStr !== undefined ? sMinPointRedeemStr : (sMinPointRedeem || '')} onChange={e => { setSMinPointRedeem(parseIDR(e.target.value)); setSMinPointRedeemStr(smartFormatInput(e.target.value)); }} />
+                     </div>
                   </div>
-                  <div>
-                     <label className={`block text-xs font-bold mb-2 ${colors.text}`}>Berikan Reward Poin Sejumlah</label>
-                     <input required type="text" inputMode="decimal" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPointRewStr !== undefined ? sPointRewStr : (sPointRew || '')} onChange={e => { setSPointRew(parseIDR(e.target.value)); setSPointRewStr(smartFormatInput(e.target.value)); }} />
+                  <div className="p-3 bg-orange-500/5 rounded-xl border border-orange-500/20 text-[11px] text-gray-500 italic space-y-1">
+                     <p><strong>[Perolehan]</strong> Sistem di Kasir otomatis menghitung total belanja pembeli. Misal diatur Rp 10.000 = 1 Poin, pembeli dengan total belanja Rp 35.000 otomatis tercatat mendapatkan 3 Poin tambahan.</p>
+                     <p><strong>[Penukaran]</strong> Saat pelanggan memiliki poin mencapai batas Minimal Penukaran, fitur Tukar Poin akan muncul di halaman Kasir yang berfungsi sebagai potongan diskon (1 Poin memotong harga senilai Nilai Tukar).</p>
                   </div>
-                  <div className="p-3 bg-orange-500/5 rounded-xl border border-orange-500/20 text-[11px] text-gray-500 italic">
-                     Sistem di Kasir otomatis menghitung total belanja pembeli. Misal diatur Rp 10.000 = 1 Poin, pembeli dengan total belanja Rp 35.000 otomatis tercatat mendapatkan 3 Poin tambahan.
-                  </div>
-                  <button type="submit" className="w-full py-3 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-md">Simpan Konfigurasi Poin</button>
-               </form>
+               </div>
             </div>
+            
+         {/* 5. TAB ONGKIR PENGIRIMAN */}
+            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
+               <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${colors.text}`}><Store className="text-blue-500"/> Ongkos Kirim</h3>
+               <div className="space-y-4">
+                  <div>
+                     <label className={`block text-xs font-bold mb-2 ${colors.text}`}>Tarif Dasar Ongkir (Per Kilometer)</label>
+                     <input required type="number" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sOngkir} onChange={e => setSOngkir(e.target.value)} />
+                  </div>
+                  <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/20 text-[11px] text-gray-500 italic">
+                     Biaya ini akan digunakan ketika Anda mengaktifkan opsi "Hitung Ongkir Otomatis (Maps)" di layar POS saat proses Checkout. Biaya akan dikalikan dengan estimasi jarak dari toko ke alamat pengiriman.
+                  </div>
+               </div>
+            </div>
+            <button type="button" onClick={saveHargaSettings} disabled={!isHargaChanged} className={`w-full py-3.5 rounded-xl text-center font-bold text-base shadow-md transition-all ${isHargaChanged ? `${colors.goldBg} text-[#18181B] hover:opacity-90` : 'bg-gray-300 dark:bg-[#27272A] text-gray-500 opacity-50 cursor-not-allowed'}`}>Simpan</button>
             </div>
          )}
 
@@ -584,7 +725,7 @@ export default function SettingsPage({
                </table>
             </div>
          {/* 6. TAB AKUN KEUANGAN (SAFE GUARDED) */}
-            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-3xl`}>
+            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
                <h3 className={`font-bold text-lg mb-2 ${colors.text}`}>Kelola Akun Keuangan</h3>
                <div className="flex gap-3 mb-6">
                    <input type="text" className={`flex-1 p-2.5 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} placeholder="Ketik Nama Akun Baru..." value={newAccName} onChange={e=>setNewAccName(e.target.value)} />
@@ -621,7 +762,7 @@ export default function SettingsPage({
                         <div key={i} className={`px-4 py-2.5 rounded-xl text-sm font-semibold flex justify-between items-center border ${colors.border} bg-[#F8FAFC] dark:bg-[#27272A]`}>
                            {label} 
                            <div className="flex gap-2">
-                              <button onClick={() => { playSound('pop', isSoundOn); setEditGenericModal({type:'cat', idOrIdx: label, val1: label}); }} className="${colors.gold} hover:scale-110"><Edit size={16}/></button>
+                              <button onClick={() => { playSound('pop', isSoundOn); setEditGenericModal({type:'cat', idOrIdx: label, val1: label}); }} className={`${colors.gold} hover:scale-110`}><Edit size={16}/></button>
                               <button onClick={() => handleDeleteCat(label)} className="text-red-500 hover:scale-110"><Trash2 size={16}/></button>
                            </div>
                         </div>
@@ -640,7 +781,7 @@ export default function SettingsPage({
                         <div key={i} className={`px-4 py-2.5 rounded-xl text-sm font-semibold flex justify-between items-center border ${colors.border} bg-[#F8FAFC] dark:bg-[#27272A]`}>
                            {label} 
                            <div className="flex gap-2">
-                              <button onClick={() => { playSound('pop', isSoundOn); setEditGenericModal({type:'unit', idOrIdx: label, val1: label}); }} className="${colors.gold} hover:scale-110"><Edit size={16}/></button>
+                              <button onClick={() => { playSound('pop', isSoundOn); setEditGenericModal({type:'unit', idOrIdx: label, val1: label}); }} className={`${colors.gold} hover:scale-110`}><Edit size={16}/></button>
                               <button onClick={() => handleDeleteUnit(label)} className="text-red-500 hover:scale-110"><Trash2 size={16}/></button>
                            </div>
                         </div>
@@ -652,7 +793,7 @@ export default function SettingsPage({
 
          {/* 8. TAB DATABASE & BACKUP (MULTISELECT AKTIF & WORKING) */}
          {activeTab === 'database' && (
-            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm max-w-4xl`}>
+            <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
                <h3 className={`font-bold text-lg mb-2 ${colors.text}`}>Ekspor & Impor Parsial Database Utama</h3>
                <p className="text-xs text-gray-400 mb-6 leading-relaxed">Pilih modul data apa saja yang ingin kamu simpan ke dalam file backup .json secara dinamis.</p>
                
@@ -697,12 +838,12 @@ export default function SettingsPage({
                   </div>
 
                   {/* Kanan: Kotak Restore / Impor */}
-                  <div className="flex flex-col justify-center p-5 rounded-xl border border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-900/10 h-fit my-auto">
-                     <UploadCloud size={40} className="mb-3 text-orange-500 mx-auto" />
+                  <div className="flex flex-col justify-center p-5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/10 h-full">
+                     <UploadCloud size={40} className="mb-3 text-blue-500 mx-auto" />
                      <h4 className={`font-black text-center text-sm mb-1 ${colors.text}`}>Impor / Pulihkan Data</h4>
                      <p className="text-[10px] text-center text-gray-500 mb-4 leading-normal">Unggah file JSON cadangan untuk memperbarui database tokomu.</p>
                      <input type="file" accept=".json" className="hidden" ref={importDbRef} onChange={handleImportDB} />
-                     <button type="button" onClick={() => { playSound('pop', isSoundOn); importDbRef.current.click(); }} className="px-4 py-2.5 bg-orange-500 text-white font-black rounded-xl text-xs w-full shadow-sm hover:bg-orange-600 transition-colors">Pilih File Backup</button>
+                     <button type="button" onClick={() => { playSound('pop', isSoundOn); importDbRef.current.click(); }} className="px-4 py-2.5 bg-blue-500 text-white font-black rounded-xl text-xs w-full shadow-sm hover:bg-blue-600 transition-colors">Pilih File Backup</button>
                   </div>
                </div>
             </div>
@@ -712,39 +853,132 @@ export default function SettingsPage({
       {/* MODAL TAMBAH/EDIT GROSIR */}
       {isGrosirModal && (
          <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4">
-            <div className={`w-full max-w-md p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
+            <div className={`w-full max-w-lg p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] overflow-y-auto custom-scrollbar`}>
                <div className="flex justify-between items-center mb-4 border-b border-solid border-gray-200 dark:border-gray-800 pb-2">
-                 <h3 className={`text-lg font-bold flex items-center gap-2 ${colors.text}`}><Tags size={20} className="${colors.gold}"/> {wForm.id ? 'Edit' : 'Buat'} Aturan Grosir</h3>
+                 <h3 className={`text-lg font-bold flex items-center gap-2 ${colors.text}`}><Tags size={20} className={colors.gold}/> Kelola Lapis Grosir</h3>
                  <button onClick={() => setIsGrosirModal(false)} className="text-red-500"><X size={20}/></button>
                </div>
                
                <form onSubmit={saveWholesale} className="space-y-4">
                   <div>
-                     <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Pilih Produk</label>
-                     <select required className={`w-full p-2.5 rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] outline-none text-sm`} value={wForm.productId} onChange={e=>setWForm({...wForm, productId: e.target.value})} disabled={wForm.id !== ''}>
-                        <option value="">-- Cari Produk --</option>
-                        {products?.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                     </select>
+                      <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Pilih Produk</label>
+                     <div className="w-full">
+                        {wForm.tiers && wForm.tiers.length > 0 && wForm.tiers[0].id !== '' ? (
+                            <div className={`p-2.5 rounded-xl border ${colors.border} bg-gray-100 dark:bg-[#1e1e1e] text-sm opacity-70 cursor-not-allowed`}>
+                               {products.find(p => String(p.id) === String(wForm.productId))?.name || 'Produk Tidak Ditemukan'}
+                            </div>
+                        ) : (
+                            <SearchableSelect 
+                                options={products} 
+                                value={wForm.productId} 
+                                onChange={(val) => setWForm({...wForm, productId: val})} 
+                                placeholder="-- Cari Produk --" 
+                                colors={colors} 
+                            />
+                        )}
+                     </div>
                   </div>
                   
                   {selectedProductOriginalPrice > 0 && (
-                     <div className="p-3 bg-[#F8FAFC] dark:bg-[#27272A]/40 border border-dashed rounded-xl flex justify-between text-xs">
-                        <span className="text-gray-400 font-medium">Harga Ritel Saat Ini:</span>
-                        <span className="font-black text-[#D4AF37]">Rp {formatIDR(selectedProductOriginalPrice)}</span>
+                     <div className="p-3 bg-[#F8FAFC] dark:bg-[#27272A]/40 border border-dashed rounded-xl space-y-2 text-xs">
+                        <div className="flex justify-between border-b pb-1 border-gray-200 dark:border-gray-800">
+                           <span className="text-gray-400 font-medium">Harga Pokok (HPP):</span>
+                           <span className="font-bold text-gray-700 dark:text-gray-300">Rp {formatIDR(selectedProductCostPrice)}</span>
+                        </div>
+                        <div className="flex justify-between border-b pb-1 border-gray-200 dark:border-gray-800">
+                           <span className="text-gray-400 font-medium">Harga Jual (Ritel):</span>
+                           <span className="font-bold text-[#D4AF37]">Rp {formatIDR(selectedProductOriginalPrice)}</span>
+                        </div>
+                        <div className="flex justify-between pt-1">
+                           <span className="text-gray-400 font-medium">Margin Ritel Saat Ini:</span>
+                           <span className="font-bold text-green-500">Rp {formatIDR(selectedProductOriginalPrice - selectedProductCostPrice)} ({Math.round(((selectedProductOriginalPrice - selectedProductCostPrice)/selectedProductCostPrice)*100) || 0}%)</span>
+                        </div>
                      </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-3">
-                     <div>
-                        <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Minimal Beli</label>
-                        <input required type="text" inputMode="decimal" placeholder="Cth: 12" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm`} value={wForm.minQtyStr !== undefined ? wForm.minQtyStr : (wForm.minQty || '')} onChange={e=>setWForm({...wForm, minQty: parseIDR(e.target.value), minQtyStr: smartFormatInput(e.target.value)})} />
+                  {selectedProductOriginalPrice > 0 && (
+                     <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl space-y-2 text-xs">
+                        <h4 className="font-bold text-blue-800 dark:text-blue-300">Bantu Hitung Harga Grosir (Strategi):</h4>
+                        <p className="text-[10px] text-blue-600 dark:text-blue-400 mb-2">Hitung rekomendasi harga dan salin hasilnya ke lapis grosir di bawah.</p>
+                        
+                        <div className="flex gap-2">
+                           <div className="flex-1 relative">
+                             <label className="text-[10px] text-gray-500 mb-1 block">Diskon dari Ritel</label>
+                             <div className="relative">
+                                <input id="calcDisc" type="number" placeholder="Cth: 10%" className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] outline-none text-xs`} onChange={(e) => {
+                                   const p = Number(e.target.value);
+                                   const resEl = document.getElementById('calcDiscRes');
+                                   if(p > 0 && resEl) {
+                                      const newPrice = selectedProductOriginalPrice - (selectedProductOriginalPrice * p / 100);
+                                      resEl.textContent = 'Rp ' + formatIDR(newPrice);
+                                   } else if (resEl) {
+                                      resEl.textContent = '-';
+                                   }
+                                }} />
+                                <span id="calcDiscRes" className="absolute right-2 top-2 text-[10px] font-bold text-green-600">-</span>
+                             </div>
+                           </div>
+                           <div className="flex-1 relative">
+                             <label className="text-[10px] text-gray-500 mb-1 block">Margin dari HPP</label>
+                             <div className="relative">
+                                <input id="calcMarg" type="number" placeholder="Cth: 15%" className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] outline-none text-xs`} onChange={(e) => {
+                                   const p = Number(e.target.value);
+                                   const resEl = document.getElementById('calcMargRes');
+                                   if(p > 0 && resEl) {
+                                      const newPrice = selectedProductCostPrice + (selectedProductCostPrice * p / 100);
+                                      resEl.textContent = 'Rp ' + formatIDR(newPrice);
+                                   } else if (resEl) {
+                                      resEl.textContent = '-';
+                                   }
+                                }} />
+                                <span id="calcMargRes" className="absolute right-2 top-2 text-[10px] font-bold text-green-600">-</span>
+                             </div>
+                           </div>
+                        </div>
                      </div>
-                     <div>
-                        <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Harga Jadi Satuan</label>
-                        <input required type="text" inputMode="decimal" placeholder="Harus di bawah harga awal" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm font-bold text-green-500`} value={wForm.wholesalePrice} onChange={e=>setWForm({...wForm, wholesalePrice: smartFormatInput(e.target.value)})} />
+                  )}
+
+                  <div className="space-y-3">
+                     <div className={`flex justify-between items-center border-b pb-2 ${colors.border}`}>
+                        <h4 className={`text-sm font-bold ${colors.text}`}>Lapisan (Tiers) Grosir</h4>
+                        <button type="button" onClick={() => setWForm({...wForm, tiers: [...wForm.tiers, { id: '', minQty: '', wholesalePrice: '' }]})} className={`px-3 py-1 rounded text-xs font-bold ${colors.goldBg} text-[#18181B] hover:opacity-90`}>+ Tambah Lapis</button>
+                     </div>
+                     
+                     <div className="max-h-[30vh] overflow-y-auto custom-scrollbar space-y-3 pr-1">
+                        {wForm.tiers.map((t, idx) => (
+                           <div key={idx} className={`p-3 rounded-xl border border-dashed ${colors.border} bg-gray-100 dark:bg-[#27272A] flex items-start gap-3`}>
+                              <div className="flex-1 grid grid-cols-2 gap-3">
+                                 <div>
+                                    <label className="block text-[10px] font-bold mb-1 text-gray-500">Minimal Beli</label>
+                                    <input required type="text" inputMode="decimal" placeholder="Cth: 12" className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] outline-none text-xs placeholder-gray-400 dark:placeholder-gray-600`} value={t.minQtyStr !== undefined ? t.minQtyStr : (t.minQty || '')} onChange={e => {
+                                       const newTiers = [...wForm.tiers];
+                                       newTiers[idx] = { ...t, minQty: parseIDR(e.target.value), minQtyStr: smartFormatInput(e.target.value) };
+                                       setWForm({...wForm, tiers: newTiers});
+                                    }} />
+                                 </div>
+                                 <div>
+                                    <label className="block text-[10px] font-bold mb-1 text-gray-500">Harga Grosir</label>
+                                    <input required type="text" inputMode="decimal" placeholder="Di bawah ritel" className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] outline-none text-xs font-bold text-blue-600 dark:text-blue-400 placeholder-gray-400 dark:placeholder-gray-600`} value={t.wholesalePrice} onChange={e => {
+                                       const newTiers = [...wForm.tiers];
+                                       newTiers[idx] = { ...t, wholesalePrice: smartFormatInput(e.target.value) };
+                                       setWForm({...wForm, tiers: newTiers});
+                                    }} />
+                                 </div>
+                              </div>
+                              <button type="button" onClick={() => {
+                                 const newTiers = [...wForm.tiers];
+                                 newTiers.splice(idx, 1);
+                                 setWForm({...wForm, tiers: newTiers});
+                              }} className="p-2 mt-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 size={16}/></button>
+                           </div>
+                        ))}
+                        {wForm.tiers.length === 0 && (
+                           <div className="text-center py-4 text-xs text-red-500 italic">Tambahkan minimal 1 lapis grosir!</div>
+                        )}
                      </div>
                   </div>
-                  <button type="submit" className="w-full py-3.5 mt-2 rounded-xl text-[#18181B] font-bold ${colors.goldBg} shadow-md">Simpan Aturan</button>
+
+                  <button type="submit" disabled={wForm.tiers.length === 0} className={`w-full py-3.5 mt-2 rounded-xl text-[#18181B] font-bold ${colors.goldBg} shadow-md disabled:opacity-50`}>Simpan Aturan</button>
                </form>
             </div>
          </div>
@@ -755,7 +989,7 @@ export default function SettingsPage({
          <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4">
             <div className={`w-full max-w-lg p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] overflow-y-auto custom-scrollbar`}>
                <div className="flex justify-between items-center mb-4 border-b border-solid border-gray-200 dark:border-gray-800 pb-2">
-                 <h3 className={`text-xl font-bold flex items-center gap-2 ${colors.text}`}><Ticket size={20} className="${colors.gold}"/> {pForm.id ? 'Edit' : 'Buat'} Promo Diskon</h3>
+                 <h3 className={`text-xl font-bold flex items-center gap-2 ${colors.text}`}><Ticket size={20} className={colors.gold}/> {pForm.id ? 'Edit' : 'Buat'} Promo Diskon</h3>
                  <button type="button" onClick={() => setIsPromoModal(false)} className="text-red-500"><X size={20}/></button>
                </div>
                
@@ -771,10 +1005,13 @@ export default function SettingsPage({
 
                      {pForm.targetType === 'spesifik' && (
                         <div className="space-y-2">
-                           <select className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#2a2a24] outline-none text-xs`} onChange={(e) => { if(e.target.value) { addPromoItem(e.target.value); e.target.value = ''; } }}>
-                              <option value="">+ Klik untuk Tambah Produk ke Daftar Promo</option>
-                              {products?.filter(p => !(pForm.targetItems || []).includes(p.id.toString())).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                           </select>
+                           <SearchableSelect 
+                               options={products.filter(p => !(pForm.targetItems||[]).includes(String(p.id)))} 
+                               value="" 
+                               onChange={(val) => { if(val) addPromoItem(val); }} 
+                               placeholder="-- Cari Produk ke Promo --" 
+                               colors={colors} 
+                           />
                            <div className="flex flex-wrap gap-1 mt-2">
                               {(pForm.targetItems || []).map(id => {
                                  const pInfo = products?.find(x => String(x.id) === String(id));
@@ -794,10 +1031,13 @@ export default function SettingsPage({
 
                      {pForm.targetCustomerType === 'spesifik' && (
                         <div className="space-y-2">
-                           <select className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#2a2a24] outline-none text-xs`} onChange={(e) => { if(e.target.value) { addPromoCustomer(e.target.value); e.target.value = ''; } }}>
-                              <option value="">+ Klik untuk Tambah Member ke Daftar Promo</option>
-                              {customers?.filter(c => c.id !== 1 && !(pForm.targetCustomers || []).includes(c.id.toString())).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                           </select>
+                           <SearchableSelect 
+                               options={customers.filter(c => c.id !== 1 && !(pForm.targetCustomers||[]).includes(String(c.id)))} 
+                               value="" 
+                               onChange={(val) => { if(val) addPromoCustomer(val); }} 
+                               placeholder="-- Cari Member ke Promo --" 
+                               colors={colors} 
+                           />
                            <div className="flex flex-wrap gap-1 mt-2">
                               {(pForm.targetCustomers || []).map(id => {
                                  const cInfo = customers?.find(x => String(x.id) === String(id));
@@ -809,21 +1049,82 @@ export default function SettingsPage({
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                     <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tgl Mulai</label><input required type="date" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm [color-scheme:light] dark:[color-scheme:dark]`} value={pForm.startDate} onChange={e=>setPForm({...pForm, startDate: e.target.value})} /></div>
-                     <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tgl Selesai</label><input required type="date" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm [color-scheme:light] dark:[color-scheme:dark]`} value={pForm.endDate} onChange={e=>setPForm({...pForm, endDate: e.target.value})} /></div>
+                     <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tgl Mulai</label><input type="date" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm [color-scheme:light] dark:[color-scheme:dark]`} value={pForm.startDate} onChange={e=>setPForm({...pForm, startDate: e.target.value})} /></div>
+                     <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tgl Selesai</label><input type="date" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm [color-scheme:light] dark:[color-scheme:dark]`} value={pForm.endDate} onChange={e=>setPForm({...pForm, endDate: e.target.value})} /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                     <div>
-                        <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tipe Diskon</label>
-                        <select className={`w-full p-2.5 rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] outline-none text-sm`} value={pForm.discType} onChange={e=>setPForm({...pForm, discType: e.target.value})}>
-                           <option value="%">Persentase (%)</option><option value="Rp">Nominal (Rp)</option>
-                        </select>
-                     </div>
-                     <div>
-                        <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nilai Diskon</label>
-                        <input required type="text" inputMode="decimal" placeholder={pForm.discType==='%' ? 'Cth: 10' : 'Cth: 5000'} className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm`} value={pForm.discValueStr !== undefined ? pForm.discValueStr : (pForm.discValue || '')} onChange={e=>{ let v = e.target.value; if(pForm.discType==='%'){ let c = v.replace(/[^0-9,.%]/g, ''); if(c.endsWith('.')) c=c.slice(0,-1)+','; setPForm({...pForm, discValue: parseIDR(c), discValueStr: c}); } else { setPForm({...pForm, discValue: parseIDR(v), discValueStr: smartFormatInput(v)}); } }} />
-                     </div>
+                  <div>
+                     <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nilai Diskon (Ketik % jika persentase)</label>
+                     <input required type="text" inputMode="text" placeholder="Cth: 10% atau 5000" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm placeholder-gray-400 dark:placeholder-gray-500`} value={pForm.discValueStr !== undefined ? pForm.discValueStr : (pForm.discType === '%' ? (pForm.discValue ? `${pForm.discValue}%` : '') : smartFormatInput(pForm.discValue))} onChange={e=>{ let v = e.target.value; let isPercent = v.includes('%'); let numVal = parseIDR(v); let formatted = isPercent ? v.replace(/[^0-9,.%]/g, '') : (v ? smartFormatInput(v) : ''); setPForm({...pForm, discType: isPercent ? '%' : 'Rp', discValue: numVal, discValueStr: formatted}); }} />
                   </div>
+
+                  {(() => {
+                     const isSingle = pForm.targetType === 'spesifik' && (pForm.targetItems || []).length === 1;
+                     const simId = isSingle ? pForm.targetItems[0] : promoSimProductId;
+                     const simProd = products.find(p => String(p.id) === String(simId));
+                     
+                     return (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl space-y-2 text-xs mt-4">
+                           <div className="flex justify-between items-center mb-1">
+                              <h4 className="font-bold text-blue-800 dark:text-blue-300">Kalkulator Margin Promo:</h4>
+                           </div>
+                           
+                           {!isSingle && (
+                              <div className="mb-2">
+                                 <label className="block text-[10px] font-bold text-gray-500 mb-1">Pilih Produk untuk Disimulasikan</label>
+                                 <SearchableSelect 
+                                    options={pForm.targetType === 'semua' ? products : products.filter(p => (pForm.targetItems||[]).includes(String(p.id)))} 
+                                    value={promoSimProductId} 
+                                    onChange={(val) => setPromoSimProductId(val)} 
+                                    placeholder="-- Pilih Produk Contoh --" 
+                                    colors={colors} 
+                                 />
+                              </div>
+                           )}
+
+                           {simProd ? (() => {
+                              const retail = simProd.price || 0;
+                              const cost = simProd.cost || 0;
+                              let finalPrice = retail;
+                              
+                              if (pForm.discType === '%') {
+                                 finalPrice = retail - (retail * ((pForm.discValue || 0) / 100));
+                              } else {
+                                 finalPrice = retail - (pForm.discValue || 0);
+                              }
+                              
+                              const marginPromo = finalPrice - cost;
+                              const isError = finalPrice < cost;
+
+                              return (
+                                 <div className="space-y-1">
+                                    <div className="flex justify-between border-b pb-1 border-gray-200 dark:border-gray-700/50">
+                                       <span className="text-gray-500">Harga Modal (HPP):</span>
+                                       <span className="font-bold text-gray-700 dark:text-gray-300">Rp {formatIDR(cost)}</span>
+                                    </div>
+                                    <div className="flex justify-between border-b pb-1 border-gray-200 dark:border-gray-700/50">
+                                       <span className="text-gray-500">Harga Normal (Ritel):</span>
+                                       <span className="font-bold text-gray-700 dark:text-gray-300">Rp {formatIDR(retail)}</span>
+                                    </div>
+                                    <div className="flex justify-between border-b pb-1 border-gray-200 dark:border-gray-700/50">
+                                       <span className="text-gray-500">Harga Setelah Promo:</span>
+                                       <span className={`font-bold ${isError ? 'text-red-500' : 'text-[#D4AF37]'}`}>Rp {formatIDR(finalPrice)}</span>
+                                    </div>
+                                    <div className="flex justify-between pt-1">
+                                       <span className="text-gray-500">Margin Setelah Promo:</span>
+                                       <span className={`font-bold ${isError ? 'text-red-500' : 'text-green-500'}`}>
+                                          Rp {formatIDR(marginPromo)} ({cost > 0 ? Math.round((marginPromo / cost) * 100) : 0}%)
+                                       </span>
+                                    </div>
+                                    {isError && <p className="text-[10px] text-red-500 italic mt-1">Peringatan: Harga promo di bawah harga modal (rugi)!</p>}
+                                 </div>
+                              );
+                           })() : (
+                              !isSingle && <p className="text-[10px] text-blue-600 dark:text-blue-400 italic">Pilih produk di atas untuk melihat simulasi marginnya.</p>
+                           )}
+                        </div>
+                     );
+                  })()}
+
                   <button type="submit" className={`w-full py-3.5 mt-2 rounded-xl text-[#18181B] font-bold ${colors.goldBg} shadow-md hover:opacity-90`}>Simpan Aturan Promo</button>
                </form>
             </div>
@@ -893,6 +1194,53 @@ export default function SettingsPage({
 
       {deleteUsr && <DeleteConfirmModal title="Hapus Akun User?" desc="Yakin hapus akun ini?" btnText="Hapus" onConfirm={() => { setUsers((users||[]).filter(u => u !== deleteUsr)); setDeleteUsr(null); showToast('User dihapus', 'success'); }} onCancel={() => setDeleteUsr(null)} colors={colors} isSoundOn={isSoundOn} />}
       {deleteFin && <DeleteConfirmModal title="Hapus Akun Keuangan?" desc="Yakin hapus akun ini?" btnText="Hapus" onConfirm={() => { setFinancialAccounts((financialAccounts||[]).filter(f => f.id !== deleteFin)); setDeleteFin(null); showToast('Akun dihapus', 'success'); }} onCancel={() => setDeleteFin(null)} colors={colors} isSoundOn={isSoundOn} />}
+
+      {/* Modal Unsaved Changes */}
+      {showUnsavedModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+              <div className={`w-full max-w-sm rounded-2xl p-6 ${colors.panel} shadow-xl border ${colors.border}`}>
+                  <h3 className={`text-lg font-black mb-2 ${colors.text}`}>Simpan Perubahan?</h3>
+                  <p className="text-sm text-gray-500 mb-6">Anda memiliki perubahan yang belum disimpan. Apakah Anda ingin menyimpannya sebelum pindah tab?</p>
+                  <div className="flex flex-col gap-2">
+                      <button 
+                          onClick={(e) => {
+                              if (activeTab === 'toko') saveStoreInfo(e);
+                              if (activeTab === 'harga') saveHargaSettings(e);
+                              setActiveTab(pendingTabSwitch);
+                              setShowUnsavedModal(false);
+                              setPendingTabSwitch(null);
+                          }} 
+                          className={`w-full py-2.5 rounded-xl text-[#18181B] font-bold shadow-md hover:opacity-90 transition-all ${colors.goldBg}`}
+                      >
+                          Ya, Simpan & Pindah
+                      </button>
+                      <button 
+                          onClick={() => {
+                              playSound('pop', isSoundOn);
+                              if (activeTab === 'toko') resetTokoState();
+                              if (activeTab === 'harga') resetHargaState();
+                              setActiveTab(pendingTabSwitch);
+                              setShowUnsavedModal(false);
+                              setPendingTabSwitch(null);
+                          }} 
+                          className={`w-full py-2.5 rounded-xl font-bold border ${colors.border} ${colors.text} hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20 transition-all`}
+                      >
+                          Abaikan & Pindah
+                      </button>
+                      <button 
+                          onClick={() => {
+                              playSound('pop', isSoundOn);
+                              setShowUnsavedModal(false);
+                              setPendingTabSwitch(null);
+                          }} 
+                          className="w-full py-2 text-sm font-bold text-gray-400 hover:text-gray-500"
+                      >
+                          Batal
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
         </div>
       </div>
     </div>

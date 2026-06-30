@@ -175,15 +175,15 @@ export default function TransactionEditModal({
                       <div>
                          <label className={`block text-xs font-bold mb-1 ${colors.text}`}>{isSale ? 'Customer' : 'Supplier'}</label>
                          <SearchableSelect
-                            options={isSale ? customers : suppliers}
+                            options={isSale ? customers.map(c => ({ ...c, name: c.phone && c.phone !== '-' && String(c.id) !== '1' ? `${c.name} (${c.phone})` : c.name })) : suppliers.map(s => ({ ...s, name: s.phone && s.phone !== '-' ? `${s.name} (${s.phone})` : s.name }))}
                             value={isSale ? (customers.find(c=>c.name===editedDoc.customer)?.id || '') : (suppliers.find(s=>s.name===editedDoc.supplier)?.id || '')}
                             onChange={(id) => {
                                if (isSale) {
                                   const cust = customers.find(c => c.id === id);
-                                  setEditedDoc({ ...editedDoc, customer: cust ? cust.name : '' });
+                                  setEditedDoc({ ...editedDoc, customer: cust ? cust.name : '', phone: cust ? cust.phone : '' });
                                } else {
                                   const sup = suppliers.find(s => s.id === id);
-                                  setEditedDoc({ ...editedDoc, supplier: sup ? sup.name : '' });
+                                  setEditedDoc({ ...editedDoc, supplier: sup ? sup.name : '', phone: sup ? sup.phone : '' });
                                }
                             }}
                             placeholder={isSale ? 'Pilih Customer...' : 'Pilih Supplier...'}

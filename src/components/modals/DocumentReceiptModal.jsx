@@ -3,19 +3,26 @@ import { X, Printer, MessageCircle, Loader2 } from 'lucide-react';
 import { formatIDR, playSound } from '../../utils/helpers';
 import html2canvas from 'html2canvas';
 
-export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, isSoundOn }) {
+export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, isSoundOn, showToast }) {
   const [notaBlob, setNotaBlob] = useState(null);
-  const [isRendering, setIsRendering] = useState(false); // Default false, cuma true kalau klik WA
+  const [isRendering, setIsRendering] = useState(doc?.autoAction === 'wa'); // Langsung true jika autoAction WA
+
+  const hasAutoActionRun = React.useRef(false);
 
   useEffect(() => {
-    if (!isRendering) {
+    if (!hasAutoActionRun.current) {
       if (doc?.autoAction === 'cetak') {
+        hasAutoActionRun.current = true;
         handlePrint();
       } else if (doc?.autoAction === 'wa') {
-        handleWA();
+        hasAutoActionRun.current = true;
+        // Jeda 500ms sebelum memanggil handleWA agar browser PASTI sudah me-render DOM dan layar loading
+        setTimeout(() => {
+           handleWA(true);
+        }, 500);
       }
     }
-  }, [isRendering]);
+  }, [doc]);
 
   const handlePrint = () => {
     playSound('pop', isSoundOn);
@@ -79,30 +86,61 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
     }, 500);
   };
 
-  const handleWA = async () => {
-     if (isRendering) return;
+  const handleWA = async (isAuto = false) => {
+     if (isRendering && !isAuto) return;
      playSound('pop', isSoundOn);
      setIsRendering(true);
      
+     // Memberi jeda kecil agar peramban sempat menggambar (render) layar loading sebelum thread diblokir oleh html2canvas
+     await new Promise(resolve => setTimeout(resolve, 250));
+     
+     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+     
+     const isSales = doc.type !== 'pembelian';
      let text = `*NOTA TRANSAKSI - ${storeInfo.name}*\n`;
      text += `No: ${doc.nota}\n`;
      text += `Tgl: ${new Date(doc.date).toLocaleString('id-ID')}\n`;
-     text += `--------------------------------\n`;
-     doc.items.forEach(i => {
-        text += `${i.name}\n${i.qty} ${i.unit} x ${formatIDR(i.unitPrice)} = Rp ${formatIDR(i.subtotal)}\n`;
+     text += `Kasir: ${doc.kasir || '-'}\n`;
+     text += `${isSales ? 'Pelanggan' : 'Supplier'}: ${isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}\n\n`;
+     
+     const cartItems = doc.cart || doc.items || [];
+     cartItems.forEach(item => {
+         text += `${item.name}\n${item.qty} ${item.unit || ''} x ${formatIDR(item.unitPrice || item.price)} = ${formatIDR(item.subtotal || item.total)}\n`;
      });
-     text += `--------------------------------\n`;
-     text += `Subtotal: Rp ${formatIDR(doc.subtotal)}\n`;
-     if(doc.discount > 0) text += `Diskon: -Rp ${formatIDR(doc.discount)}\n`;
-     if(doc.ongkir > 0) text += `Ongkir: Rp ${formatIDR(doc.ongkir)}\n`;
+     
+     text += `\nSubtotal: Rp ${formatIDR(doc.subtotal)}\n`;
+     if (doc.discount > 0) text += `Diskon: -Rp ${formatIDR(doc.discount)}\n`;
+     if (doc.ongkir > 0) text += `Ongkir: Rp ${formatIDR(doc.ongkir)}\n`;
      text += `*TOTAL: Rp ${formatIDR(doc.total)}*\n`;
      text += `Bayar: Rp ${formatIDR(doc.paid)}\n`;
      text += `Kembali: Rp ${formatIDR(doc.paid - doc.total)}\n\n`;
+     
+     text += `Terima kasih telah berbelanja di ${storeInfo.name}!\n`;
+
+     let currentBlob = null;
+     try {
+         const el = document.getElementById('receipt-print-area');
+         if (el) {
+             const canvas = await html2canvas(el, { scale: 1.2, backgroundColor: '#ffffff', useCORS: true });
+             currentBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+         }
+     } catch(e) { console.error("Gambar nota WA:", e); }
 
      try {
-         if (navigator.clipboard && window.isSecureContext) {
-             await navigator.clipboard.writeText(text);
+         if (currentBlob && navigator.clipboard && window.isSecureContext) {
+             const item = new ClipboardItem({ "image/png": currentBlob });
+             await navigator.clipboard.write([item]);
+             if (showToast) showToast('Gambar nota berhasil disalin ke clipboard! Silakan Paste (Ctrl+V) di chat WhatsApp.', 'success');
          } else {
+             await navigator.clipboard.writeText(text);
+             if (showToast) showToast('Hanya teks nota yang disalin. Gambar gagal karena peramban tidak mendukung.', 'warning');
+         }
+     } catch (clipboardErr) {
+         console.warn("Gambar gagal di-copy:", clipboardErr);
+         try {
+             await navigator.clipboard.writeText(text);
+         } catch(err) {
+             console.warn("Teks gagal di-copy:", err);
              const tempTextArea = document.createElement('textarea');
              tempTextArea.value = text;
              document.body.appendChild(tempTextArea);
@@ -110,62 +148,40 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
              document.execCommand('copy');
              document.body.removeChild(tempTextArea);
          }
-     } catch(err) {
-         console.warn("Gagal copy teks:", err);
-     }
-     
-     let currentBlob = notaBlob;
-     if (!currentBlob) {
-        try {
-            const el = document.getElementById('receipt-print-area');
-            if (el) {
-                const canvas = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
-                currentBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                setNotaBlob(currentBlob);
-            }
-        } catch(e) { console.error("Gambar nota WA:", e); }
-     }
-
-     if (currentBlob && typeof ClipboardItem !== 'undefined' && navigator.clipboard) {
-         try {
-             const item = new ClipboardItem({ "image/png": currentBlob });
-             await navigator.clipboard.write([item]);
-         } catch (clipboardErr) {
-             console.warn("Gambar gagal di-copy:", clipboardErr);
-         }
      }
 
      let phone = doc.phone ? String(doc.phone).replace(/\D/g, '') : '';
      if (phone.startsWith('0')) phone = '62' + phone.substring(1);
      
-     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-     if (isMobile) {
-         if (currentBlob && navigator.share) {
-             try {
-                 const file = new File([currentBlob], `Nota_${doc.nota}.png`, { type: 'image/png' });
-                 await navigator.share({
-                     title: `Nota Transaksi`,
-                     text: text,
-                     files: [file]
-                 });
-             } catch (shareErr) {
-                 window.location.href = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}` : `whatsapp://send?text=${encodeURIComponent(text)}`;
-             }
-         } else {
-             window.location.href = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}` : `whatsapp://send?text=${encodeURIComponent(text)}`;
+     if (isMobile && currentBlob && navigator.share) {
+         try {
+             const file = new File([currentBlob], `Nota_${doc.nota}.png`, { type: 'image/png' });
+             await navigator.share({
+                 title: `Nota Transaksi`,
+                 text: text,
+                 files: [file]
+             });
+         } catch (shareErr) {
+             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
          }
      } else {
-         const desktopAppUrl = phone 
-            ? `whatsapp://send?phone=${phone}` 
-            : `whatsapp://send?text=${encodeURIComponent(text)}`;
+         const waUrl = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}` : `whatsapp://send?text=${encodeURIComponent(text)}`;
          
-         window.location.href = desktopAppUrl;
+         window.isWAFiring = true; 
+         const iframe = document.createElement('iframe');
+         iframe.style.display = 'none';
+         iframe.src = waUrl;
+         document.body.appendChild(iframe);
+         
+         setTimeout(() => {
+             if (document.body.contains(iframe)) document.body.removeChild(iframe);
+             window.isWAFiring = false;
+         }, 3000);
      }
      
      setIsRendering(false);
      if (doc?.autoAction === 'wa') {
-         setTimeout(onClose, 500);
+         setTimeout(onClose, 800);
      }
   };
 
@@ -188,10 +204,13 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-gray-100 dark:bg-[#121212] flex flex-col items-center relative">
               
               {isRendering && (
-                 <div className="absolute inset-0 bg-white/50 dark:bg-black/50 z-[10] flex flex-col items-center justify-center backdrop-blur-sm">
-                    <Loader2 className="animate-spin text-blue-600 mb-2" size={32} />
-                    <span className="text-xs font-bold text-gray-800 dark:text-white">Menyiapkan Gambar...</span>
-                 </div>
+                   <div className="absolute inset-0 bg-white/80 dark:bg-black/80 z-[100] flex flex-col items-center justify-center backdrop-blur-md">
+                      <div className="bg-white dark:bg-[#1e1e1e] p-6 rounded-2xl shadow-2xl flex flex-col items-center text-center max-w-[80%] border-2 border-[#D4AF37]">
+                         <Loader2 className="animate-spin text-[#D4AF37] mb-4" size={48} />
+                         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Memproses Gambar...</h3>
+                         <p className="text-xs text-gray-500 dark:text-gray-400">Sistem sedang merangkai gambar nota.<br/>(Animasi mungkin membeku sesaat, ini normal)</p>
+                      </div>
+                   </div>
               )}
 
               <div className="bg-white text-black p-3 shadow-sm w-full mx-auto" style={{ maxWidth: '48mm', minHeight: 'fit-content' }}>

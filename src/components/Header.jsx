@@ -99,8 +99,21 @@ export default function Header({
     if (phone.startsWith('0')) phone = '62' + phone.substring(1);
     phone = phone.replace(/\D/g, '');
     
-    const waUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(waUrl, '_blank');
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+        window.location.href = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    } else {
+        const waUrl = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}` : `whatsapp://send?text=${encodeURIComponent(text)}`;
+        window.isWAFiring = true; 
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = waUrl;
+        document.body.appendChild(iframe);
+        setTimeout(() => {
+           if (document.body.contains(iframe)) document.body.removeChild(iframe);
+           window.isWAFiring = false;
+        }, 3000);
+    }
   };
 
   const incomingDebts = useMemo(() => {

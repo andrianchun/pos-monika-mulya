@@ -74,6 +74,15 @@ export const smartFormatInput = (val) => {
   return formattedInt;
 };
 
+export const formatWhatsAppNumber = (val) => {
+  if (!val) return '';
+  // Remove all non-digits except +
+  let str = val.toString().replace(/[^0-9+]/g, '');
+  if (str.startsWith('+62')) str = '0' + str.slice(3);
+  if (str.startsWith('62')) str = '0' + str.slice(2);
+  return str;
+};
+
 export const formatDate = (isoString) => {
   if (!isoString) return '';
   const d = new Date(isoString);

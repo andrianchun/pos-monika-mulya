@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ShoppingCart, Search, ChevronLeft, ChevronRight, X, Trash2, Calendar, Ticket, Gift, Package } from 'lucide-react';
 import { formatIDR, parseIDR, playSound, calculateDynamicPrice, smartFormatInput } from '../utils/helpers';
 import useDebounce from '../hooks/useDebounce';
@@ -36,11 +36,14 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const [paymentMethodId, setPaymentMethodId] = useState(financialAccounts[0]?.id || '');
   const [dueDate, setDueDate] = useState('');
   const [completedDoc, setCompletedDoc] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 36;
+  const wheelTimeout = useRef(null);
 
   const cart = posMode === 'penjualan' ? salesCart : purchaseCart;
   const setCart = posMode === 'penjualan' ? setSalesCart : setPurchaseCart;
 
-  const handleModeChange = (mode) => { setPosMode(mode); setPosDiscountStr(''); setPosOngkirStr(''); setUseAutoOngkir(false); };
+  const handleModeChange = (mode) => { setPosMode(mode); setPosDiscountStr(''); setPosOngkirStr(''); setUseAutoOngkir(false); setCurrentPage(1); };
 
   // =========================================================================
   // 🔥 TRIK ALFAMART: SEARCH BY WA (Menggabungkan Nama + No WA di Dropdown)
@@ -66,7 +69,11 @@ export default function POS({ products, setProducts, customers, setCustomers, su
      else if (cust?.id === 1) setPosOngkirStr('');
   }, [selectedCustomer, storeInfo.ongkirPerKm, useAutoOngkir, cart.length, customers]); 
 
-  // PERBAIKAN: Mengurutkan list barang grid POS secara abjad dan optimasi performa (useMemo + dictionary cart)
+  // Reset pagination saat pencarian berubah
+  useEffect(() => {
+      setCurrentPage(1);
+  }, [debouncedPosSearch]);
+
   const displayProducts = useMemo(() => {
      // Buat map (dictionary) untuk cart agar lookup O(1) alih-alih O(N) menggunakan .find() pada setiap produk
      const cartMap = new Map();
@@ -75,15 +82,54 @@ export default function POS({ products, setProducts, customers, setCustomers, su
      }
      
      const lowerSearch = debouncedPosSearch.toLowerCase();
+     const searchWords = lowerSearch.split(' ').filter(w => w.trim() !== '');
 
      return products.map(p => {
         const qtyInCart = cartMap.get(p.id) || 0;
         return { ...p, currentStock: posMode === 'penjualan' ? p.stock - qtyInCart : p.stock };
      }).filter(p => {
-        if (!lowerSearch) return true;
-        return p.name.toLowerCase().includes(lowerSearch) || (p.barcode && p.barcode.includes(debouncedPosSearch));
+        if (searchWords.length === 0) return true;
+        
+        const productName = p.name.toLowerCase();
+        const matchName = searchWords.every(word => productName.includes(word));
+        const matchBarcode = p.barcode && p.barcode.includes(debouncedPosSearch);
+        
+        return matchName || matchBarcode;
      }).sort((a, b) => a.name.localeCompare(b.name));
   }, [products, cart, posMode, debouncedPosSearch]);
+
+  const totalPages = Math.ceil(displayProducts.length / itemsPerPage);
+  const paginatedProducts = displayProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleGridWheel = (e) => {
+      if (totalPages <= 1) return;
+      if (wheelTimeout.current) return;
+      
+      const target = e.currentTarget;
+      const isAtBottom = Math.ceil(target.scrollTop + target.clientHeight) >= target.scrollHeight - 5;
+      const isAtTop = target.scrollTop <= 5;
+      
+      // Deteksi scroll mouse bawah (next) saat mentok bawah
+      if (e.deltaY > 20 && isAtBottom) {
+          if (currentPage < totalPages) {
+              setCurrentPage(prev => prev + 1);
+              playSound('pop', isSoundOn);
+              // Reset scroll position ke atas saat pindah halaman next
+              setTimeout(() => { target.scrollTop = 0; }, 50);
+          }
+          wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null; }, 400);
+      } 
+      // Deteksi scroll mouse atas (prev) saat mentok atas
+      else if (e.deltaY < -20 && isAtTop) {
+          if (currentPage > 1) {
+              setCurrentPage(prev => prev - 1);
+              playSound('pop', isSoundOn);
+              // Reset scroll position ke bawah saat pindah halaman prev
+              setTimeout(() => { target.scrollTop = target.scrollHeight; }, 50);
+          }
+          wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null; }, 400);
+      }
+  };
 
   const calcItemPricing = (product, newQty) => {
     if (posMode !== 'penjualan') return { unitPrice: product.cost, isWholesale: false, basePrice: product.cost, appliedPromo: null };
@@ -93,8 +139,12 @@ export default function POS({ products, setProducts, customers, setCustomers, su
     let unitPrice = basePrice;
 
     const wholesales = storeInfo.wholesales || [];
-    const ruleGrosir = wholesales.find(w => String(w.productId) === String(product.id));
-    if (ruleGrosir && newQty >= Number(ruleGrosir.minQty)) {
+    const productWholesales = wholesales.filter(w => String(w.productId) === String(product.id));
+    productWholesales.sort((a, b) => Number(b.minQty) - Number(a.minQty));
+      
+    const ruleGrosir = productWholesales.find(w => newQty >= Number(w.minQty));
+      
+    if (ruleGrosir) {
        unitPrice = Number(ruleGrosir.wholesalePrice);
        isWholesale = true;
     }
@@ -214,11 +264,12 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const isCustomerUmum = String(selectedCustomer) === '1' || selectedCustomer === '';
   const earnedPoints = posMode === 'penjualan' && !isCustomerUmum ? Math.floor(total / ptMultiplier) * ptReward : 0;
 
-  const handleCheckout = (e, action, depositUsed = 0, depositAdded = 0) => {
+  const handleCheckout = (e, action, depositUsed = 0, depositAdded = 0, pointsRedeemed = 0) => {
     if(e) e.preventDefault();
     try {
+      const pointDiscount = pointsRedeemed * (storeInfo.pointValue || 100);
       const paidCash = paymentAmount === '' ? 0 : parseIDR(paymentAmount);
-      const totalPaid = paidCash + depositUsed;
+      const totalPaid = paidCash + depositUsed + pointDiscount;
       if(paidCash < 0) { showToast('Masukkan nominal valid!', 'error'); return; }
       
       const isLunas = totalPaid >= total;
@@ -272,10 +323,11 @@ export default function POS({ products, setProducts, customers, setCustomers, su
         customer: posMode === 'penjualan' ? cName : undefined, supplier: posMode === 'pembelian' ? sName : undefined,
         phone: posMode === 'penjualan' ? custObj?.phone : suppObj?.phone, 
         items: cart, subtotal: subTotal, discount: actualDiscount, ongkir: actualOngkir, total, paid: totalPaid, status: isLunas ? 'Lunas' : 'Tempo', dueDate: isLunas ? null : dueDate,
-        depositUsed, depositAdded,
+        depositUsed, depositAdded, pointsRedeemed, pointDiscount,
         kasir: user?.name || 'Kasir', earnedPoints,
         paymentHistory: [
            ...(depositUsed > 0 ? [{ date: docDate.toISOString(), amount: depositUsed, method: 'Saldo Deposit', accountId: null }] : []),
+           ...(pointDiscount > 0 ? [{ date: docDate.toISOString(), amount: pointDiscount, method: 'Tukar Poin', accountId: null }] : []),
            ...(paidCash > 0 ? [{ date: docDate.toISOString(), amount: paidCash, method: activeAccount ? activeAccount.name : 'Unknown', accountId: Number(paymentMethodId) }] : [])
         ]
       };
@@ -312,10 +364,10 @@ export default function POS({ products, setProducts, customers, setCustomers, su
           return p;
         }));
         
-        if (posMode === 'penjualan' && (!isCustomerUmum || depositUsed > 0 || depositAdded > 0)) {
+        if (posMode === 'penjualan' && (!isCustomerUmum || depositUsed > 0 || depositAdded > 0 || pointsRedeemed > 0)) {
            setCustomers(prevCusts => prevCusts.map(c => {
              if (String(c.id) === String(selectedCustomer)) {
-                 const updatedPoints = earnedPoints > 0 ? (c.points || 0) + earnedPoints : c.points;
+                 const updatedPoints = (c.points || 0) + earnedPoints - pointsRedeemed;
                  const updatedDeposit = (c.deposit || 0) - depositUsed + depositAdded;
                  return { ...c, points: updatedPoints, deposit: updatedDeposit };
              }
@@ -362,9 +414,9 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                  <input type="text" placeholder="Cari nama atau Barcode..." className={`w-full pl-10 pr-4 py-3 sm:py-1.5 h-[44px] rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} value={posSearch} onChange={e => setPosSearch(e.target.value)} onKeyDown={handleSearchKeyDown} />
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar">
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 pb-10">
-                {displayProducts.map(p => (
+            <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar" onWheel={handleGridWheel}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 pb-6">
+                {paginatedProducts.map(p => (
                      <div key={p.id} onClick={() => addToCart(p)} className={`bg-black/10 dark:bg-black/30 backdrop-blur-md border ${colors.border} rounded-2xl cursor-pointer ${globalMode === 'penjualan' ? 'hover:border-[#D4AF37]/50' : 'hover:border-blue-500/50'} transition-all active:scale-95 relative overflow-hidden group min-h-[140px] sm:min-h-[160px] flex flex-col justify-end`}>
                        
                        {/* Background Image Layer */}
@@ -392,6 +444,26 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                      </div>
                 ))}
               </div>
+              
+              {totalPages > 1 && (
+                 <div className="flex justify-center items-center gap-4 pb-10 pt-2">
+                    <button 
+                       onClick={() => { playSound('pop', isSoundOn); setCurrentPage(prev => Math.max(prev - 1, 1)); }} 
+                       disabled={currentPage === 1}
+                       className={`p-2 rounded-lg border ${colors.border} ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#1e1e1e] active:scale-95'} transition-all`}
+                    >
+                       <ChevronLeft size={20} className={colors.text} />
+                    </button>
+                    <span className={`text-sm font-bold ${colors.text}`}>Halaman {currentPage} dari {totalPages}</span>
+                    <button 
+                       onClick={() => { playSound('pop', isSoundOn); setCurrentPage(prev => Math.min(prev + 1, totalPages)); }} 
+                       disabled={currentPage === totalPages}
+                       className={`p-2 rounded-lg border ${colors.border} ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#1e1e1e] active:scale-95'} transition-all`}
+                    >
+                       <ChevronRight size={20} className={colors.text} />
+                    </button>
+                 </div>
+              )}
             </div>
             <div className="lg:hidden mt-2 shrink-0">
                <button onClick={() => { playSound('pop', isSoundOn); setShowMobileCart(true); }} className={`w-full py-3.5 rounded-xl font-bold text-[#18181B] shadow-md flex justify-between items-center px-4 active:scale-95 transition-transform ${posMode === 'penjualan' ? colors.goldBg : colors.goldBg}`}>
@@ -494,7 +566,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
           </div>
         </div>
       </div>
-      {checkoutModal && <CheckoutModal posMode={posMode} total={total} financialAccounts={financialAccounts} paymentMethodId={paymentMethodId} setPaymentMethodId={setPaymentMethodId} dueDate={dueDate} setDueDate={setDueDate} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} handleCheckout={handleCheckout} setCheckoutModal={setCheckoutModal} colors={colors} isSoundOn={isSoundOn} activeCustomerDeposit={customers.find(c => String(c.id) === String(selectedCustomer))?.deposit || 0} isCustomerUmum={isCustomerUmum} />}
+      {checkoutModal && <CheckoutModal posMode={posMode} total={total} financialAccounts={financialAccounts} paymentMethodId={paymentMethodId} setPaymentMethodId={setPaymentMethodId} dueDate={dueDate} setDueDate={setDueDate} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} handleCheckout={handleCheckout} setCheckoutModal={setCheckoutModal} colors={colors} isSoundOn={isSoundOn} activeCustomerDeposit={customers.find(c => String(c.id) === String(selectedCustomer))?.deposit || 0} activeCustomerPoints={customers.find(c => String(c.id) === String(selectedCustomer))?.points || 0} pointValue={storeInfo?.pointValue || 100} minPointRedeem={storeInfo?.minPointRedeem || 100} isCustomerUmum={isCustomerUmum} />}
       {completedDoc && <DocumentReceiptModal doc={completedDoc} onClose={() => setCompletedDoc(null)} storeInfo={storeInfo} colors={colors} isSoundOn={isSoundOn} />}
     </div>
   );

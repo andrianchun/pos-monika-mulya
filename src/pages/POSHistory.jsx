@@ -141,7 +141,16 @@ export default function POSHistory({
       icon: Send, 
       label: 'Kirim WA', 
       colorClass: 'bg-green-100 text-green-600 hover:bg-green-200', 
-      onClick: (r) => { playSound('pop', isSoundOn); setSelectedDoc({ ...r, autoAction: 'wa' }); } 
+      onClick: (r) => { 
+          const rawPhone = String(r.phone || '').replace(/\D/g, '');
+          if (rawPhone.length < 9) {
+              showToast('Nomor WhatsApp tidak valid. Silakan isi nomor dengan benar di pengaturan kontak.', 'error');
+              return;
+          }
+          
+          playSound('pop', isSoundOn); 
+          setSelectedDoc({ ...r, autoAction: 'wa' }); 
+      } 
     },
     { 
       icon: Edit, 
@@ -177,7 +186,7 @@ export default function POSHistory({
 
       {deleteConfirmId && <DeleteConfirmModal title="Hapus Permanen Transaksi?" desc="Stok dan data pembukuan kas akan dikembalikan (di-revert) seperti sebelum transaksi ini. Apakah Anda yakin?" onConfirm={confirmDeleteAction} onCancel={() => setDeleteConfirmId(null)} colors={colors} isSoundOn={isSoundOn} />}
       
-      {selectedDoc && !returnDoc && <DocumentReceiptModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} storeInfo={storeInfo} colors={colors} isSoundOn={isSoundOn} />}
+      {selectedDoc && !returnDoc && <DocumentReceiptModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} storeInfo={storeInfo} colors={colors} isSoundOn={isSoundOn} showToast={showToast} />}
       
       {returnDoc && <DocumentReturnModal doc={returnDoc} onClose={() => setReturnDoc(null)} onSaveReturn={handleProcessReturn} colors={colors} isSoundOn={isSoundOn} />}
       

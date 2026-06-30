@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Edit, Phone, X, User } from 'lucide-react';
-import { playSound } from '../utils/helpers';
+import { playSound, formatWhatsAppNumber } from '../utils/helpers';
 import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import ContactProfileModal from '../components/modals/ContactProfileModal';
 
-export default function ContactManager({ customers, setCustomers, suppliers, setSuppliers, sales, setSales, purchases, setPurchases, products, setProducts, colors, showToast, isSoundOn, globalMode, setGlobalMode }) {
+export default function ContactManager({ customers, setCustomers, suppliers, setSuppliers, sales, setSales, purchases, setPurchases, products, setProducts, colors, showToast, isSoundOn, globalMode, setGlobalMode, handleNavigateAndEdit }) {
   const tab = globalMode === 'penjualan' ? 'customer' : 'supplier';
   const setTab = (val) => setGlobalMode(val === 'customer' ? 'penjualan' : 'pembelian');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,18 +29,33 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
       if(!phone || phone === '-') return;
       let num = phone.replace(/\D/g, '');
       if(num.startsWith('0')) num = '62' + num.slice(1);
-      window.open(`https://wa.me/${num}`, '_blank');
+      
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+          window.location.href = `https://wa.me/${num}`;
+      } else {
+          const waUrl = `whatsapp://send?phone=${num}`;
+          window.isWAFiring = true; 
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.src = waUrl;
+          document.body.appendChild(iframe);
+          setTimeout(() => {
+             if (document.body.contains(iframe)) document.body.removeChild(iframe);
+             window.isWAFiring = false;
+          }, 3000);
+      }
   };
 
   const columnsCustomer = [
-    { key: 'name', label: 'Nama', render: r => <span className="font-semibold">{r.name} {r.id === 1 ? <span className="text-[10px] text-gray-500 font-normal">(Default)</span> : ''}</span> },
+    { key: 'name', label: 'Nama', render: r => <button onClick={(e) => { e.stopPropagation(); playSound('pop', isSoundOn); setActiveProfile(r); }} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left text-wrap">{r.name} {r.id === 1 ? <span className="text-[10px] text-gray-500 font-normal ml-1">(Default)</span> : ''}</button> },
     { key: 'phone', label: 'Telepon', render: r => r.phone !== '-' && r.phone ? <button onClick={(e) => { e.stopPropagation(); playSound('pop', isSoundOn); handleWA(r.phone); }} className="text-green-600 hover:underline flex items-center gap-1 font-semibold"><Phone size={14}/> {r.phone}</button> : '-' },
     { key: 'points', label: 'Poin' },
     { key: 'distance', label: 'Jarak (Km)' }
   ];
 
   const columnsSupplier = [
-    { key: 'name', label: 'Nama', render: r => <span className="font-semibold">{r.name}</span> },
+    { key: 'name', label: 'Nama', render: r => <button onClick={(e) => { e.stopPropagation(); playSound('pop', isSoundOn); setActiveProfile(r); }} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left text-wrap">{r.name}</button> },
     { key: 'phone', label: 'Telepon', render: r => r.phone !== '-' && r.phone ? <button onClick={(e) => { e.stopPropagation(); playSound('pop', isSoundOn); handleWA(r.phone); }} className="text-green-600 hover:underline flex items-center gap-1 font-semibold"><Phone size={14}/> {r.phone}</button> : '-' },
     { key: 'address', label: 'Alamat' }
   ];
@@ -79,25 +94,25 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
            colors={colors} 
            onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }}
            actions={[
-             { icon: User, label: 'Lihat Profil & Riwayat', colorClass: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-200', onClick: (row) => setActiveProfile(row) },
              { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-stone-300', onClick: handleEdit }
            ]}
            onDelete={(row) => { if(tab === 'customer' && row.id === 1) showToast('Kontak default tidak bisa dihapus', 'error'); else { playSound('pop', isSoundOn); setDeleteContact(row); } }} 
         />
        </div>
 
-       <ContactProfileModal 
-         contact={activeProfile} 
-         type={tab} 
-         sales={sales} 
-         purchases={purchases} 
-         colors={colors} 
-         onClose={() => setActiveProfile(null)} 
-         onTopUpDeposit={handleTopUpDeposit}
-       />
-
-       {deleteContact && (
-         <DeleteConfirmModal 
+         <ContactProfileModal 
+           contact={activeProfile} 
+           type={tab} 
+           sales={sales} 
+           purchases={purchases} 
+           onClose={() => setActiveProfile(null)} 
+           onTopUpDeposit={(amount) => handleTopUpDeposit(activeProfile, amount)}
+           colors={colors}
+           handleNavigateAndEdit={handleNavigateAndEdit}
+         />
+         
+         {deleteContact && (
+            <DeleteConfirmModal 
             title={`Hapus Data ${tab === 'customer' ? 'Customer' : 'Supplier'}?`} 
             desc={`Yakin ingin menghapus ${deleteContact.name} dari daftar kontak?`} 
             btnText="Hapus"
@@ -120,7 +135,7 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
                 </div>
                 <form onSubmit={handleSave} className="space-y-4">
                    <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nama Lengkap *</label><input type="text" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
-                   <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nomor Telepon / WA</label><input type="text" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} placeholder="Cth: 081234..." value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
+                   <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nomor Telepon / WA</label><input type="text" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} placeholder="Cth: 081234..." value={form.phone} onChange={e => setForm({...form, phone: formatWhatsAppNumber(e.target.value)})} /></div>
                    <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Alamat Lengkap</label><textarea className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border} resize-none`} rows="2" value={form.address} onChange={e => setForm({...form, address: e.target.value})}></textarea></div>
                    {tab === 'customer' && (
                       <div className="grid grid-cols-2 gap-4">

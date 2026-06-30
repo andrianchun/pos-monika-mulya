@@ -14,10 +14,13 @@ export default function SearchableSelect({ options, value, onChange, placeholder
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filtered = options.filter(o => 
-    o.name.toLowerCase().includes(search.toLowerCase()) || 
-    (o.phone && o.phone.toLowerCase().includes(search.toLowerCase()))
-  );
+  const searchWords = search.toLowerCase().split(' ').filter(w => w.trim() !== '');
+  const filtered = options.filter(o => {
+    if (searchWords.length === 0) return true;
+    const oName = (o.name || '').toLowerCase();
+    const oPhone = (o.phone || '').toLowerCase();
+    return searchWords.every(word => oName.includes(word) || oPhone.includes(word));
+  });
   const selected = options.find(o => o.id === value);
 
   return (
@@ -32,8 +35,9 @@ export default function SearchableSelect({ options, value, onChange, placeholder
               <input type="text" autoFocus className={`w-full p-1.5 text-xs border rounded ${colors.creamBg} ${colors.text} outline-none focus:border-[#D4AF37]`} placeholder="Cari nama / no HP..." value={search} onChange={e => setSearch(e.target.value)} />
            </div>
            {filtered.map(o => (
-              <div key={o.id} className={`p-2 text-xs cursor-pointer hover:opacity-70 ${value === o.id ? `${colors.creamBg} font-bold` : ''} ${colors.text}`} onClick={() => { onChange(o.id); setIsOpen(false); setSearch(''); }}>
-                 {o.name}
+              <div key={o.id} className={`p-2 text-xs cursor-pointer hover:opacity-70 ${value === o.id ? `${colors.creamBg} font-bold` : ''} ${colors.text} flex justify-between`} onClick={() => { onChange(o.id); setIsOpen(false); setSearch(''); }}>
+                 <span className="truncate">{o.label || o.name}</span>
+                 {o.phone && <span className="text-gray-400 opacity-80 whitespace-nowrap ml-2">{o.phone}</span>}
               </div>
            ))}
            {filtered.length === 0 && <div className="p-2 text-xs text-gray-500 text-center">Tidak ditemukan</div>}

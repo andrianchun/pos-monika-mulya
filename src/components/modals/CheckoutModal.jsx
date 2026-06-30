@@ -2,24 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, Printer, Send, ChevronDown } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound } from '../../utils/helpers';
 
-export default function CheckoutModal({ posMode, total, financialAccounts, paymentMethodId, setPaymentMethodId, dueDate, setDueDate, paymentAmount, setPaymentAmount, handleCheckout, setCheckoutModal, colors, isSoundOn, activeCustomerDeposit = 0, isCustomerUmum = false }) {
+export default function CheckoutModal({ posMode, total, financialAccounts, paymentMethodId, setPaymentMethodId, dueDate, setDueDate, paymentAmount, setPaymentAmount, handleCheckout, setCheckoutModal, colors, isSoundOn, activeCustomerDeposit = 0, activeCustomerPoints = 0, pointValue = 100, minPointRedeem = 100, isCustomerUmum = false, activeCustomerPhone = '', showToast }) {
   const [useDeposit, setUseDeposit] = useState(false);
+  const [usePoints, setUsePoints] = useState(false);
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
   const [saveChangeAsDeposit, setSaveChangeAsDeposit] = useState(false);
   
   const depositUsed = useDeposit ? Math.min(total, activeCustomerDeposit) : 0;
-  const remainingTagihan = total - depositUsed;
+  const maxPointsByTagihan = Math.floor((total - depositUsed) / pointValue);
+  const maxPointsPossible = Math.min(activeCustomerPoints, maxPointsByTagihan);
+  
+  useEffect(() => {
+    if (usePoints) setPointsToRedeem(maxPointsPossible);
+    else setPointsToRedeem(0);
+  }, [usePoints, maxPointsPossible]);
+
+  const pointDiscount = usePoints ? pointsToRedeem * pointValue : 0;
+  const remainingTagihan = total - depositUsed - pointDiscount;
   const remaining = remainingTagihan - (parseIDR(paymentAmount) || 0);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Enter') {
          e.preventDefault();
-         handleCheckout(null, 'cetak', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0);
+         handleCheckout(null, 'cetak', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0, usePoints ? pointsToRedeem : 0);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCheckout, useDeposit, depositUsed, saveChangeAsDeposit, remaining]);
+  }, [handleCheckout, useDeposit, depositUsed, saveChangeAsDeposit, remaining, usePoints, pointsToRedeem]);
 
   return (
     <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
@@ -36,7 +47,10 @@ export default function CheckoutModal({ posMode, total, financialAccounts, payme
             {useDeposit && depositUsed > 0 && (
                <p className="text-sm font-bold text-red-700 mt-2 bg-red-100/50 inline-block px-3 py-1 rounded-full">- Rp {formatIDR(depositUsed)} (Potong Saldo)</p>
             )}
-            {useDeposit && depositUsed > 0 && remainingTagihan > 0 && (
+            {usePoints && pointDiscount > 0 && (
+               <p className="text-sm font-bold text-orange-700 mt-2 bg-orange-100/50 inline-block px-3 py-1 rounded-full ml-1">- Rp {formatIDR(pointDiscount)} (Tukar {pointsToRedeem} Poin)</p>
+            )}
+            {(useDeposit || usePoints) && remainingTagihan > 0 && (
                <p className="text-lg font-bold mt-2">Sisa: Rp {formatIDR(remainingTagihan)}</p>
             )}
           </div>
@@ -45,6 +59,26 @@ export default function CheckoutModal({ posMode, total, financialAccounts, payme
              <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl cursor-pointer" onClick={() => setUseDeposit(!useDeposit)}>
                 <input type="checkbox" checked={useDeposit} readOnly className="w-4 h-4 text-blue-600 rounded" />
                 <span className="text-sm font-bold text-blue-800 dark:text-blue-300">Gunakan Saldo Deposit (Sisa: Rp {formatIDR(activeCustomerDeposit)})</span>
+             </div>
+          )}
+
+          {activeCustomerPoints >= minPointRedeem && posMode === 'penjualan' && !isCustomerUmum && (
+             <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => setUsePoints(!usePoints)}>
+                   <input type="checkbox" checked={usePoints} readOnly className="w-4 h-4 text-orange-600 rounded" />
+                   <span className="text-sm font-bold text-orange-800 dark:text-orange-300">Tukar Poin (Tersedia: {activeCustomerPoints} Poin)</span>
+                </div>
+                {usePoints && (
+                   <div className="mt-2 pl-6">
+                      <label className="block text-[10px] text-orange-600 dark:text-orange-400 mb-1">Jumlah Poin Ditukar (1 Poin = Rp {formatIDR(pointValue)})</label>
+                      <input type="number" className="w-full p-2 rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-[#1e1e1e] text-xs outline-none focus:ring-1 focus:ring-orange-500" value={pointsToRedeem} onChange={(e) => {
+                         let val = Number(e.target.value);
+                         if (val > maxPointsPossible) val = maxPointsPossible;
+                         if (val < 0) val = 0;
+                         setPointsToRedeem(val);
+                      }} />
+                   </div>
+                )}
              </div>
           )}
 
@@ -97,9 +131,17 @@ export default function CheckoutModal({ posMode, total, financialAccounts, payme
           )}
 
           <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-dashed border-gray-300 dark:border-gray-700">
-             <button type="button" onClick={(e) => handleCheckout(e, 'simpan', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0)} className="flex-1 py-3 rounded-xl font-bold bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 flex justify-center items-center gap-2 transition-transform active:scale-95 text-xs"><Save size={16}/> Simpan Saja</button>
-             <button type="button" onClick={(e) => handleCheckout(e, 'cetak', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0)} className={`flex-1 py-3 rounded-xl font-bold text-[#18181B] flex justify-center items-center gap-2 transition-transform active:scale-95 ${colors.goldBg} hover:opacity-90 text-xs`}><Printer size={16}/> [Enter] Cetak</button>
-             <button type="button" onClick={(e) => handleCheckout(e, 'wa', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0)} className="flex-1 py-3 rounded-xl font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-900/50 flex justify-center items-center gap-2 transition-transform active:scale-95 text-xs"><Send size={16}/> Kirim WA</button>
+             <button type="button" onClick={(e) => handleCheckout(e, 'simpan', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0, usePoints ? pointsToRedeem : 0)} className="flex-1 py-3 rounded-xl font-bold bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 flex justify-center items-center gap-2 transition-transform active:scale-95 text-xs"><Save size={16}/> Simpan Saja</button>
+             <button type="button" onClick={(e) => handleCheckout(e, 'cetak', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0, usePoints ? pointsToRedeem : 0)} className={`flex-1 py-3 rounded-xl font-bold text-[#18181B] flex justify-center items-center gap-2 transition-transform active:scale-95 ${colors.goldBg} hover:opacity-90 text-xs`}><Printer size={16}/> [Enter] Cetak</button>
+             <button type="button" onClick={(e) => {
+                 const rawPhone = String(activeCustomerPhone || '').replace(/\D/g, '');
+                 if (rawPhone.length < 9) {
+                     if (showToast) showToast('Nomor WhatsApp tidak valid. Silakan isi nomor dengan benar di pengaturan kontak.', 'error');
+                     return;
+                 }
+                 
+                 handleCheckout(e, 'wa', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0, usePoints ? pointsToRedeem : 0);
+             }} className="flex-1 py-3 rounded-xl font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-900/50 flex justify-center items-center gap-2 transition-transform active:scale-95 text-xs"><Send size={16}/> Kirim WA</button>
           </div>
         </div>
       </div>

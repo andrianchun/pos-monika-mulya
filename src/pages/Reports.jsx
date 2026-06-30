@@ -17,6 +17,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
      }
   }, [globalMode]);
   const [selectedAccFilter, setSelectedAccFilter] = useState(''); 
+  const [selectedSysFilter, setSelectedSysFilter] = useState(''); 
   const [filterMode, setFilterMode] = useState('Bulanan'); 
   const [dateOffset, setDateOffset] = useState(0);
   const dateRangeInfo = useMemo(() => calculateDateRange(filterMode, dateOffset), [filterMode, dateOffset]); 
@@ -284,7 +285,12 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
      return { ...a, accNameDisplay: typeDisplay };
   });
 
-  const filteredAccountingTable = enrichedAccounting.filter(a => selectedAccFilter === '' || a.accountId === Number(selectedAccFilter));
+  const filteredAccountingTable = enrichedAccounting.filter(a => {
+     const matchAcc = selectedAccFilter === '' || a.accountId === Number(selectedAccFilter);
+     const isSystem = /^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Tukar Poin)/i.test(a.name || '');
+     const matchSys = selectedSysFilter === '' || (selectedSysFilter === 'otomatis' && isSystem) || (selectedSysFilter === 'manual' && !isSystem);
+     return matchAcc && matchSys;
+  });
 
   const accColumns = [
     { key: 'date', label: 'Tanggal', render: r => new Date(r.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
@@ -496,15 +502,22 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
                 </div>
 
                 <div className="mt-8 space-y-4">
-                   <div className="flex justify-between items-center bg-gray-50 dark:bg-[#1e1e1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                      <span className={`font-bold text-sm ${colors.text}`}>Filter Jurnal Berdasarkan Akun:</span>
-                      <select className={`p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#2a2a24] ${colors.text} outline-none text-sm w-48`} value={selectedAccFilter} onChange={e => setSelectedAccFilter(e.target.value)}>
-                         <option value="">Semua Akun (Gabungan)</option>
-                         {financialAccounts.map(fa => <option key={fa.id} value={fa.id}>{fa.name}</option>)}
-                      </select>
-                   </div>
-                   <DataTable title="Rincian Jurnal Pembukuan" columns={accColumns} data={filteredAccountingTable} defaultSort={{key: 'date', direction: 'desc'}} colors={colors} actions={[
-                     { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-blue-200', onClick: (a) => { playSound('pop', isSoundOn); setAccForm({...a, amount: Math.abs(a.amount).toString(), isExpense: a.amount < 0, date: getLocalDatetime(a.date) }); setShowAccModal(true); } }
+                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 dark:bg-[#1e1e1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700 gap-4">
+                        <span className={`font-bold text-sm ${colors.text}`}>Filter Jurnal Pembukuan:</span>
+                        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                           <select className={`p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#2a2a24] ${colors.text} outline-none text-sm w-full sm:w-48`} value={selectedSysFilter} onChange={e => setSelectedSysFilter(e.target.value)}>
+                              <option value="">Semua Jenis (Otomatis & Manual)</option>
+                              <option value="otomatis">Jurnal Otomatis Sistem</option>
+                              <option value="manual">Jurnal Manual (Input Sendiri)</option>
+                           </select>
+                           <select className={`p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#2a2a24] ${colors.text} outline-none text-sm w-full sm:w-48`} value={selectedAccFilter} onChange={e => setSelectedAccFilter(e.target.value)}>
+                              <option value="">Semua Akun (Gabungan)</option>
+                              {financialAccounts.map(fa => <option key={fa.id} value={fa.id}>{fa.name}</option>)}
+                           </select>
+                        </div>
+                     </div>
+                   <DataTable title="Rincian Jurnal Pembukuan" columns={accColumns} data={filteredAccountingTable} defaultSort={{key: 'date', direction: 'desc'}} colors={colors} canDelete={(a) => !/^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Tukar Poin)/i.test(a.name || '')} actions={[
+                     { icon: Edit, label: 'Edit', disabled: (a) => /^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Tukar Poin)/i.test(a.name || ''), colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-blue-200', onClick: (a) => { playSound('pop', isSoundOn); setAccForm({...a, amount: Math.abs(a.amount).toString(), isExpense: a.amount < 0, date: getLocalDatetime(a.date) }); setShowAccModal(true); } }
                    ]} onDelete={(a) => { playSound('pop', isSoundOn); setDeleteAccData(a); }} />
                 </div>
              </div>
