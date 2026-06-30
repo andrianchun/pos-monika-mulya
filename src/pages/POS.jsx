@@ -320,39 +320,37 @@ export default function POS({ products, setProducts, customers, setCustomers, su
          setCompletedDoc({ ...newRecord, autoAction: 'wa' });
       }
 
-      setTimeout(() => {
-          try {
-            if(posMode === 'penjualan') setStoreInfo({...storeInfo, nextSeqSales: (storeInfo?.nextSeqSales || 1) + 1});
-            else setStoreInfo({...storeInfo, nextSeqPurchase: (storeInfo?.nextSeqPurchase || 1) + 1});
+      try {
+        if(posMode === 'penjualan') setStoreInfo({...storeInfo, nextSeqSales: (storeInfo?.nextSeqSales || 1) + 1});
+        else setStoreInfo({...storeInfo, nextSeqPurchase: (storeInfo?.nextSeqPurchase || 1) + 1});
 
-            setProducts(prevProducts => prevProducts.map(p => {
-              const cartItem = cart.find(c => c.id === p.id);
-              if (cartItem) return { ...p, stock: posMode === 'penjualan' ? p.stock - Number(cartItem.qty) : p.stock + Number(cartItem.qty) };
-              return p;
-            }));
-            
-            if (posMode === 'penjualan' && (!isCustomerUmum || depositUsed > 0 || depositAdded > 0)) {
-               setCustomers(prevCusts => prevCusts.map(c => {
-                 if (String(c.id) === String(selectedCustomer)) {
-                     const updatedPoints = earnedPoints > 0 ? (c.points || 0) + earnedPoints : c.points;
-                     const updatedDeposit = (c.deposit || 0) - depositUsed + depositAdded;
-                     return { ...c, points: updatedPoints, deposit: updatedDeposit };
-                 }
-                 return c;
-               }));
-            }
+        setProducts(prevProducts => prevProducts.map(p => {
+          const cartItem = cart.find(c => c.id === p.id);
+          if (cartItem) return { ...p, stock: posMode === 'penjualan' ? p.stock - Number(cartItem.qty) : p.stock + Number(cartItem.qty) };
+          return p;
+        }));
+        
+        if (posMode === 'penjualan' && (!isCustomerUmum || depositUsed > 0 || depositAdded > 0)) {
+           setCustomers(prevCusts => prevCusts.map(c => {
+             if (String(c.id) === String(selectedCustomer)) {
+                 const updatedPoints = earnedPoints > 0 ? (c.points || 0) + earnedPoints : c.points;
+                 const updatedDeposit = (c.deposit || 0) - depositUsed + depositAdded;
+                 return { ...c, points: updatedPoints, deposit: updatedDeposit };
+             }
+             return c;
+           }));
+        }
 
-            if (actualCashToKas > 0 && activeAccount) {
-                setAccounting(prev => [...prev, { id: Date.now()+1, type: 'kas', accountId: activeAccount.id, name: posMode === 'penjualan' ? `Penerimaan Nota ${genNota}` : `Pembayaran Nota ${genNota}`, amount: posMode === 'penjualan' ? actualCashToKas : -actualCashToKas, date: docDate.toISOString() }]);
-            }
+        if (actualCashToKas > 0 && activeAccount) {
+            setAccounting(prev => [...prev, { id: Date.now()+1, type: 'kas', accountId: activeAccount.id, name: posMode === 'penjualan' ? `Penerimaan Nota ${genNota}` : `Pembayaran Nota ${genNota}`, amount: posMode === 'penjualan' ? actualCashToKas : -actualCashToKas, date: docDate.toISOString() }]);
+        }
 
-            if(posMode === 'penjualan') setSales(prev => [newRecord, ...prev]); 
-            else setPurchases(prev => [newRecord, ...prev]);
-          } catch (innerErr) {
-            console.error("SetTimeout HandleCheckout Error:", innerErr);
-            showToast(`Error Update State: ${innerErr.message}`, 'error');
-          }
-      }, 50); 
+        if(posMode === 'penjualan') setSales(prev => [newRecord, ...prev]); 
+        else setPurchases(prev => [newRecord, ...prev]);
+      } catch (innerErr) {
+        console.error("HandleCheckout Error:", innerErr);
+        showToast(`Error Update State: ${innerErr.message}`, 'error');
+      }
     } catch (err) {
       console.error("HandleCheckout Error:", err);
       showToast(`Gagal memproses transaksi: ${err.message}`, 'error');
