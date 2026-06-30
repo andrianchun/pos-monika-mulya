@@ -846,7 +846,7 @@ export default function SettingsPage({
                   <div className="pt-2 border-t border-dashed border-gray-300 dark:border-gray-700">
                      <label className={`block text-xs font-bold mb-2 ${colors.textMuted}`}>Hak Akses Menu</label>
                      <div className="grid grid-cols-2 gap-2">
-                        {[{ id: 'dashboard', label: 'Dashboard' }, { id: 'pos', label: 'Kasir POS' }, { id: 'produk', label: 'Stok' }, { id: 'penjualan', label: 'Penjualan' }, { id: 'pembelian', label: 'Pembelian' }, { id: 'kontak', label: 'Kontak' }, { id: 'laporan', label: 'Laporan' }].map(mod => (
+                        {[{ id: 'dashboard', label: 'Dashboard' }, { id: 'pos', label: 'Kasir POS' }, { id: 'produk', label: 'Stok' }, { id: 'riwayat', label: 'Riwayat' }, { id: 'kontak', label: 'Kontak' }, { id: 'laporan', label: 'Laporan' }].map(mod => (
                            <label key={mod.id} className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={(uForm.permissions || []).includes(mod.id)} onChange={() => handlePermissionToggle(mod.id)} className="rounded text-[#D4AF37] focus:ring-[#D4AF37]" /><span className={colors.text}>{mod.label}</span></label>
                         ))}
                      </div>

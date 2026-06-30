@@ -47,7 +47,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
     const totalHPP = filteredSales.reduce((sum, s) => sum + s.items.reduce((itemSum, item) => itemSum + ((item.cost || 0) * item.qty), 0), 0);
     const totalLaba = totalPenjualan - totalHPP;
     const totalTransaksi = filteredSales.length;
-    const uniqueCusts = new Set(filteredSales.map(s => s.customer).filter(c => c && c !== '(anonim)' && c !== '-')).size;
+    const uniqueCusts = new Set(filteredSales.map(s => s.customer).filter(c => c && c !== '(anonim)' && c !== '-' && c !== 'Konsumen Umum')).size;
     
     const now = new Date();
     const prevSales = sales.filter(s => {
@@ -81,7 +81,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
     const prevHPP = prevSales.reduce((sum, s) => sum + s.items.reduce((itemSum, item) => itemSum + ((item.cost || 0) * item.qty), 0), 0);
     const prevLaba = prevPenjualan - prevHPP;
     const prevTransaksi = prevSales.length;
-    const prevUniqueCusts = new Set(prevSales.map(s => s.customer).filter(c => c && c !== '(anonim)' && c !== '-')).size;
+    const prevUniqueCusts = new Set(prevSales.map(s => s.customer).filter(c => c && c !== '(anonim)' && c !== '-' && c !== 'Konsumen Umum')).size;
 
     const calcTrend = (curr, prev) => {
       if (timeRange === 'semua') return null;
@@ -209,7 +209,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
       let value = 0;
       if (chartTab === 'penjualan') value = d.penjualan;
       if (chartTab === 'transaksi') value = d.transaksi;
-      if (chartTab === 'customer') value = d.customer.size;
+      if (chartTab === 'customer') value = Array.from(d.customer).filter(c => c && c !== '(anonim)' && c !== '-' && c !== 'Konsumen Umum').length;
       return { label: display, value };
     });
     
@@ -274,7 +274,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
       { title: 'Total Penjualan', value: `Rp ${formatIDR(stats.totalPenjualan)}`, trend: getTrendBadge(stats.trends.penjualan), icon: TrendingUp },
       { title: 'Total Laba', value: `Rp ${formatIDR(stats.totalLaba)}`, trend: getTrendBadge(stats.trends.laba), icon: Wallet },
       { title: 'Total Transaksi', value: stats.totalTransaksi, trend: getTrendBadge(stats.trends.transaksi), icon: ShoppingCart },
-      { title: 'Konsumen Aktif', value: `${stats.uniqueCusts} Orang`, trend: getTrendBadge(stats.trends.customer), icon: Users }
+      { title: 'Customer Aktif', value: `${stats.uniqueCusts} Orang`, trend: getTrendBadge(stats.trends.customer), icon: Users }
     ];
 
   return (

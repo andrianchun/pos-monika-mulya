@@ -64,14 +64,14 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
   
   return (
     <div className="h-full flex flex-col relative">
-       <div className="flex gap-2 mb-4 shrink-0">
-         <button onClick={() => setTab('customer')} className={`px-4 py-2 font-bold rounded-lg transition-colors ${tab==='customer' ? colors.goldBg + ' text-[#18181B]' : colors.panel + ' ' + colors.text + ' border ' + colors.border}`}>Pelanggan</button>
-         <button onClick={() => setTab('supplier')} className={`px-4 py-2 font-bold rounded-lg transition-colors ${tab==='supplier' ? colors.goldBg + ' text-[#18181B]' : colors.panel + ' ' + colors.text + ' border ' + colors.border}`}>Supplier</button>
-       </div>
-       
        <div className="flex-1 overflow-hidden">
          <DataTable 
-           title={tab === 'customer' ? "Data Pelanggan" : "Data Supplier"} 
+           title={
+             <div className="flex gap-2">
+               <button onClick={() => setTab('customer')} className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${tab==='customer' ? colors.goldBg + ' text-[#18181B]' : colors.panel + ' ' + colors.text + ' border ' + colors.border}`}>Customer</button>
+               <button onClick={() => setTab('supplier')} className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${tab==='supplier' ? 'bg-blue-600 text-white' : colors.panel + ' ' + colors.text + ' border ' + colors.border}`}>Supplier</button>
+             </div>
+           } 
            columns={tab === 'customer' ? columnsCustomer : columnsSupplier} 
            data={tab === 'customer' ? customers.filter(c => c.id !== 1) : suppliers} 
            colors={colors} 
@@ -96,7 +96,7 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
 
        {deleteContact && (
          <DeleteConfirmModal 
-            title={`Hapus Data ${tab === 'customer' ? 'Pelanggan' : 'Supplier'}?`} 
+            title={`Hapus Data ${tab === 'customer' ? 'Customer' : 'Supplier'}?`} 
             desc={`Yakin ingin menghapus ${deleteContact.name} dari daftar kontak?`} 
             btnText="Hapus"
             onConfirm={() => {
@@ -113,7 +113,7 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
           <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
              <div className={`w-full max-w-md p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
                 <div className="flex justify-between items-center mb-4">
-                   <h3 className={`text-xl font-bold ${colors.text}`}>{editingId ? 'Edit Kontak' : 'Tambah Kontak'} {tab === 'customer' ? 'Pelanggan' : 'Supplier'}</h3>
+                   <h3 className={`text-xl font-bold ${colors.text}`}>{editingId ? 'Edit Kontak' : 'Tambah Kontak'} {tab === 'customer' ? 'Customer' : 'Supplier'}</h3>
                    <button onClick={() => { playSound('pop', isSoundOn); setIsModalOpen(false); }} className="text-red-500 hover:scale-110"><X size={24}/></button>
                 </div>
                 <form onSubmit={handleSave} className="space-y-4">

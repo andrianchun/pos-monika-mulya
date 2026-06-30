@@ -10,7 +10,7 @@ function ModeToggle({ mode, setMode, colors, isSoundOn }) {
   return (
      <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
         <button onClick={() => { playSound('pop', isSoundOn); setMode('penjualan') }} className={`px-4 sm:px-6 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'penjualan' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
-        <button onClick={() => { playSound('pop', isSoundOn); setMode('pembelian') }} className={`px-4 sm:px-6 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'pembelian' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
+        <button onClick={() => { playSound('pop', isSoundOn); setMode('pembelian') }} className={`px-4 sm:px-6 py-1.5 text-xs font-bold rounded-md transition-all ${mode === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
      </div>
   );
 }
@@ -46,7 +46,8 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const [useAutoOngkir, setUseAutoOngkir] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(customers[0]?.id || '');
   const [selectedSupplier, setSelectedSupplier] = useState(1);
-  const [transactionDate, setTransactionDate] = useState(''); 
+  const getTodayStr = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+  const [transactionDate, setTransactionDate] = useState(getTodayStr()); 
   const [checkoutModal, setCheckoutModal] = useState(false);
   const [showMobileCart, setShowMobileCart] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -300,7 +301,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
     setPosOngkirStr(''); 
     setPaymentAmount(''); 
     setDueDate(''); 
-    setTransactionDate(''); 
+    setTransactionDate(getTodayStr()); 
     setPaymentMethodId(financialAccounts[0]?.id || '');
     setUseAutoOngkir(false);
     setSelectedCustomer(customers[0]?.id || '');
@@ -392,7 +393,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                          <div className={`font-bold text-[11px] sm:text-sm leading-tight mb-2 line-clamp-2 text-white drop-shadow-md group-hover:text-[#D4AF37] transition-colors`}>{p.name}</div>
                          
                          <div className="flex justify-between items-end">
-                            <div className={`font-black text-[13px] sm:text-base text-[#D4AF37] drop-shadow-md`}>Rp {formatIDR(posMode === 'penjualan' ? calcItemPricing(p, 1).unitPrice : p.cost)}</div>
+                            <div className={`font-black text-[13px] sm:text-base ${posMode === 'penjualan' ? 'text-[#D4AF37]' : 'text-blue-500'} drop-shadow-md`}>Rp {formatIDR(posMode === 'penjualan' ? calcItemPricing(p, 1).unitPrice : p.cost)}</div>
                             <div className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md backdrop-blur-sm bg-black/40 border border-white/10 ${posMode === 'penjualan' && p.currentStock < 5 ? 'text-red-400 font-bold border-red-500/30' : 'text-gray-300 font-medium'}`}>{String(p.currentStock).replace('.', ',')} {p.unit}</div>
                          </div>
                        </div>
@@ -488,7 +489,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                   <span className={colors.textMuted}>Ongkir/Lain (Rp){(selectedCustomer !== 1 && posMode === 'penjualan') && (<label className="flex items-center gap-1 mt-0.5 cursor-pointer text-[10px] text-green-500"><input type="checkbox" checked={useAutoOngkir} onChange={(e) => setUseAutoOngkir(e.target.checked)} className="rounded w-3 h-3 text-green-500 focus:ring-green-500 border-green-500" />Auto ({customers.find(c=>String(c.id)===String(selectedCustomer))?.distance}km)</label>)}</span>
                   <input type="text" className={`w-32 sm:w-40 text-right p-1 sm:p-1.5 rounded border ${colors.border} bg-white/10 dark:bg-[#1e1e1e]/10 outline-none placeholder-gray-400/50 dark:placeholder-gray-500/40`} placeholder="0" value={posOngkirStr} onChange={e => { setUseAutoOngkir(false); setPosOngkirStr(smartFormatInput(e.target.value)); }} />
                 </div>
-                <div className="flex justify-between text-base sm:text-lg font-bold pt-2 border-t border-dashed border-gray-300 dark:border-gray-600"><span className={colors.text}>TOTAL</span><span className={posMode === 'penjualan' ? colors.gold : '${colors.gold}'}>Rp {formatIDR(total)}</span></div>
+                <div className="flex justify-between text-base sm:text-lg font-bold pt-2 border-t border-dashed border-gray-300 dark:border-gray-600"><span className={colors.text}>TOTAL</span><span className={posMode === 'penjualan' ? colors.gold : 'text-blue-600'}>Rp {formatIDR(total)}</span></div>
               </div>
               <button disabled={cart.length === 0} onClick={() => { 
                   if (posMode === 'pembelian' && String(selectedSupplier) === '1') {

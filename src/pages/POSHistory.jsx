@@ -9,10 +9,11 @@ import DocumentReturnModal from '../components/modals/DocumentReturnModal';
 import TransactionEditModal from '../components/modals/TransactionEditModal';
 
 export default function POSHistory({ 
-  tab, sales, setSales, purchases, setPurchases, colors, showToast, 
+  sales, setSales, purchases, setPurchases, colors, showToast, 
   isSoundOn, products, setProducts, storeInfo, accounting, setAccounting, 
   customers, setCustomers, suppliers, financialAccounts 
 }) {
+  const [tab, setTab] = useState('penjualan');
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [returnDoc, setReturnDoc] = useState(null); 
   const [editDoc, setEditDoc] = useState(null);
@@ -144,10 +145,15 @@ export default function POSHistory({
   ];
 
   return (
-    <div className={`p-2 sm:p-4 h-full flex flex-col overflow-hidden`}>
+    <div className="h-full flex flex-col relative overflow-hidden">
       <div className="flex-1 overflow-hidden print:hidden">
          <DataTable 
-            title={`Rekapan ${tab === 'penjualan' ? 'Penjualan' : 'Pembelian'}`} 
+            title={
+              <div className="flex gap-2">
+                <button onClick={() => setTab('penjualan')} className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${tab==='penjualan' ? colors.goldBg + ' text-[#18181B]' : colors.panel + ' ' + colors.text + ' border ' + colors.border}`}>Penjualan</button>
+                <button onClick={() => setTab('pembelian')} className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${tab==='pembelian' ? 'bg-blue-600 text-white' : colors.panel + ' ' + colors.text + ' border ' + colors.border}`}>Pembelian</button>
+              </div>
+            } 
             columns={columns} data={activeData} colors={colors} 
             onDelete={(r) => { playSound('pop', isSoundOn); setDeleteConfirmId(r.id); }} 
             actions={actions} 

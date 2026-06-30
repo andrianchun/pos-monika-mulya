@@ -30,7 +30,7 @@ export default function CheckoutModal({ posMode, total, financialAccounts, payme
         </div>
         
         <div className="space-y-4">
-          <div className={`p-4 rounded-xl text-center ${posMode === 'penjualan' ? colors.goldBg : 'bg-blue-400'} text-[#18181B]`}>
+          <div className={`p-4 rounded-xl text-center ${posMode === 'penjualan' ? `${colors.goldBg} text-[#18181B]` : 'bg-blue-600 text-white'}`}>
             <p className="text-sm font-semibold opacity-80 mb-1">Total Tagihan</p>
             <p className="text-3xl font-black">Rp {formatIDR(total)}</p>
             {useDeposit && depositUsed > 0 && (

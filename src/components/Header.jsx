@@ -1,7 +1,31 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Sun, Moon, LogOut, Settings, Menu, Bell, AlertTriangle, Package, Calendar, Send, Loader2 } from 'lucide-react';
+import { Sun, Moon, LogOut, Settings, Menu, Bell, AlertTriangle, Package, Calendar, Send, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import ProfileModal from './modals/ProfileModal';
 import { playSound, formatIDR, formatDate } from '../utils/helpers';
+
+const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children, defaultOpen = false, colors }) => {
+   const [open, setOpen] = useState(defaultOpen);
+   if (count === 0) return null;
+   return (
+      <div className={`rounded-xl border ${colors.border} overflow-hidden shadow-sm`}>
+         <div onClick={() => setOpen(!open)} className={`p-3 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#27272A] ${colors.creamBg}`}>
+            <div className="flex items-center gap-2">
+               <Icon size={16} className={colorClass} />
+               <span className={`text-xs font-bold ${colors.text}`}>{title}</span>
+            </div>
+            <div className="flex items-center gap-2">
+               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 ${colors.text}`}>{count}</span>
+               {open ? <ChevronUp size={14} className={colors.textMuted} /> : <ChevronDown size={14} className={colors.textMuted} />}
+            </div>
+         </div>
+         {open && (
+            <div className={`p-3 bg-white dark:bg-[#18181B] border-t ${colors.border} space-y-2`}>
+               {children}
+            </div>
+         )}
+      </div>
+   );
+};
 
 export default function Header({ 
   user, setUser, users, setUsers, theme, setTheme, colors, isSoundOn, storeInfo, showToast, 
@@ -171,86 +195,90 @@ export default function Header({
                       ) : (
                          <>
                            {/* 1. KELOMPOK PIUTANG JATUH TEMPO */}
-                           {incomingReceivables.map(s => {
-                              const daysLeft = Math.ceil((new Date(s.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
-                              const isLate = daysLeft < 0;
-                              return (
-                                 <div key={`rec-${s.id}`} className={`p-3 rounded-xl ${isLate ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm`}>
-                                    <Calendar size={16} className={`${isLate ? 'text-red-500' : 'text-[#D4AF37]'} shrink-0 mt-0.5`} />
-                                    <div className="min-w-0 flex-1">
-                                       <p className={`text-xs font-bold ${colors.text} truncate`}>Piutang Pelanggan: {s.customer}</p>
-                                       <p className={`text-[10px] ${colors.textMuted}`}>Nota: {s.nota}</p>
-                                       <div className="flex justify-between items-center mt-1">
-                                          <p className={`text-[10px] font-bold ${isLate ? 'text-red-500' : 'text-[#D4AF37]'}`}>Tagihan: Rp {formatIDR(s.total - s.paid)}</p>
-                                          <p className={`text-[10px] font-black px-2 py-0.5 rounded ${isLate ? 'bg-red-500/10 text-red-500' : 'bg-[#D4AF37]/10 text-[#D4AF37]'}`}>
-                                             {isLate ? `TELAT ${Math.abs(daysLeft)} HARI` : `TEMPO: ${formatDate(s.dueDate)}`}
-                                          </p>
+                           <CollapsibleNotifGroup title="Piutang Pelanggan" count={incomingReceivables.length} icon={Calendar} colorClass="text-red-500" colors={colors}>
+                              {incomingReceivables.map(s => {
+                                 const daysLeft = Math.ceil((new Date(s.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
+                                 const isLate = daysLeft < 0;
+                                 return (
+                                    <div key={`rec-${s.id}`} className={`p-3 rounded-xl ${isLate ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm`}>
+                                       <div className="min-w-0 flex-1">
+                                          <p className={`text-xs font-bold ${colors.text} truncate`}>Customer: {s.customer}</p>
+                                          <p className={`text-[10px] ${colors.textMuted}`}>Nota: {s.nota}</p>
+                                          <div className="flex justify-between items-center mt-1">
+                                             <p className={`text-[10px] font-bold ${isLate ? 'text-red-500' : 'text-[#D4AF37]'}`}>Tagihan: Rp {formatIDR(s.total - s.paid)}</p>
+                                             <p className={`text-[10px] font-black px-2 py-0.5 rounded ${isLate ? 'bg-red-500/10 text-red-500' : 'bg-[#D4AF37]/10 text-[#D4AF37]'}`}>
+                                                {isLate ? `TELAT ${Math.abs(daysLeft)} HARI` : `TEMPO: ${formatDate(s.dueDate)}`}
+                                             </p>
+                                          </div>
                                        </div>
                                     </div>
-                                 </div>
-                              );
-                           })}
+                                 );
+                              })}
+                           </CollapsibleNotifGroup>
 
                            {/* 2. KELOMPOK UTANG JATUH TEMPO */}
-                           {incomingDebts.map(p => {
-                              const daysLeft = Math.ceil((new Date(p.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
-                              const isLate = daysLeft < 0;
-                              return (
-                                 <div key={`debt-${p.id}`} className={`p-3 rounded-xl ${isLate ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm`}>
-                                    <Calendar size={16} className={`${isLate ? 'text-red-500' : 'text-[#D4AF37]'} shrink-0 mt-0.5`} />
-                                    <div className="min-w-0 flex-1">
-                                       <p className={`text-xs font-bold ${colors.text} truncate`}>Utang Toko ke: {p.supplier}</p>
-                                       <p className={`text-[10px] ${colors.textMuted}`}>Nota: {p.nota}</p>
-                                       <div className="flex justify-between items-center mt-1">
-                                          <p className={`text-[10px] font-bold ${isLate ? 'text-red-500' : 'text-[#D4AF37]'}`}>Kurang Bayar: Rp {formatIDR(p.total - p.paid)}</p>
-                                          <p className={`text-[10px] font-black px-2 py-0.5 rounded ${isLate ? 'bg-red-500/10 text-red-500' : 'bg-[#D4AF37]/10 text-[#D4AF37]'}`}>
-                                             {isLate ? `TELAT ${Math.abs(daysLeft)} HARI` : `TEMPO: ${formatDate(p.dueDate)}`}
+                           <CollapsibleNotifGroup title="Utang Toko" count={incomingDebts.length} icon={Calendar} colorClass="text-orange-500" colors={colors}>
+                              {incomingDebts.map(p => {
+                                 const daysLeft = Math.ceil((new Date(p.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
+                                 const isLate = daysLeft < 0;
+                                 return (
+                                    <div key={`debt-${p.id}`} className={`p-3 rounded-xl ${isLate ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm`}>
+                                       <div className="min-w-0 flex-1">
+                                          <p className={`text-xs font-bold ${colors.text} truncate`}>Supplier: {p.supplier}</p>
+                                          <p className={`text-[10px] ${colors.textMuted}`}>Nota: {p.nota}</p>
+                                          <div className="flex justify-between items-center mt-1">
+                                             <p className={`text-[10px] font-bold ${isLate ? 'text-red-500' : 'text-[#D4AF37]'}`}>Kurang Bayar: Rp {formatIDR(p.total - p.paid)}</p>
+                                             <p className={`text-[10px] font-black px-2 py-0.5 rounded ${isLate ? 'bg-red-500/10 text-red-500' : 'bg-[#D4AF37]/10 text-[#D4AF37]'}`}>
+                                                {isLate ? `TELAT ${Math.abs(daysLeft)} HARI` : `TEMPO: ${formatDate(p.dueDate)}`}
+                                             </p>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 );
+                              })}
+                           </CollapsibleNotifGroup>
+
+                           {/* 3. KELOMPOK BARANG HABIS (BY SUPPLIER) */}
+                           <CollapsibleNotifGroup title="Stok Menipis" count={lowStockItems.length} icon={Package} colorClass="text-blue-500" colors={colors}>
+                              {groupedLowStock.map((group, idx) => (
+                                 <div key={`stock-${idx}`} className={`p-3 rounded-xl ${colors.creamBg} ${colors.border} border flex flex-col gap-2 shadow-sm`}>
+                                    <div className={`flex justify-between items-center border-b ${colors.border} pb-2`}>
+                                       <div className="flex items-center gap-2 min-w-0">
+                                          <span className={`text-xs font-bold ${colors.text} truncate`}>Order ke: {group.supplier.name}</span>
+                                       </div>
+                                       <button onClick={() => handleSendBulkSupplierWA(group)} className={`px-3 py-1.5 ${colors.goldBg} text-[#18181B] rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 text-[10px] font-bold shadow-sm shrink-0`}>
+                                          <Send size={12}/> Pesan
+                                       </button>
+                                    </div>
+                                    <div className="pl-2 space-y-1">
+                                       {group.items.map(item => (
+                                          <div key={item.id} className="flex justify-between text-[10px]">
+                                             <span className={`${colors.textMuted} truncate pr-2`}>• {item.name}</span>
+                                             <span className="text-red-500 font-bold shrink-0">Sisa {String(item.stock).replace('.', ',')}</span>
+                                          </div>
+                                       ))}
+                                    </div>
+                                 </div>
+                              ))}
+                           </CollapsibleNotifGroup>
+
+                           {/* 4. KELOMPOK KEDALUWARSA */}
+                           <CollapsibleNotifGroup title="Kedaluwarsa" count={expiringItems.length} icon={AlertTriangle} colorClass="text-red-500" colors={colors}>
+                              {expiringItems.map(item => {
+                                 const daysLeft = Math.ceil((new Date(item.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+                                 const isExpired = daysLeft <= 0;
+                                 return (
+                                    <div key={`exp-${item.id}`} className={`p-3 rounded-xl ${isExpired ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm`}>
+                                       <div className="min-w-0">
+                                          <p className={`text-xs font-bold ${colors.text} truncate`}>{item.name}</p>
+                                          <p className={`text-[10px] font-black uppercase ${isExpired ? 'text-red-500' : 'text-[#D4AF37]'}`}>
+                                             {isExpired ? 'TELAH KEDALUWARSA!' : `KEDALUWARSA DALAM ${daysLeft} HARI`}
                                           </p>
                                        </div>
                                     </div>
-                                 </div>
-                              );
-                           })}
-
-                           {/* 3. KELOMPOK BARANG HABIS (BY SUPPLIER) */}
-                           {groupedLowStock.map((group, idx) => (
-                              <div key={`stock-${idx}`} className={`p-3 rounded-xl ${colors.creamBg} ${colors.border} border flex flex-col gap-2 shadow-sm`}>
-                                 <div className={`flex justify-between items-center border-b ${colors.border} pb-2`}>
-                                    <div className="flex items-center gap-2 min-w-0">
-                                       <Package size={16} className="text-[#D4AF37] shrink-0" />
-                                       <span className={`text-xs font-bold ${colors.text} truncate`}>Order ke: {group.supplier.name}</span>
-                                    </div>
-                                    <button onClick={() => handleSendBulkSupplierWA(group)} className={`px-3 py-1.5 ${colors.goldBg} text-[#18181B] rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 text-[10px] font-bold shadow-sm shrink-0`}>
-                                       <Send size={12}/> Pesan
-                                    </button>
-                                 </div>
-                                 <div className="pl-6 space-y-1">
-                                    {group.items.map(item => (
-                                       <div key={item.id} className="flex justify-between text-[10px]">
-                                          <span className={`${colors.textMuted} truncate pr-2`}>• {item.name}</span>
-                                          <span className="text-red-500 font-bold shrink-0">Sisa {String(item.stock).replace('.', ',')}</span>
-                                       </div>
-                                    ))}
-                                 </div>
-                              </div>
-                           ))}
-
-                           {/* 4. KELOMPOK KEDALUWARSA */}
-                           {expiringItems.map(item => {
-                              const daysLeft = Math.ceil((new Date(item.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
-                              const isExpired = daysLeft <= 0;
-                              return (
-                                 <div key={`exp-${item.id}`} className={`p-3 rounded-xl ${isExpired ? 'bg-red-500/5 border-red-500/20' : `${colors.creamBg} ${colors.border}`} border flex gap-2 min-w-0 shadow-sm`}>
-                                    <AlertTriangle size={16} className={`${isExpired ? 'text-red-500' : 'text-[#D4AF37]'} shrink-0 mt-0.5`} />
-                                    <div className="min-w-0">
-                                       <p className={`text-xs font-bold ${colors.text} truncate`}>{item.name}</p>
-                                       <p className={`text-[10px] font-black uppercase ${isExpired ? 'text-red-500' : 'text-[#D4AF37]'}`}>
-                                          {isExpired ? 'TELAH KEDALUWARSA!' : `KEDALUWARSA DALAM ${daysLeft} HARI`}
-                                       </p>
-                                    </div>
-                                 </div>
-                              );
-                           })}
+                                 );
+                              })}
+                           </CollapsibleNotifGroup>
                          </>
                       )}
                    </div>

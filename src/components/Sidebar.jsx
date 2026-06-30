@@ -5,12 +5,11 @@ export default function Sidebar({ isOpen, setIsOpen, activeMenu, handleMenuClick
   const fullMenuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', module: 'dashboard' },
     { id: 'pos', icon: ShoppingCart, label: 'Kasir / POS', module: 'pos' },
-    { id: 'produk', icon: Package, label: 'Produk', module: 'produk' },
-    { id: 'penjualan', icon: FileText, label: 'Data Penjualan', module: 'penjualan' },
-    { id: 'pembelian', icon: FileText, label: 'Data Pembelian', module: 'pembelian' },
+    { id: 'riwayat', icon: FileText, label: 'Riwayat', module: 'riwayat' },
     { id: 'kontak', icon: Users, label: 'Kontak', module: 'kontak' },
-    { id: 'laporan', icon: FileText, label: 'Laporan Keuangan', module: 'laporan' },
-    { id: 'pengaturan', icon: Settings, label: 'Pengaturan Sistem', module: 'pengaturan' }
+    { id: 'produk', icon: Package, label: 'Produk', module: 'produk' },
+    { id: 'laporan', icon: FileText, label: 'Laporan', module: 'laporan' },
+    { id: 'pengaturan', icon: Settings, label: 'Pengaturan', module: 'pengaturan' }
   ];
 
   const permittedMenu = user.role === 'admin' ? fullMenuItems : fullMenuItems.filter(m => user.permissions?.includes(m.module));

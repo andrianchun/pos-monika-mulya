@@ -387,6 +387,24 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+     if (users && users.length > 0) {
+        let needsMigration = false;
+        const migratedUsers = users.map(u => {
+           if (u.permissions && (u.permissions.includes('penjualan') || u.permissions.includes('pembelian'))) {
+               needsMigration = true;
+               const newPerms = u.permissions.filter(p => p !== 'penjualan' && p !== 'pembelian');
+               if (!newPerms.includes('riwayat')) newPerms.push('riwayat');
+               return { ...u, permissions: newPerms };
+           }
+           return u;
+        });
+        if (needsMigration) {
+           customSetUsers(migratedUsers);
+        }
+     }
+  }, [users]);
+
   const themeColors = { 
      bg: theme === 'dark' ? 'bg-[#09090B]' : 'bg-[#F4F4F5]', 
      panel: theme === 'dark' ? 'bg-[#18181B]/40 backdrop-blur-xl' : 'bg-white/40 backdrop-blur-xl', 
@@ -466,8 +484,7 @@ export default function App() {
              
              {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={themeColors} theme={theme} handleMenuClick={setActiveMenu} isSoundOn={true} />}
              {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} colors={themeColors} user={user} isSoundOn={true} showToast={showToast} />}
-             {activeMenu === 'penjualan' && <POSHistory tab="penjualan" sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} />}
-             {activeMenu === 'pembelian' && <POSHistory tab="pembelian" sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} />}
+             {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} />}
              {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} />}
              {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} />}
              
