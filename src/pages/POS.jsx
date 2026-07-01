@@ -421,7 +421,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
               </button>
             </div>
             <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar" onWheel={handleGridWheel}>
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 pb-6">
+               <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4 pb-6">
                 {paginatedProducts.map(p => (
                      <div key={p.id} onClick={() => addToCart(p)} className={`bg-black/10 dark:bg-black/30 backdrop-blur-md border ${colors.border} rounded-2xl cursor-pointer ${globalMode === 'penjualan' ? 'hover:border-[#D4AF37]/50' : 'hover:border-blue-500/50'} transition-all active:scale-95 relative overflow-hidden group min-h-[140px] sm:min-h-[160px] flex flex-col justify-end`}>
                        
@@ -440,7 +440,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                        
                        {/* Content Layer */}
                        <div className="relative z-10 p-3 sm:p-4 text-left w-full">
-                         <div className={`font-bold text-[11px] sm:text-sm leading-tight mb-2 truncate text-white drop-shadow-md ${globalMode === 'penjualan' ? 'group-hover:text-[#D4AF37]' : 'group-hover:text-blue-400'} transition-colors`} title={p.name}>{p.name}</div>
+                         <div className={`font-bold text-[11px] sm:text-sm leading-tight mb-2 line-clamp-2 text-white drop-shadow-md ${globalMode === 'penjualan' ? 'group-hover:text-[#D4AF37]' : 'group-hover:text-blue-400'} transition-colors`} title={p.name}>{p.name}</div>
                          
                          <div className="flex justify-between items-end">
                             <div className={`font-black text-[13px] sm:text-base ${posMode === 'penjualan' ? 'text-[#D4AF37]' : 'text-blue-500'} drop-shadow-md`}>Rp {formatIDR(posMode === 'penjualan' ? calcItemPricing(p, 1).unitPrice : p.cost)}</div>
