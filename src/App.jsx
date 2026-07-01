@@ -640,7 +640,7 @@ export default function App() {
               onClose={() => setShowShiftOpenModal(false)}
               setActiveShift={setActiveShift}
               user={user}
-              lastShiftRemaining={shiftHistory.length > 0 ? shiftHistory[0].actualCash : 0}
+              lastShiftRemaining={shiftHistory.length > 0 ? (shiftHistory[0].actualCash - (shiftHistory[0].dropCash || 0)) : 0}
           />
       )}
       </div>
