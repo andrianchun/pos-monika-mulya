@@ -177,6 +177,7 @@ export default function POSHistory({
               </div>
             }
             columns={columns} data={activeData} colors={colors} 
+            searchPlaceholder="Cari"
             posLayout={true}
             onDelete={(r) => { playSound('pop', isSoundOn); setDeleteConfirmId(r.id); }} 
             actions={actions} 

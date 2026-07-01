@@ -148,7 +148,7 @@ export default function Header({ colors,
   const handleLogout = () => {
     if (activeShift && activeShift.status === 'OPEN') {
         playSound('error', isSoundOn);
-        showToast('Wajib Tutup Shift (Z-Report) sebelum logout!', 'error');
+        showToast('Wajib Tutup Shift sebelum logout!', 'error');
         setShowShiftCloseModal(true);
         return;
     }
@@ -196,7 +196,7 @@ export default function Header({ colors,
 
             <div className="hidden md:flex items-center">
                 {activeShift && activeShift.status === 'OPEN' ? (
-                    <span className={`px-2 py-1 text-xs font-bold rounded-md ${colors.goldBg}/10 ${colors.gold} border border-[#D4AF37]/30 flex items-center gap-1 cursor-pointer hover:${colors.goldBg}/20 transition-colors`} onClick={() => setShowShiftCloseModal(true)} title="Tutup Shift (Z-Report)">
+                    <span className={`px-2 py-1 text-xs font-bold rounded-md ${colors.goldBg}/10 ${colors.gold} border border-[#D4AF37]/30 flex items-center gap-1 cursor-pointer hover:${colors.goldBg}/20 transition-colors`} onClick={() => setShowShiftCloseModal(true)} title="Tutup Shift">
                         <span className={`w-1.5 h-1.5 rounded-full ${colors.goldBg} animate-pulse shadow-[0_0_5px_rgba(212,175,55,0.8)]`}></span> Tutup Shift
                     </span>
                 ) : (

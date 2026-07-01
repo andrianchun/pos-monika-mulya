@@ -45,7 +45,7 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
                     <span className="text-gray-800 dark:text-white">POS</span>
                   </span>
                   <span className="text-[10px] text-gray-500 font-medium mt-0.5 whitespace-nowrap">
-                    by andrianchun (c) 2026
+                    by andrianchun © 2026
                   </span>
                 </div>
                 <div className={`hidden lg:flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 ${colors.goldHoverText} border border-transparent ${colors.goldHoverBorder} transition-all`}>

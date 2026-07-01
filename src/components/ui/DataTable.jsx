@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, Plus, Trash2, ChevronLeft, ChevronRight, X, Filter, Check } from 'lucide-react';
 import useDebounce from '../../hooks/useDebounce';
 
-export default function DataTable({ columns, data, onDelete, canDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false, headerRight, noSortKey }) {
+export default function DataTable({ columns, data, onDelete, canDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false, headerRight, noSortKey, searchPlaceholder = 'Cari nama atau Barcode...' }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState(defaultSort);
@@ -143,7 +143,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
             <div className="relative w-full md:w-64">
               <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={18} />
-              <input type="text" placeholder="Cari / Filter..." className={`w-full pl-9 pr-9 py-2 text-sm rounded-lg border ${colors.border} bg-transparent ${colors.text} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={search} onChange={e => setSearch(e.target.value)} />
+              <input type="text" placeholder={searchPlaceholder} className={`w-full pl-9 pr-9 py-2 text-sm rounded-lg border ${colors.border} bg-transparent ${colors.text} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={search} onChange={e => setSearch(e.target.value)} />
               {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"><X size={14}/></button>}
             </div>
             {onAdd && <button onClick={onAdd} className={`w-full sm:w-auto px-4 py-2 rounded-lg text-[#18181B] text-sm font-semibold whitespace-nowrap flex items-center justify-center gap-2 ${colors.goldBg} hover:opacity-90`}><Plus size={16}/> {typeof onAdd === 'function' ? 'Tambah Data' : onAdd.label}</button>}

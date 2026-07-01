@@ -147,7 +147,7 @@ export default function App() {
         e.returnValue = 'Data sedang dikunci ke Cloud. Jika Anda merefresh sekarang, data mungkin gagal tersimpan. Yakin ingin keluar?';
       } else if (activeShift && activeShift.status === 'OPEN') {
         e.preventDefault();
-        e.returnValue = 'Shift masih terbuka. Harap tutup shift (Z-Report) sebelum keluar.';
+        e.returnValue = 'Shift masih terbuka. Harap tutup shift  sebelum keluar.';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);

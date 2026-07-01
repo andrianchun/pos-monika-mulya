@@ -91,6 +91,7 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
            posLayout={true}
            columns={tab === 'customer' ? columnsCustomer : columnsSupplier} 
            data={tab === 'customer' ? customers.filter(c => c.id !== 1) : suppliers} 
+           searchPlaceholder="Cari"
            colors={colors} 
            onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }}
            actions={[
