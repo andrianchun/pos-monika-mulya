@@ -345,7 +345,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
          setCompletedDoc(null);
          showToast(`Transaksi Berhasil! ${earnedPoints > 0 ? `(+${earnedPoints} Poin)` : ''}`, 'success');
       } else if (action === 'cetak') {
-         setCompletedDoc({ ...newRecord, autoAction: 'cetak', source: 'POS' });
+         setCompletedDoc({ ...newRecord });
       } else if (action === 'wa') {
          setCompletedDoc({ ...newRecord, autoAction: 'wa', source: 'POS' });
       }
