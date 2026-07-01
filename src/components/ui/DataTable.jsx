@@ -209,11 +209,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
               ) : (
                 paginated.map((row, i) => (
                   <tr key={row.id} className={`border-b ${colors.border} hover:${colors.creamBg}`}>
-                    <td className="px-2 sm:px-4 py-1.5 sm:py-2 text-center">
-                       {(noSortKey && sortConfig.key === noSortKey && sortConfig.direction === 'asc') 
-                          ? (filtered.length - ((page - 1) * limit + i)) 
-                          : ((page - 1) * limit + i + 1)}
-                    </td>
+                    <td className="px-2 sm:px-4 py-1.5 sm:py-2 text-center">{(page - 1) * limit + i + 1}</td>
                     {columns.map(c => <td key={c.key} className="px-2 sm:px-4 py-1.5 sm:py-2">{c.render ? c.render(row) : row[c.key]}</td>)}
                     {(onDelete || actions.length > 0) && (
                       <td className="px-2 sm:px-4 py-1 sm:py-1.5 flex justify-center gap-1 sm:gap-2">
