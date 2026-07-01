@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ShoppingCart, Search, ChevronLeft, ChevronRight, X, Trash2, Calendar, Ticket, Gift, Package } from 'lucide-react';
+import { ShoppingCart, Search, ChevronLeft, ChevronRight, X, Trash2, Calendar, Ticket, Gift, Package, Wallet } from 'lucide-react';
 import { formatIDR, parseIDR, playSound, calculateDynamicPrice, smartFormatInput } from '../utils/helpers';
 import useDebounce from '../hooks/useDebounce';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import CheckoutModal from '../components/modals/CheckoutModal';
 import DocumentReceiptModal from '../components/modals/DocumentReceiptModal';
+import KasEkstraModal from '../components/modals/KasEkstraModal';
 
 function ModeToggle({ mode, setMode, colors, isSoundOn }) {
   return (
@@ -15,7 +16,7 @@ function ModeToggle({ mode, setMode, colors, isSoundOn }) {
   );
 }
 
-export default function POS({ products, setProducts, customers, setCustomers, suppliers, sales, setSales, purchases, setPurchases, colors, showToast, user, isSoundOn, theme, storeInfo, setStoreInfo, accounting, setAccounting, financialAccounts, globalMode, setGlobalMode }) {
+export default function POS({ products, setProducts, customers, setCustomers, suppliers, sales, setSales, purchases, setPurchases, colors, showToast, user, isSoundOn, theme, storeInfo, setStoreInfo, accounting, setAccounting, financialAccounts, globalMode, setGlobalMode, activeShift, setActiveShift, setShowShiftOpenModal }) {
   const posMode = globalMode;
   const setPosMode = setGlobalMode;
 
@@ -37,6 +38,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const [dueDate, setDueDate] = useState('');
   const [completedDoc, setCompletedDoc] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showKasEkstraModal, setShowKasEkstraModal] = useState(false);
   const itemsPerPage = 36;
   const wheelTimeout = useRef(null);
 
@@ -48,17 +50,11 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   // =========================================================================
   // 🔥 TRIK ALFAMART: SEARCH BY WA (Menggabungkan Nama + No WA di Dropdown)
   // =========================================================================
-  const customerOptions = customers.map(c => ({
-     ...c,
-     name: c.phone && c.phone !== '-' && String(c.id) !== '1' ? `${c.name} (${c.phone})` : c.name
-  }));
+  const customerOptions = customers;
 
   const supplierOptions = [
     { id: 1, name: '(anonim)' },
-    ...suppliers.map(s => ({
-       ...s,
-       name: s.phone && s.phone !== '-' ? `${s.name} (${s.phone})` : s.name
-    }))
+    ...suppliers
   ];
   // =========================================================================
 
@@ -349,9 +345,9 @@ export default function POS({ products, setProducts, customers, setCustomers, su
          setCompletedDoc(null);
          showToast(`Transaksi Berhasil! ${earnedPoints > 0 ? `(+${earnedPoints} Poin)` : ''}`, 'success');
       } else if (action === 'cetak') {
-         setCompletedDoc({ ...newRecord, autoAction: 'cetak' });
+         setCompletedDoc({ ...newRecord, autoAction: 'cetak', source: 'POS' });
       } else if (action === 'wa') {
-         setCompletedDoc({ ...newRecord, autoAction: 'wa' });
+         setCompletedDoc({ ...newRecord, autoAction: 'wa', source: 'POS' });
       }
 
       try {
@@ -413,6 +409,16 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
                  <input type="text" placeholder="Cari nama atau Barcode..." className={`w-full pl-10 pr-4 py-3 sm:py-1.5 h-[44px] rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} value={posSearch} onChange={e => setPosSearch(e.target.value)} onKeyDown={handleSearchKeyDown} />
               </div>
+              <button onClick={() => { 
+                 if(activeShift) setShowKasEkstraModal(true); 
+                 else {
+                    showToast('Buka shift terlebih dahulu', 'error');
+                    if(setShowShiftOpenModal) setShowShiftOpenModal(true);
+                 }
+              }} className={`h-[44px] px-3 sm:px-4 rounded-xl border ${colors.border} ${colors.panel} hover:${colors.creamBg} transition-colors flex items-center justify-center gap-2 font-bold whitespace-nowrap shrink-0`}>
+                 <Wallet size={18} className={colors.gold} />
+                 <span className="hidden sm:inline">Kas Ekstra</span>
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar" onWheel={handleGridWheel}>
               <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 pb-6">
@@ -555,17 +561,35 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                 </div>
                 <div className="flex justify-between text-base sm:text-lg font-bold pt-2 border-t border-dashed border-gray-300 dark:border-gray-600"><span className={colors.text}>TOTAL</span><span className={posMode === 'penjualan' ? colors.gold : 'text-blue-600'}>Rp {formatIDR(total)}</span></div>
               </div>
-              <button disabled={cart.length === 0} onClick={() => { 
+              <button onClick={() => { 
+                  if (posMode === 'penjualan' && !activeShift) {
+                      playSound('error', isSoundOn);
+                      showToast('Buka shift terlebih dahulu!', 'error');
+                      if (setShowShiftOpenModal) setShowShiftOpenModal(true);
+                      return;
+                  }
+                  if (cart.length === 0) return;
                   if (posMode === 'pembelian' && String(selectedSupplier) === '1') {
                       showToast('Nama supplier wajib dipilih!', 'error');
                       return;
                   }
                   playSound('pop', isSoundOn); setCheckoutModal(true); 
-              }} className={`w-full py-3 sm:py-4 rounded-xl font-bold text-[#18181B] text-base sm:text-lg transition-transform ${cart.length === 0 ? 'bg-gray-400 cursor-not-allowed' : posMode === 'penjualan' ? `${colors.goldBg} hover:scale-[1.02] shadow-lg` : `${colors.goldBg} hover:scale-[1.02] shadow-lg`}`}>{posMode === 'penjualan' ? 'BAYAR SEKARANG' : 'PROSES PEMBELIAN'}</button>
+              }} className={`w-full py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-transform ${(posMode === 'penjualan' && !activeShift) ? `bg-[#D4AF37]/20 border border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/30 hover:scale-[1.02] shadow-lg` : cart.length === 0 ? 'bg-gray-400 text-[#18181B] cursor-not-allowed' : posMode === 'penjualan' ? `${colors.goldBg} text-[#18181B] hover:scale-[1.02] shadow-lg` : `${colors.goldBg} text-[#18181B] hover:scale-[1.02] shadow-lg`}`}>
+                  {(posMode === 'penjualan' && !activeShift) ? 'BUKA SHIFT DULU' : posMode === 'penjualan' ? 'BAYAR SEKARANG' : 'PROSES PEMBELIAN'}
+              </button>
             </div>
           </div>
         </div>
       </div>
+      {showKasEkstraModal && (
+        <KasEkstraModal
+            colors={colors}
+            activeShift={activeShift}
+            setActiveShift={setActiveShift}
+            onClose={() => setShowKasEkstraModal(false)}
+            showToast={showToast}
+        />
+      )}
       {checkoutModal && <CheckoutModal posMode={posMode} total={total} financialAccounts={financialAccounts} paymentMethodId={paymentMethodId} setPaymentMethodId={setPaymentMethodId} dueDate={dueDate} setDueDate={setDueDate} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} handleCheckout={handleCheckout} setCheckoutModal={setCheckoutModal} colors={colors} isSoundOn={isSoundOn} activeCustomerDeposit={customers.find(c => String(c.id) === String(selectedCustomer))?.deposit || 0} activeCustomerPoints={customers.find(c => String(c.id) === String(selectedCustomer))?.points || 0} pointValue={storeInfo?.pointValue || 100} minPointRedeem={storeInfo?.minPointRedeem || 100} isCustomerUmum={isCustomerUmum} />}
       {completedDoc && <DocumentReceiptModal doc={completedDoc} onClose={() => setCompletedDoc(null)} storeInfo={storeInfo} colors={colors} isSoundOn={isSoundOn} />}
     </div>

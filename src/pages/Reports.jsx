@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FileText, Package, PieChart, ChevronLeft, Filter, BarChart, TrendingUp, TrendingDown, Wallet, Store, CreditCard, Edit, Trash2, X, AlertTriangle } from 'lucide-react';
-import { formatIDR, parseIDR, playSound, calculateDateRange } from '../utils/helpers';
+import { FileText, Package, PieChart, ChevronLeft, Filter, BarChart, TrendingUp, TrendingDown, Wallet, Store, CreditCard, Edit, Trash2, X, AlertTriangle, History } from 'lucide-react';
+import { formatIDR, parseIDR, playSound, calculateDateRange, formatDate, formatDateTime } from '../utils/helpers';
 import SimpleChart from '../components/ui/SimpleChart';
 import DataTable from '../components/ui/DataTable';
 import DonutChart from '../components/ui/DonutChart';
@@ -8,7 +8,7 @@ import DocumentReceiptModal from '../components/modals/DocumentReceiptModal';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 const getLocalDatetime = (d) => { const date = d ? new Date(d) : new Date(); const tzoffset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - tzoffset).toISOString().slice(0, 16); };
 
-export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, customers, colors, baseColors, isSoundOn, theme, storeInfo, showToast, globalMode, setGlobalMode, globalChartMode, setGlobalChartMode }) {
+export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, customers, colors, baseColors, isSoundOn, theme, storeInfo, showToast, globalMode, setGlobalMode, globalChartMode, setGlobalChartMode, shiftHistory = [] }) {
   const [activeReport, setActiveReport] = useState(globalMode);
   
   useEffect(() => {
@@ -49,9 +49,6 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
   const totalNetoAll = activeDataArray.reduce((acc, s) => acc + s.total, 0);
   const totalLabaAll = activeReport === 'penjualan' ? (totalNetoAll - totalHppAll) : 0;
 
-  // =========================================================================================
-  // 🔥 PERBAIKAN: LOGIKA GRAFIK ADAPTIF (Jam, Hari, Bulan, Tahun) SUPER CERDAS
-  // =========================================================================================
   const chartInfo = useMemo(() => {
      let dataMap = {};
      let labels = [];
@@ -153,7 +150,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
              });
           }
        } 
-       else { // Keseluruhan atau Manual > 365 hari
+       else {
         activeDataArray.forEach(s => {
            const year = new Date(s.date).getFullYear().toString();
            if (!labels.includes(year)) labels.push(year);
@@ -177,7 +174,6 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
 
      return { labels: validLabels, data };
   }, [activeDataArray, filterMode, startDate, endDate, dateRangeInfo]);
-  // =========================================================================================
 
   const calculateLeaderboard = (dataArray) => {
      let map = {};
@@ -214,7 +210,6 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
     reportColumns.push({ key: 'total', label: 'Pengeluaran', render: r => <span className={`font-bold text-blue-600`}>Rp {formatIDR(r.total)}</span> });
   }
    const calculateNeraca = () => {
-      // Hitung Laba/Rugi Sepanjang Waktu (Bukan Filtered)
       const allTimeSales = sales.reduce((sum, s) => sum + s.total, 0);
       const allTimeHPP = sales.reduce((sum, s) => sum + s.items.reduce((itemSum, item) => itemSum + (item.cost * item.qty), 0), 0);
       const labaKotorAllTime = allTimeSales - allTimeHPP;
@@ -223,7 +218,6 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
       const pendapatanLain = accounting.filter(a => a.type === 'kas' && a.amount > 0 && !a.name.toLowerCase().includes('penerimaan nota') && !a.name.toLowerCase().includes('terima nota') && !a.name.toLowerCase().includes('modal') && !a.name.toLowerCase().includes('saldo')).reduce((sum, a) => sum + a.amount, 0);
       const labaBersihBerjalan = labaKotorAllTime + pendapatanLain - bebanOperasional;
 
-      // Hitung Aset
       const persediaan = products.reduce((sum, p) => sum + (p.stock * p.cost), 0);
       const piutang = sales.filter(s => s.status === 'Tempo').reduce((sum, s) => sum + Math.max(0, s.total - (s.paid || 0)), 0);
       const kasBalances = financialAccounts.map(acc => ({ name: acc.name, balance: accounting.filter(a => a.type === 'kas' && a.accountId === acc.id).reduce((sum, a) => sum + a.amount, 0) }));
@@ -232,24 +226,48 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
       const asetTetap = accounting.filter(a => a.type === 'aset_tetap').reduce((sum, a) => sum + a.amount, 0);
       const totalAset = asetLancarTotal + asetTetap;
 
-      // Hitung Liabilitas
       const utang = purchases.filter(s => s.status === 'Tempo').reduce((sum, s) => sum + Math.max(0, s.total - (s.paid || 0)), 0);
       const totalDepositPelanggan = customers?.reduce((sum, c) => sum + (Number(c.deposit) || 0), 0) || 0;
       const liabLainOnly = accounting.filter(a => a.type === 'liabilitas').reduce((sum, a) => sum + a.amount, 0);
       const totalLiabilitas = utang + totalDepositPelanggan + liabLainOnly;
 
-      // Hitung Ekuitas (Plug Figure)
       const totalEkuitas = totalAset - totalLiabilitas;
       const modalDisetor = accounting.filter(a => a.type === 'modal' || a.type === 'ekuitas').reduce((sum, a) => sum + a.amount, 0);
       const labaDitahan = totalEkuitas - modalDisetor - labaBersihBerjalan;
 
-      return { 
-         kasBalances, totalKas, piutang, persediaan, asetLancarTotal, asetTetap, totalAset,
-         utang, totalDepositPelanggan, liabLainOnly, totalLiabilitas,
-         modalDisetor, labaBersihBerjalan, labaDitahan, totalEkuitas
-      };
+      return { asetLancarTotal, asetTetap, totalAset, liabLainOnly, utang, totalDepositPelanggan, totalLiabilitas, modalDisetor, labaDitahan, labaBersihBerjalan, totalEkuitas, persediaan, piutang, kasBalances };
    };
-  const neraca = calculateNeraca();
+
+   const shiftColumns = [
+       { key: 'endTime', label: 'Waktu Shift', sortable: true, render: (s) => (
+           <div className="flex flex-col">
+               <span className="text-[10px] text-gray-500 font-mono">B: {formatDateTime(s.startTime)}</span>
+               <span className="font-semibold text-xs font-mono">T: {formatDateTime(s.endTime)}</span>
+           </div>
+       )},
+       { key: 'cashierName', label: 'Kasir', sortable: true, render: (s) => {
+           let name = s.cashierName || 'Kasir';
+           if (name.includes('@')) name = name.split('@')[0];
+           return <div className="flex items-center gap-2">
+               <div className={`w-6 h-6 rounded-md ${colors.goldBg}/20 flex items-center justify-center text-gold font-bold text-xs shadow-inner`}>
+                   {name.charAt(0).toUpperCase()}
+               </div>
+               <span className="font-semibold">{name}</span>
+           </div>;
+       }},
+       { key: 'salesCash', label: 'Omset Tunai', render: (s) => `Rp ${formatIDR(s.salesCash)}` },
+       { key: 'salesNonTunai', label: 'Omset Non-Tunai', render: (s) => `Rp ${formatIDR(s.salesNonTunai || 0)}` },
+       { key: 'extraCash', label: 'Kas Ekstra', render: (s) => `Rp ${formatIDR((s.cashIn || 0) - (s.cashOut || 0))}` },
+       { key: 'actualCash', label: 'Fisik Laci', render: (s) => `Rp ${formatIDR(s.actualCash)}` },
+       { key: 'dropCash', label: 'Disetor', render: (s) => <span className="font-bold text-blue-600 dark:text-blue-400">Rp {formatIDR(s.dropCash || 0)}</span> },
+       { key: 'selisih', label: 'Selisih', render: (s) => (
+           <span className={`font-bold px-2.5 py-1 rounded-md text-xs shadow-sm ${s.selisih === 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : s.selisih < 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+               {s.selisih === 0 ? 'PAS' : s.selisih < 0 ? `-Rp ${formatIDR(Math.abs(s.selisih))}` : `+Rp ${formatIDR(s.selisih)}`}
+           </span>
+       )}
+   ];
+
+   const neraca = useMemo(() => calculateNeraca(), [sales, purchases, accounting, products, financialAccounts, customers]);;
 
   const handleDateJump = (e) => {
      if(!e.target.value) return;
@@ -308,8 +326,9 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
               <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('pembelian'); setGlobalMode('pembelian'); }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${activeReport === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
               <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('neraca'); }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${activeReport === 'neraca' ? 'bg-[#D4AF37] text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Neraca</button>
               <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('produk'); }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${activeReport === 'produk' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Produk</button>
+              <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('shift'); }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${activeReport === 'shift' ? 'bg-[#D4AF37] text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Shift</button>
            </div>
-           {activeReport !== 'neraca' && (
+           {activeReport !== 'neraca' && activeReport !== 'shift' && (
                <div className="flex items-center gap-2 flex-wrap justify-end">
                   {filterMode !== 'Keseluruhan' && filterMode !== 'Manual' && (
                      <div className={`flex items-center border ${colors.border} rounded-lg overflow-hidden h-[38px] bg-white dark:bg-[#1e1e1e]`}>
@@ -438,6 +457,38 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
                       })}
                       {slowestItems.length === 0 && <p className={`text-sm font-semibold ${colors.textMuted} text-center py-8`}>Tidak ada penjualan di periode ini.</p>}
                    </div>
+                </div>
+             </div>
+          )}
+
+          {activeReport === 'shift' && (
+             <div className="space-y-6 animate-fade-in">
+                <div className={`p-4 sm:p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm`}>
+                   <div className="flex items-center gap-3 mb-6">
+                       <div className={`p-3 rounded-xl ${colors.goldBg}/20`}>
+                           <History className={colors.gold} size={24} />
+                       </div>
+                       <div>
+                           <h2 className="text-lg sm:text-xl font-bold dark:text-white">Riwayat Laporan Shift</h2>
+                           <p className="text-sm text-gray-500 dark:text-gray-400">Laporan fisik laci kasir dan serah terima shift</p>
+                       </div>
+                   </div>
+                   
+                   {shiftHistory.length === 0 ? (
+                       <div className="text-center py-12">
+                           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-[#27272A] mb-4">
+                               <History size={32} className="text-gray-400" />
+                           </div>
+                           <p className="text-gray-500 font-medium">Belum ada riwayat shift yang ditutup.</p>
+                       </div>
+                   ) : (
+                       <DataTable 
+                          columns={shiftColumns} 
+                          data={shiftHistory} 
+                          defaultSort={{key: 'endTime', direction: 'desc'}} 
+                          colors={colors} 
+                       />
+                   )}
                 </div>
              </div>
           )}

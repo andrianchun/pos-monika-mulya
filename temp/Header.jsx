@@ -3,7 +3,7 @@ import { Sun, Moon, LogOut, Settings, Menu, Bell, AlertTriangle, Package, Calend
 import ProfileModal from './modals/ProfileModal';
 import { playSound, formatIDR, formatDate } from '../utils/helpers';
 
-const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children, defaultOpen = false, colors }) => {
+const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children, defaultOpen = false}) => {
    const [open, setOpen] = useState(defaultOpen);
    if (count === 0) return null;
    return (
@@ -15,7 +15,7 @@ const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children,
             </div>
             <div className="flex items-center gap-2">
                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 ${colors.text}`}>{count}</span>
-               {open ? <ChevronUp size={14} className={colors.textMuted} /> : <ChevronDown size={14} className={colors.textMuted} />}
+               {open ? <ChevronUp size={14} className={'${colors.textMuted}'} /> : <ChevronDown size={14} className={'${colors.textMuted}'} />}
             </div>
          </div>
          {open && (
@@ -30,7 +30,7 @@ const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children,
 export default function Header({ colors,  
   user, setUser, users, setUsers, theme, setTheme, isSoundOn, storeInfo, showToast, 
   isSidebarOpen, setIsSidebarOpen, products = [], sales = [], purchases = [], suppliers = [], syncCount = 0, onNavigateAndEdit,
-  activeShift, setShowShiftCloseModal, setShowShiftOpenModal, shiftHistory = []
+  activeShift, setShowShiftCloseModal
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -147,10 +147,11 @@ export default function Header({ colors,
 
   const handleLogout = () => {
     if (activeShift && activeShift.status === 'OPEN') {
-        playSound('error', isSoundOn);
-        showToast('Wajib Tutup Shift (Z-Report) sebelum logout!', 'error');
-        setShowShiftCloseModal(true);
-        return;
+        const confirmMsg = "Shift masih terbuka. Selesaikan shift terlebih dahulu untuk mengeluarkan modal/setoran?";
+        if (window.confirm(confirmMsg)) {
+            setShowShiftCloseModal(true);
+            return;
+        }
     }
     playSound('pop', isSoundOn);
     localStorage.removeItem('mmpos_user');
@@ -163,7 +164,7 @@ export default function Header({ colors,
       <header className={`h-16 flex justify-between items-center px-2 sm:px-4 shrink-0 border-b ${colors.border} ${colors.panel} z-50 print:hidden shadow-sm`}>
         <div className="flex items-center gap-3">
            <button onClick={() => { playSound('pop', isSoundOn); setIsSidebarOpen(!isSidebarOpen); }} className={`p-2 rounded-lg border ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors lg:hidden`}>
-              <Menu size={20} className={colors.text} />
+              <Menu size={20} className={'${colors.text}'} />
            </button>
 
            <div className="hidden sm:flex items-center gap-3 ml-2">
@@ -196,20 +197,13 @@ export default function Header({ colors,
 
             <div className="hidden md:flex items-center">
                 {activeShift && activeShift.status === 'OPEN' ? (
-                    <span className={`px-2 py-1 text-xs font-bold rounded-md ${colors.goldBg}/10 ${colors.gold} border border-[#D4AF37]/30 flex items-center gap-1 cursor-pointer hover:${colors.goldBg}/20 transition-colors`} onClick={() => setShowShiftCloseModal(true)} title="Tutup Shift (Z-Report)">
-                        <span className={`w-1.5 h-1.5 rounded-full ${colors.goldBg} animate-pulse shadow-[0_0_5px_rgba(212,175,55,0.8)]`}></span> Tutup Shift
+                    <span className="px-2 py-1 text-xs font-bold rounded-md ${colors.goldBg}/10 ${colors.gold} border border-gold/30 flex items-center gap-1 cursor-pointer hover:${colors.goldBg}/20 transition-colors" onClick={() => setShowShiftCloseModal(true)} title="Tutup Shift">
+                        <span className="w-1.5 h-1.5 rounded-full ${colors.goldBg} animate-pulse shadow-[0_0_5px_rgba(212,175,55,0.8)]"></span> Shift Aktif
                     </span>
                 ) : (
-                    <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 text-xs font-bold rounded-md ${colors.goldBg}/10 ${colors.gold} border border-[#D4AF37]/30 flex items-center cursor-pointer hover:${colors.goldBg}/20 transition-colors`} onClick={() => setShowShiftOpenModal(true)} title="Buka Shift Baru">
-                            Buka Shift
-                        </span>
-                        {shiftHistory.length > 0 && (
-                          <span className="px-2 py-1 text-xs font-bold rounded-md bg-gray-500/10 text-gray-500 border border-gray-500/30 flex items-center gap-1 cursor-pointer hover:bg-gray-500/20 transition-colors" onClick={() => setShowShiftCloseModal(true)} title="Riwayat Laporan Shift">
-                              <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Laporan Shift
-                          </span>
-                        )}
-                    </div>
+                    <span className="px-2 py-1 text-xs font-bold rounded-md bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Shift Tutup
+                    </span>
                 )}
             </div>
 
@@ -218,7 +212,7 @@ export default function Header({ colors,
           <div className="flex items-center gap-1 sm:gap-2">
              <div className="relative" ref={notifRef}>
              <button onClick={() => { playSound('pop', isSoundOn); setShowNotifDropdown(!showNotifDropdown); }} className={`p-2 rounded-full border ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors relative`}>
-                <Bell size={18} className={colors.text} />
+                <Bell size={18} className={'${colors.text}'} />
                 {totalNotifCount > 0 && (
                    <span className="absolute -top-1 -right-1 bg-red-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-pulse shadow-md">{totalNotifCount}</span>
                 )}
@@ -236,7 +230,7 @@ export default function Header({ colors,
                       ) : (
                          <>
                            {/* 1. KELOMPOK PIUTANG JATUH TEMPO */}
-                           <CollapsibleNotifGroup title="Piutang Pelanggan" count={incomingReceivables.length} icon={Calendar} colorClass="text-red-500" colors={colors}>
+                           <CollapsibleNotifGroup title="Piutang Pelanggan" count={incomingReceivables.length} icon={Calendar} colorClass="text-red-500">
                               {incomingReceivables.map(s => {
                                  const daysLeft = Math.ceil((new Date(s.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
                                  const isLate = daysLeft < 0;
@@ -246,7 +240,7 @@ export default function Header({ colors,
                                           <p className={`text-xs font-bold ${colors.text} truncate`}>Customer: {s.customer}</p>
                                           <p className={`text-[10px] ${colors.textMuted}`}>Nota: {s.nota}</p>
                                           <div className="flex justify-between items-center mt-1">
-                                             <p className={`text-[10px] font-bold ${isLate ? 'text-red-500' : colors.gold}`}>Tagihan: Rp {formatIDR(s.total - s.paid)}</p>
+                                             <p className={`text-[10px] font-bold ${isLate ? 'text-red-500' : '${colors.gold}'}`}>Tagihan: Rp {formatIDR(s.total - s.paid)}</p>
                                              <p className={`text-[10px] font-black px-2 py-0.5 rounded ${isLate ? 'bg-red-500/10 text-red-500' : '${colors.goldBg}/10 ${colors.gold}'}`}>
                                                 {isLate ? `TELAT ${Math.abs(daysLeft)} HARI` : `TEMPO: ${formatDate(s.dueDate)}`}
                                              </p>
@@ -258,7 +252,7 @@ export default function Header({ colors,
                            </CollapsibleNotifGroup>
 
                            {/* 2. KELOMPOK UTANG JATUH TEMPO */}
-                           <CollapsibleNotifGroup title="Utang Toko" count={incomingDebts.length} icon={Calendar} colorClass="text-orange-500" colors={colors}>
+                           <CollapsibleNotifGroup title="Utang Toko" count={incomingDebts.length} icon={Calendar} colorClass="text-orange-500">
                               {incomingDebts.map(p => {
                                  const daysLeft = Math.ceil((new Date(p.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
                                  const isLate = daysLeft < 0;
@@ -268,7 +262,7 @@ export default function Header({ colors,
                                           <p className={`text-xs font-bold ${colors.text} truncate`}>Supplier: {p.supplier}</p>
                                           <p className={`text-[10px] ${colors.textMuted}`}>Nota: {p.nota}</p>
                                           <div className="flex justify-between items-center mt-1">
-                                             <p className={`text-[10px] font-bold ${isLate ? 'text-red-500' : colors.gold}`}>Kurang Bayar: Rp {formatIDR(p.total - p.paid)}</p>
+                                             <p className={`text-[10px] font-bold ${isLate ? 'text-red-500' : '${colors.gold}'}`}>Kurang Bayar: Rp {formatIDR(p.total - p.paid)}</p>
                                              <p className={`text-[10px] font-black px-2 py-0.5 rounded ${isLate ? 'bg-red-500/10 text-red-500' : '${colors.goldBg}/10 ${colors.gold}'}`}>
                                                 {isLate ? `TELAT ${Math.abs(daysLeft)} HARI` : `TEMPO: ${formatDate(p.dueDate)}`}
                                              </p>
@@ -280,7 +274,7 @@ export default function Header({ colors,
                            </CollapsibleNotifGroup>
 
                            {/* 3. KELOMPOK BARANG HABIS (BY SUPPLIER) */}
-                           <CollapsibleNotifGroup title="Stok Menipis" count={lowStockItems.length} icon={Package} colorClass="text-blue-500" colors={colors}>
+                           <CollapsibleNotifGroup title="Stok Menipis" count={lowStockItems.length} icon={Package} colorClass="text-blue-500">
                               {groupedLowStock.map((group, idx) => (
                                  <div key={`stock-${idx}`} className={`p-3 rounded-xl ${colors.creamBg} ${colors.border} border flex flex-col gap-2 shadow-sm`}>
                                     <div className={`flex justify-between items-center border-b ${colors.border} pb-2`}>
@@ -304,7 +298,7 @@ export default function Header({ colors,
                            </CollapsibleNotifGroup>
 
                            {/* 4. KELOMPOK KEDALUWARSA */}
-                           <CollapsibleNotifGroup title="Kedaluwarsa" count={expiringItems.length} icon={AlertTriangle} colorClass="text-red-500" colors={colors}>
+                           <CollapsibleNotifGroup title="Kedaluwarsa" count={expiringItems.length} icon={AlertTriangle} colorClass="text-red-500">
                               {expiringItems.map(item => {
                                  const daysLeft = Math.ceil((new Date(item.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
                                  const isExpired = daysLeft <= 0;
@@ -312,7 +306,7 @@ export default function Header({ colors,
                                       <div key={`exp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className={`p-3 rounded-xl ${isExpired ? 'bg-red-500/5 border-red-500/20' : 'bg-orange-500/5 border-orange-500/20'} border flex flex-col gap-1 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity`}>
                                          <div className="flex justify-between items-center min-w-0">
                                           <p className={`text-xs font-bold ${colors.text} truncate`}>{item.name}</p>
-                                          <p className={`text-[10px] font-black uppercase ${isExpired ? 'text-red-500' : colors.gold}`}>
+                                          <p className={`text-[10px] font-black uppercase ${isExpired ? 'text-red-500' : '${colors.gold}'}`}>
                                              {isExpired ? 'TELAH KEDALUWARSA!' : `KEDALUWARSA DALAM ${daysLeft} HARI`}
                                           </p>
                                        </div>
@@ -337,7 +331,7 @@ export default function Header({ colors,
         </div>
       </header>
 
-      {showProfile && <ProfileModal user={user} setUser={setUser} users={users} setUsers={setUsers} colors={colors} isSoundOn={isSoundOn} showToast={showToast} onClose={() => setShowProfile(false)} handleLogout={handleLogout} />}
+      {showProfile && <ProfileModal user={user} setUser={setUser} users={users} setUsers={setUsers} isSoundOn={isSoundOn} showToast={showToast} onClose={() => setShowProfile(false)} handleLogout={handleLogout} />}
     </>
   );
 }

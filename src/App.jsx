@@ -12,6 +12,8 @@ const ContactManager = lazy(() => import('./pages/ContactManager'));
 const Reports = lazy(() => import('./pages/Reports'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const POSHistory = lazy(() => import('./pages/POSHistory'));
+import ShiftCloseModal from './components/modals/ShiftCloseModal';
+import ShiftOpenModal from './components/modals/ShiftOpenModal';
 
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, getDocs, writeBatch, onSnapshot } from 'firebase/firestore';
@@ -57,10 +59,34 @@ export default function App() {
   const [units, setUnits] = useState(['Pcs', 'Kg', 'Sak']);
   const [users, setUsers] = useState([]);
 
-  const stateRef = useRef({ products, customers, suppliers, sales, purchases, accounting, financialAccounts, users, storeInfo, categories, units });
+  const [activeShift, setActiveShift] = useState(() => {
+    try { const cached = localStorage.getItem('mmpos_activeShift'); if (cached) return JSON.parse(cached); } catch(e) {}
+    return null;
+  });
+
+  const [shiftHistory, setShiftHistory] = useState([]);
+
+  const [showShiftCloseModal, setShowShiftCloseModal] = useState(false);
+  const [showShiftOpenModal, setShowShiftOpenModal] = useState(false);
+
+  // Behavior Shift: Kasir dipaksa buka shift di awal login jika belum ada shift aktif
+  useEffect(() => {
+      if (user && user.role === 'kasir' && !activeShift) {
+          setShowShiftOpenModal(true);
+      }
+  }, [user, activeShift]);
+
+  useEffect(() => {
+     if (activeShift) localStorage.setItem('mmpos_activeShift', JSON.stringify(activeShift));
+     else localStorage.removeItem('mmpos_activeShift');
+  }, [activeShift]);
+
+  // shiftHistory is now synced to Firebase
+
+  const stateRef = useRef({ products, customers, suppliers, sales, purchases, accounting, financialAccounts, users, storeInfo, categories, units, shiftHistory });
   
   useEffect(() => {
-    stateRef.current = { products, customers, suppliers, sales, purchases, accounting, financialAccounts, users, storeInfo, categories, units };
+    stateRef.current = { products, customers, suppliers, sales, purchases, accounting, financialAccounts, users, storeInfo, categories, units, shiftHistory };
   }, [products, customers, suppliers, sales, purchases, accounting, financialAccounts, users, storeInfo, categories, units]);
 
   useEffect(() => {
@@ -102,17 +128,20 @@ export default function App() {
     else document.documentElement.classList.remove('dark');
   }, [theme]);
 
-  // Gembok Anti-Refresh selama badge biru masih menyala
+  // Gembok Anti-Refresh selama badge biru masih menyala atau shift masih buka
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (syncCount > 0) {
         e.preventDefault();
         e.returnValue = 'Data sedang dikunci ke Cloud. Jika Anda merefresh sekarang, data mungkin gagal tersimpan. Yakin ingin keluar?';
+      } else if (activeShift && activeShift.status === 'OPEN') {
+        e.preventDefault();
+        e.returnValue = 'Shift masih terbuka. Harap tutup shift (Z-Report) sebelum keluar.';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [syncCount]);
+  }, [syncCount, activeShift]);
 
   useEffect(() => {
     let unsubs = []; 
@@ -175,6 +204,7 @@ export default function App() {
       unsubs.push(setupRealtime("accounting", setAccounting));
       unsubs.push(setupRealtime("financialAccounts", setFinancialAccounts));
       unsubs.push(setupRealtime("users", setUsers));
+      unsubs.push(setupRealtime("shiftHistory", setShiftHistory, true));
 
       unsubs.push(onSnapshot(collection(db, "settings"), (snap) => {
          if (!snap.empty) {
@@ -325,6 +355,7 @@ export default function App() {
   const customSetAccounting = (next) => { const cur = stateRef.current.accounting; const res = typeof next === 'function' ? next(cur) : next; setAccounting(res); syncCollection("accounting", res, cur); };
   const customSetFinancialAccounts = (next) => { const cur = stateRef.current.financialAccounts; const res = typeof next === 'function' ? next(cur) : next; setFinancialAccounts(res); syncCollection("financialAccounts", res, cur); };
   const customSetUsers = (next) => { const cur = stateRef.current.users; const res = typeof next === 'function' ? next(cur) : next; setUsers(res); syncCollection("users", res, cur); };
+  const customSetShiftHistory = (next) => { const cur = stateRef.current.shiftHistory; const res = typeof next === 'function' ? next(cur) : next; setShiftHistory(res); syncCollection("shiftHistory", res, cur); };
 
   const customSetStoreInfo = (next) => { 
      const res = typeof next === 'function' ? next(stateRef.current.storeInfo) : next; 
@@ -368,6 +399,7 @@ export default function App() {
       if (parsedData.accounting) setAccounting(parsedData.accounting);
       if (parsedData.financialAccounts) setFinancialAccounts(parsedData.financialAccounts);
       if (parsedData.users) setUsers(parsedData.users);
+      if (parsedData.shiftHistory) setShiftHistory(parsedData.shiftHistory);
 
       // 2. TEMBAK KE CLOUD (Dipantau oleh Badge Biru)
       const syncProms = [];
@@ -379,6 +411,7 @@ export default function App() {
       if (parsedData.accounting) syncProms.push(syncCollection("accounting", parsedData.accounting, stateRef.current.accounting));
       if (parsedData.financialAccounts) syncProms.push(syncCollection("financialAccounts", parsedData.financialAccounts, stateRef.current.financialAccounts));
       if (parsedData.users) syncProms.push(syncCollection("users", parsedData.users, stateRef.current.users));
+      if (parsedData.shiftHistory) syncProms.push(syncCollection("shiftHistory", parsedData.shiftHistory, stateRef.current.shiftHistory));
       
       if (parsedData.storeInfo) syncProms.push(customSetStoreInfo(parsedData.storeInfo));
       if (parsedData.categories) syncProms.push(customSetCategories(parsedData.categories));
@@ -519,11 +552,15 @@ export default function App() {
             storeInfo={storeInfo} onNavigateAndEdit={handleNavigateAndEdit}
             products={products} sales={sales} purchases={purchases} suppliers={suppliers} 
             syncCount={syncCount}
+            users={users} setUsers={customSetUsers}
+            showToast={showToast}
+            activeShift={activeShift} setShowShiftOpenModal={setShowShiftOpenModal} setShowShiftCloseModal={setShowShiftCloseModal}
+            shiftHistory={shiftHistory}
          />
          
          <main className="flex-1 overflow-auto p-4 md:p-6 custom-scrollbar relative">
              <div className={activeMenu === 'pos' ? 'block h-full' : 'hidden'}>
-                <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} />
+                <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} activeShift={activeShift} setActiveShift={setActiveShift} />
              </div>
              
              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white"></div></div>}>
@@ -531,7 +568,7 @@ export default function App() {
              {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} colors={baseThemeColors} user={user} isSoundOn={true} showToast={showToast} editIntent={editIntent} />}
              {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} editIntent={editIntent} />}
                {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} handleNavigateAndEdit={handleNavigateAndEdit} />}
-             {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
+             {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} shiftHistory={shiftHistory} />}
              
              {activeMenu === 'pengaturan' && (
                 <SettingsPage 
@@ -549,7 +586,34 @@ export default function App() {
              </Suspense>
          </main>
       </div>
-      {toast && (<div className={`fixed top-12 left-1/2 transform -translate-x-1/2 px-8 py-3.5 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.4)] z-[9999] font-bold transition-all text-white ${toast.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'}`}>{toast.msg}</div>)}
-    </div>
-  );
+        {toast && (<div className={`fixed top-12 left-1/2 transform -translate-x-1/2 px-8 py-3.5 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.4)] z-[9999] font-bold transition-all text-white ${toast.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'}`}>{toast.msg}</div>)}
+      
+      {showShiftCloseModal && (
+          <ShiftCloseModal 
+              colors={themeColors}
+              activeShift={activeShift}
+              setActiveShift={setActiveShift}
+              shiftHistory={shiftHistory}
+              setShiftHistory={customSetShiftHistory}
+              onClose={() => setShowShiftCloseModal(false)}
+              accounting={accounting}
+              setAccounting={customSetAccounting}
+              user={user}
+              storeInfo={storeInfo}
+              sales={sales}
+              financialAccounts={financialAccounts}
+          />
+      )}
+
+      {showShiftOpenModal && (
+          <ShiftOpenModal 
+              colors={themeColors}
+              onClose={() => setShowShiftOpenModal(false)}
+              setActiveShift={setActiveShift}
+              user={user}
+              lastShiftRemaining={shiftHistory.length > 0 ? shiftHistory[0].actualCash : 0}
+          />
+      )}
+      </div>
+    );
 }

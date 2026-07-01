@@ -92,6 +92,17 @@ export const formatDate = (isoString) => {
   return `${day}-${month}-${year}`;
 };
 
+export const formatDateTime = (isoString) => {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  return `${day}-${month}-${year} ${hours}:${mins}`;
+};
+
 export const handleImageUpload = (e, callback, showToast, customMaxWidth = 300, customQuality = 0.7) => {
   const file = e.target.files[0];
   if (file) {

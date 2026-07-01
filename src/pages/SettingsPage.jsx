@@ -728,17 +728,26 @@ export default function SettingsPage({
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
                <h3 className={`font-bold text-lg mb-2 ${colors.text}`}>Kelola Akun Keuangan</h3>
                <div className="flex gap-3 mb-6">
-                   <input type="text" className={`flex-1 p-2.5 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} placeholder="Ketik Nama Akun Baru..." value={newAccName} onChange={e=>setNewAccName(e.target.value)} />
-                   <button onClick={addFinAccount} className={`px-5 py-2.5 font-bold text-[#18181B] rounded-lg ${colors.goldBg} flex gap-1 items-center shadow-sm shrink-0`}><Plus size={16}/> Tambah</button>
+                  <div className="flex-1 flex gap-2">
+                     <input type="text" className={`flex-1 p-2.5 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} placeholder="Ketik Nama Akun Baru..." value={newAccName} onChange={e=>setNewAccName(e.target.value)} />
+                     <select className={`w-1/3 p-2.5 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} value={newAccType} onChange={e=>setNewAccType(e.target.value)}>
+                         <option value="tunai">Tunai</option>
+                         <option value="non-tunai">Non-Tunai</option>
+                     </select>
+                  </div>
+                  <button onClick={addFinAccount} className={`px-5 py-2.5 font-bold text-[#18181B] rounded-lg ${colors.goldBg} flex gap-1 items-center shadow-sm shrink-0`}><Plus size={16}/> Tambah</button>
                </div>
                <div className="space-y-3">
                   {(financialAccounts || []).map(fa => (
                      <div key={fa.id} className={`flex justify-between items-center p-3 rounded-lg border ${colors.border} bg-gray-50 dark:bg-[#1e1e1e]`}>
-                        <div>
+                        <div className="flex items-center gap-2">
                            <p className={`font-bold ${colors.text}`}>{fa.name}</p>
+                           <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${fa.type==='tunai'?'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                              {fa.type === 'non-tunai' ? 'Non-Tunai' : 'Tunai'}
+                           </span>
                         </div>
                         <div className="flex gap-2">
-                           <button onClick={() => { playSound('pop', isSoundOn); setEditGenericModal({type:'fin', idOrIdx: fa.id, val1: fa.name}); }} className="p-1.5 rounded bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:scale-105"><Edit size={16}/></button>
+                           <button onClick={() => { playSound('pop', isSoundOn); setEditGenericModal({type:'fin', idOrIdx: fa.id, val1: fa.name, val2: fa.type || 'tunai'}); }} className="p-1.5 rounded bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:scale-105"><Edit size={16}/></button>
                            {fa.id !== 1 && <button onClick={() => setDeleteFin(fa.id)} className="p-1.5 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 hover:scale-105"><Trash2 size={16}/></button>}
                         </div>
                      </div>
@@ -1183,6 +1192,15 @@ export default function SettingsPage({
                      <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nama Baru</label>
                      <input required autoFocus type="text" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none`} value={editGenericModal.val1} onChange={e=>setEditGenericModal({...editGenericModal, val1: e.target.value})} />
                   </div>
+                  {editGenericModal.type === 'fin' && (
+                  <div>
+                     <label className={`block text-xs font-bold mb-1 mt-3 ${colors.text}`}>Kategori Akun</label>
+                     <select className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none`} value={editGenericModal.val2 || 'tunai'} onChange={e=>setEditGenericModal({...editGenericModal, val2: e.target.value})}>
+                          <option value="tunai" className="bg-white dark:bg-[#1e1e1e]">Tunai</option>
+                          <option value="non-tunai" className="bg-white dark:bg-[#1e1e1e]">Non-Tunai</option>
+                     </select>
+                  </div>
+                  )}
                </div>
                <div className="flex gap-3 pt-6 border-t border-dashed border-gray-300 dark:border-gray-700 mt-4">
                  <button type="button" onClick={() => setEditGenericModal(null)} className={`flex-1 py-2 border rounded-xl font-bold ${colors.text} ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors`}>Batal</button>

@@ -13,7 +13,13 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
     if (!hasAutoActionRun.current) {
       if (doc?.autoAction === 'cetak') {
         hasAutoActionRun.current = true;
-        handlePrint();
+        if (doc?.source === 'POS') {
+           setTimeout(() => {
+              handlePrint();
+           }, 800);
+        } else {
+           handlePrint();
+        }
       } else if (doc?.autoAction === 'wa') {
         hasAutoActionRun.current = true;
         // Jeda 500ms sebelum memanggil handleWA agar browser PASTI sudah me-render DOM dan layar loading

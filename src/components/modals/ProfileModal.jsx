@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, LogOut } from 'lucide-react';
 import { playSound, handleImageUpload } from '../../utils/helpers';
 
-export default function ProfileModal({ user, setUser, users, setUsers, colors, isSoundOn, showToast, onClose }) {
+export default function ProfileModal({ user, setUser, users, setUsers, colors, isSoundOn, showToast, onClose, handleLogout }) {
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email || '');
   const [oldPass, setOldPass] = useState('');
@@ -55,6 +55,10 @@ export default function ProfileModal({ user, setUser, users, setUsers, colors, i
              <button type="button" onClick={() => { playSound('pop', isSoundOn); onClose(); }} className={`flex-1 py-2.5 border rounded-xl font-bold ${colors.text} ${colors.border}`}>Batal</button>
              <button type="submit" className={`flex-1 py-2.5 rounded-xl font-bold text-[#18181B] shadow-md ${colors.goldBg} hover:opacity-90`}>Simpan</button>
           </div>
+          <button type="button" onClick={() => { onClose(); if (handleLogout) handleLogout(); }} className="w-full py-2.5 mt-2 rounded-xl font-bold text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 border border-red-200 dark:border-red-500/30 transition-colors flex items-center justify-center gap-2">
+             <LogOut size={18} />
+             Keluar dari Aplikasi
+          </button>
         </form>
       </div>
     </div>

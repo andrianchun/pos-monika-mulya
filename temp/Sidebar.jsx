@@ -41,14 +41,14 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
                 {/* Teks Brand Dua Warna */}
                 <div className="flex flex-col justify-center transition-transform group-hover:scale-[1.02]">
                   <span className="text-2xl font-black tracking-tighter leading-none flex items-center">
-                    <span className={colors.gold}>HX</span>
+                    <span className="${colors.gold}">HX</span>
                     <span className="text-gray-800 dark:text-white">POS</span>
                   </span>
                   <span className="text-[10px] text-gray-500 font-medium mt-0.5 whitespace-nowrap">
                     by andrianchun (c) 2026
                   </span>
                 </div>
-                <div className={`hidden lg:flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 ${colors.goldHoverText} border border-transparent ${colors.goldHoverBorder} transition-all`}>
+                <div className="hidden lg:flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 group-hover:${colors.goldBg}/10 group-hover:${colors.gold} border border-transparent group-${colors.goldHoverBorder}/30 transition-all">
                   <ChevronLeft size={16} />
                 </div>
               </div>
@@ -59,7 +59,7 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
                  className="flex flex-col items-center justify-center w-full cursor-pointer group transition-transform hover:scale-110"
                  title="Buka Menu (Expand)"
               >
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 ${colors.goldHoverText} border border-transparent ${colors.goldHoverBorder} transition-all shadow-sm`}>
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 group-hover:${colors.goldBg}/10 group-hover:${colors.gold} border border-transparent group-${colors.goldHoverBorder}/30 transition-all shadow-sm">
                     <ChevronRight size={16} />
                   </div>
               </div>
@@ -71,8 +71,8 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
           {permittedMenu.map((item) => {
             const isActive = activeMenu === item.id;
             const forceYellow = ['dashboard', 'produk', 'pengaturan'].includes(item.id);
-            const activeBg = forceYellow ? colors.goldBg : colors.goldBg;
-            const activeText = forceYellow ? 'text-[#18181B]' : (colors.goldBg.includes('blue') ? 'text-white' : 'text-[#18181B]');
+            const activeBg = forceYellow ? '${colors.goldBg}' : '${colors.goldBg}';
+            const activeText = forceYellow ? 'text-[#18181B]' : ('${colors.goldBg}'.includes('blue') ? 'text-white' : 'text-[#18181B]');
             return (
               <button key={item.id} onClick={() => { handleMenuClick(item.id); if(window.innerWidth < 1024) setIsOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${isActive ? `${activeBg} ${activeText} shadow-md` : `hover:${colors.creamBg} ${colors.text} opacity-80 hover:opacity-100`}`}>
                 <item.icon size={22} className={isOpen ? '' : 'mx-auto'} />
