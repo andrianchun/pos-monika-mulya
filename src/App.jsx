@@ -59,6 +59,17 @@ export default function App() {
   const [units, setUnits] = useState(['Pcs', 'Kg', 'Sak']);
   const [users, setUsers] = useState([]);
 
+  // Sync logged in user profile changes instantly
+  useEffect(() => {
+    if (user && users && users.length > 0) {
+      const updatedUser = users.find(u => String(u.id) === String(user.id));
+      if (updatedUser && JSON.stringify(updatedUser) !== JSON.stringify(user)) {
+        setUser(updatedUser);
+        localStorage.setItem('mmpos_user', JSON.stringify(updatedUser));
+      }
+    }
+  }, [users, user]);
+
   const [activeShift, setActiveShift] = useState(() => {
     try { const cached = localStorage.getItem('mmpos_activeShift'); if (cached) return JSON.parse(cached); } catch(e) {}
     return null;
