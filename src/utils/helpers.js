@@ -158,11 +158,22 @@ export const playSound = (type, isSoundOn) => {
 };
 
 export const calculateDynamicPrice = (item, qty) => {
-  let currentPrice = item.price;
-  let isWholesale = false;
-  if (item.wholesale?.minQty > 0 && qty >= item.wholesale.minQty) { currentPrice = item.wholesale.price; isWholesale = true; }
-  return { unitPrice: Math.max(0, currentPrice), isWholesale, basePrice: item.price };
-};
+    let currentPrice = item.price;
+    let basePrice = item.price;
+    let isWholesale = false;
+    
+    if (item.selectedMultiUnitId && item.hasMultiUnit && item.multiUnits) {
+       const mu = item.multiUnits.find(u => String(u.id) === String(item.selectedMultiUnitId));
+       if (mu) {
+          currentPrice = mu.price;
+          basePrice = mu.price;
+       }
+    } else {
+       if (item.wholesale?.minQty > 0 && qty >= item.wholesale.minQty) { currentPrice = item.wholesale.price; isWholesale = true; }
+    }
+    
+    return { unitPrice: Math.max(0, currentPrice), isWholesale, basePrice };
+  };
 
 export const calculateDateRange = (filterMode, offset = 0) => {
   const now = new Date();

@@ -288,11 +288,78 @@ export default function ProductManager({ products, setProducts, categories, unit
                     </select>
                  </div>
                  <div>
-                    <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Satuan *</label>
-                    <select required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-white dark:bg-[#1e1e1e] ${colors.text} ${colors.border}`} value={form.unit} onChange={e => setForm({...form, unit: e.target.value})}>
-                       {sortedUnits.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                 </div>
+                     <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Satuan Dasar *</label>
+                     <select required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-white dark:bg-[#1e1e1e] ${colors.text} ${colors.border}`} value={form.unit} onChange={e => setForm({...form, unit: e.target.value})}>
+                        {sortedUnits.map(c => <option key={c} value={c}>{c}</option>)}
+                     </select>
+                  </div>
+                  
+                  <div className="md:col-span-2 mt-2">
+                     <label className={`flex items-center gap-2 cursor-pointer ${colors.text} text-sm font-bold`}>
+                        <input type="checkbox" checked={form.hasMultiUnit || false} onChange={e => {
+                           const checked = e.target.checked;
+                           let newMulti = form.multiUnits || [];
+                           if (checked && newMulti.length === 0) newMulti = [{ id: Date.now(), unit: sortedUnits.find(u => u !== form.unit) || sortedUnits[0] || '', conversion: 1, price: 0, barcode: '', conversionStr: '1', priceStr: '0' }];
+                           setForm({...form, hasMultiUnit: checked, multiUnits: newMulti});
+                        }} className="w-4 h-4 rounded text-[#D4AF37] focus:ring-[#D4AF37] accent-[#D4AF37]" />
+                        Aktifkan Multi-Satuan (Grosir/Eceran)
+                     </label>
+                  </div>
+
+                  {form.hasMultiUnit && form.multiUnits?.map((mu, index) => (
+                     <div key={mu.id} className={`md:col-span-2 grid grid-cols-1 md:grid-cols-5 gap-3 p-4 rounded-xl border ${colors.border} relative bg-black/5 dark:bg-white/5`}>
+                        <button type="button" onClick={() => {
+                           const m = [...form.multiUnits];
+                           m.splice(index, 1);
+                           setForm({...form, multiUnits: m});
+                        }} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-lg z-10"><X size={16}/></button>
+                        <div className="md:col-span-1">
+                           <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Satuan Turunan</label>
+                           <select required className={`w-full p-2.5 rounded-lg border bg-white dark:bg-[#1e1e1e] ${colors.text} ${colors.border} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={mu.unit} onChange={e => {
+                              const m = [...form.multiUnits];
+                              m[index].unit = e.target.value;
+                              setForm({...form, multiUnits: m});
+                           }}>
+                              {sortedUnits.map(c => <option key={c} value={c}>{c}</option>)}
+                           </select>
+                        </div>
+                        <div className="md:col-span-1">
+                           <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Isi = ... {form.unit}</label>
+                           <input type="text" inputMode="decimal" required className={`w-full p-2.5 rounded-lg border bg-transparent ${colors.text} ${colors.border} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={mu.conversionStr !== undefined ? mu.conversionStr : mu.conversion} onChange={e => {
+                              const m = [...form.multiUnits];
+                              m[index].conversion = parseIDR(e.target.value);
+                              m[index].conversionStr = smartFormatInput(e.target.value);
+                              setForm({...form, multiUnits: m});
+                           }} placeholder="Contoh: 100" />
+                        </div>
+                        <div className="md:col-span-1">
+                           <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Harga Jual</label>
+                           <input type="text" inputMode="numeric" required className={`w-full p-2.5 rounded-lg border bg-transparent ${colors.text} ${colors.border} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={mu.priceStr !== undefined ? mu.priceStr : formatIDR(mu.price)} onChange={e => {
+                              const m = [...form.multiUnits];
+                              m[index].price = parseIDR(e.target.value);
+                              m[index].priceStr = formatIDR(e.target.value);
+                              setForm({...form, multiUnits: m});
+                           }} />
+                        </div>
+                        <div className="md:col-span-2">
+                           <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Barcode Khusus (Opsional)</label>
+                           <input type="text" className={`w-full p-2.5 rounded-lg border bg-transparent ${colors.text} ${colors.border} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={mu.barcode || ''} onChange={e => {
+                              const m = [...form.multiUnits];
+                              m[index].barcode = e.target.value;
+                              setForm({...form, multiUnits: m});
+                           }} placeholder="Scan barcode satuan ini" />
+                        </div>
+                     </div>
+                  ))}
+                  {form.hasMultiUnit && (
+                     <div className="md:col-span-2">
+                        <button type="button" onClick={() => {
+                           const m = [...(form.multiUnits || [])];
+                           m.push({ id: Date.now(), unit: sortedUnits.find(u => u !== form.unit) || sortedUnits[0] || '', conversion: 1, price: 0, barcode: '', conversionStr: '1', priceStr: '0' });
+                           setForm({...form, multiUnits: m});
+                        }} className={`w-full py-2 border-2 border-dashed ${colors.border} rounded-xl text-xs font-bold ${colors.textMuted} hover:${colors.text} hover:border-[#D4AF37] transition-all flex items-center justify-center gap-1`}><Plus size={16}/> Tambah Satuan Lain</button>
+                     </div>
+                  )}
                  <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Stok Saat Ini *</label><input type="text" inputMode="decimal" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.stockStr !== undefined ? form.stockStr : (form.stock !== undefined && form.stock !== null && form.stock !== '' ? String(form.stock).replace('.', ',') : '')} onChange={e => setForm({...form, stock: parseIDR(e.target.value), stockStr: smartFormatInput(e.target.value)})} /></div>
                  <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Stok Minimum</label><input type="text" inputMode="decimal" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.minStockStr !== undefined ? form.minStockStr : (form.minStock !== undefined && form.minStock !== null && form.minStock !== '' ? String(form.minStock).replace('.', ',') : '')} onChange={e => setForm({...form, minStock: parseIDR(e.target.value), minStockStr: smartFormatInput(e.target.value)})} placeholder="Default: 5" /></div>
                  <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Harga Beli (Modal) *</label><input type="text" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.costStr !== undefined ? form.costStr : formatIDR(form.cost)} onChange={e => {

@@ -181,7 +181,27 @@ export default function POS({ products, setProducts, customers, setCustomers, su
     return { unitPrice, isWholesale, basePrice, appliedPromo: activePromo };
   };
 
-  const addToCart = (product) => {
+  const changeCartItemUnit = (cartId, newMultiUnitId) => {
+      playSound('pop', isSoundOn);
+      setCart(prev => {
+          const itemToChange = prev.find(item => (item.cartId || item.id) === cartId);
+          if (!itemToChange) return prev;
+          
+          const newCartId = itemToChange.id + '_' + (newMultiUnitId || 'base');
+          if (newCartId === cartId) return prev;
+          
+          const existingDest = prev.find(item => (item.cartId || item.id) === newCartId);
+          const filtered = prev.filter(item => (item.cartId || item.id) !== cartId && (item.cartId || item.id) !== newCartId);
+          const combinedQty = (existingDest ? parseFloat(existingDest.qty) : 0) + parseFloat(itemToChange.qty);
+          
+          const productWithUnit = { ...itemToChange, selectedMultiUnitId: newMultiUnitId };
+          const pricing = calcItemPricing(productWithUnit, combinedQty);
+          
+          return [...filtered, { ...productWithUnit, cartId: newCartId, qty: combinedQty, qtyString: String(combinedQty).replace('.', ','), subtotal: combinedQty * pricing.unitPrice, ...pricing }];
+      });
+  };
+
+  const addToCart = (product, forcedMultiUnitId = null) => {
     if (posMode === 'penjualan' && product.currentStock <= 0) { 
       playSound('pop', isSoundOn); 
       showToast('Stok habis! Mengalihkan ke mode Pembelian.', 'warning'); 
@@ -189,48 +209,59 @@ export default function POS({ products, setProducts, customers, setCustomers, su
       return; 
     }
     playSound('drop', isSoundOn);
+    const cartId = product.id + '_' + (forcedMultiUnitId || 'base');
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
+      const existing = prev.find(item => (item.cartId || item.id) === cartId);
       const newQty = existing ? Number(existing.qty) + 1 : 1;
-      const pricing = calcItemPricing(product, newQty);
-      if (existing) return prev.map(item => item.id === product.id ? { ...item, qty: newQty, subtotal: newQty * pricing.unitPrice, ...pricing } : item);
-      return [...prev, { ...product, qty: 1, subtotal: pricing.unitPrice, ...pricing }];
+      const productWithUnit = { ...product, selectedMultiUnitId: forcedMultiUnitId };
+      const pricing = calcItemPricing(productWithUnit, newQty);
+      if (existing) return prev.map(item => (item.cartId || item.id) === cartId ? { ...item, qty: newQty, subtotal: newQty * pricing.unitPrice, ...pricing } : item);
+      return [...prev, { ...productWithUnit, cartId, qty: 1, subtotal: pricing.unitPrice, ...pricing }];
     });
   };
 
-  const updateCartQtyString = (id, strVal) => {
+  const updateCartQtyString = (cartId, strVal) => {
     let cleanStr = strVal.replace(/[^0-9,.]/g, ''); if(cleanStr.endsWith('.')) cleanStr = cleanStr.slice(0,-1)+','; cleanStr = cleanStr.replace(/\./g, '');
-    setCart(prev => prev.map(item => item.id === id ? { ...item, qtyString: cleanStr } : item));
+    setCart(prev => prev.map(item => (item.cartId || item.id) === cartId ? { ...item, qtyString: cleanStr } : item));
     if (cleanStr === '') return;
     const floatVal = parseFloat(cleanStr.replace(',', '.'));
     if (isNaN(floatVal) || floatVal <= 0) return;
-    const product = products.find(p => p.id === id);
-    if (posMode === 'penjualan' && floatVal > product.stock) { 
-      showToast('Melebihi sisa stok! Mengalihkan ke mode Pembelian.', 'warning'); 
-      setPosMode('pembelian');
-      return;
-    }
-    setCart(prev => prev.map(item => {
-       if (item.id === id) {
-           const pricing = calcItemPricing(product, floatVal);
-           return { ...item, qty: floatVal, subtotal: floatVal * pricing.unitPrice, ...pricing };
+    
+    setCart(prev => {
+       const existing = prev.find(i => (i.cartId || i.id) === cartId);
+       if (!existing) return prev;
+       const product = products.find(p => p.id === existing.id);
+       
+       if (posMode === 'penjualan' && floatVal > product.stock) { 
+         showToast('Melebihi sisa stok! Mengalihkan ke mode Pembelian.', 'warning'); 
+         setPosMode('pembelian');
+         return prev;
        }
-       return item;
-    }));
+       
+       return prev.map(item => {
+          if ((item.cartId || item.id) === cartId) {
+              const productWithUnit = { ...product, selectedMultiUnitId: item.selectedMultiUnitId };
+              const pricing = calcItemPricing(productWithUnit, floatVal);
+              return { ...item, qty: floatVal, subtotal: floatVal * pricing.unitPrice, ...pricing };
+          }
+          return item;
+       });
+    });
   };
 
-  const adjustQtyStep = (id, delta) => {
-    const item = cart.find(i => i.id === id);
+  const adjustQtyStep = (cartId, delta) => {
+    const item = cart.find(i => (i.cartId || i.id) === cartId);
     if (!item) return;
     const currentQty = Number(item.qty) || 0;
     const nextQty = Math.max(0, currentQty + delta);
-    if (nextQty <= 0) { removeFromCart(id); return; }
-    const product = products.find(p => p.id === id);
+    if (nextQty <= 0) { removeFromCart(cartId); return; }
+    const product = products.find(p => p.id === item.id);
     if (posMode === 'penjualan' && nextQty > product.stock) { showToast('Melebihi sisa stok!', 'error'); return; }
     playSound(delta > 0 ? 'drop' : 'pop', isSoundOn);
     setCart(prev => prev.map(i => {
-       if (i.id === id) {
-          const pricing = calcItemPricing(product, nextQty);
+       if ((i.cartId || i.id) === cartId) {
+          const productWithUnit = { ...product, selectedMultiUnitId: i.selectedMultiUnitId };
+          const pricing = calcItemPricing(productWithUnit, nextQty);
           return { ...i, qty: nextQty, qtyString: String(nextQty).replace('.', ','), subtotal: nextQty * pricing.unitPrice, ...pricing };
        }
        return i;
@@ -242,13 +273,14 @@ export default function POS({ products, setProducts, customers, setCustomers, su
         setCart(prev => prev.map(item => {
            const product = products.find(p => p.id === item.id);
            if (!product) return item;
-           const pricing = calcItemPricing(product, item.qty);
+           const productWithUnit = { ...product, selectedMultiUnitId: item.selectedMultiUnitId };
+           const pricing = calcItemPricing(productWithUnit, item.qty);
            return { ...item, ...pricing, subtotal: item.qty * pricing.unitPrice };
         }));
      }
   }, [selectedCustomer]);
 
-  const removeFromCart = (id) => { playSound('pop', isSoundOn); setCart(prev => prev.filter(item => item.id !== id)); }
+  const removeFromCart = (cartId) => { playSound('pop', isSoundOn); setCart(prev => prev.filter(item => (item.cartId || item.id) !== cartId)); }
   const clearCart = () => { playSound('pop', isSoundOn); setCart([]); setPosDiscountStr(''); setPosOngkirStr(''); showToast('Keranjang dibersihkan', 'success'); }
 
   const subTotal = cart.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
@@ -315,11 +347,20 @@ export default function POS({ products, setProducts, customers, setCustomers, su
       const sName = suppObj?.name || '-';
       const activeAccount = financialAccounts.find(a => a.id === Number(paymentMethodId));
 
+      const finalItems = cart.map(item => {
+         let unitName = item.unit;
+         if (item.selectedMultiUnitId && item.multiUnits) {
+             const mu = item.multiUnits.find(u => String(u.id) === String(item.selectedMultiUnitId));
+             if (mu) unitName = mu.unit;
+         }
+         return { ...item, unit: unitName };
+      });
+
       const newRecord = {
         id: Date.now(), nota: genNota, date: docDate.toISOString(),
         customer: posMode === 'penjualan' ? cName : undefined, supplier: posMode === 'pembelian' ? sName : undefined,
         phone: posMode === 'penjualan' ? custObj?.phone : suppObj?.phone, 
-        items: cart, subtotal: subTotal, discount: actualDiscount, ongkir: actualOngkir, total, paid: totalPaid, status: isLunas ? 'Lunas' : 'Tempo', dueDate: isLunas ? null : dueDate,
+        items: finalItems, subtotal: subTotal, discount: actualDiscount, ongkir: actualOngkir, total, paid: totalPaid, status: isLunas ? 'Lunas' : 'Tempo', dueDate: isLunas ? null : dueDate,
         depositUsed, depositAdded, pointsRedeemed, pointDiscount,
         kasir: user?.name || 'Kasir', earnedPoints,
         paymentHistory: [
@@ -356,8 +397,18 @@ export default function POS({ products, setProducts, customers, setCustomers, su
         else setStoreInfo({...storeInfo, nextSeqPurchase: (storeInfo?.nextSeqPurchase || 1) + 1});
 
         setProducts(prevProducts => prevProducts.map(p => {
-          const cartItem = cart.find(c => c.id === p.id);
-          if (cartItem) return { ...p, stock: posMode === 'penjualan' ? p.stock - Number(cartItem.qty) : p.stock + Number(cartItem.qty) };
+          const cartItemsForProduct = cart.filter(c => c.id === p.id);
+          if (cartItemsForProduct.length > 0) {
+              const totalQtyImpact = cartItemsForProduct.reduce((sum, cItem) => {
+                  let conversion = 1;
+                  if (cItem.selectedMultiUnitId && cItem.multiUnits) {
+                      const mu = cItem.multiUnits.find(u => String(u.id) === String(cItem.selectedMultiUnitId));
+                      if (mu) conversion = Number(mu.conversion) || 1;
+                  }
+                  return sum + (Number(cItem.qty) * conversion);
+              }, 0);
+              return { ...p, stock: posMode === 'penjualan' ? p.stock - totalQtyImpact : p.stock + totalQtyImpact };
+          }
           return p;
         }));
         
@@ -390,8 +441,24 @@ export default function POS({ products, setProducts, customers, setCustomers, su
 
   const handleSearchKeyDown = (e) => {
      if(e.key === 'Enter' && posSearch.trim() !== '') {
-        const exactProd = products.find(p => p.barcode === posSearch.trim() || p.name.toLowerCase() === posSearch.trim().toLowerCase());
-        if(exactProd) { addToCart(exactProd); setPosSearch(''); } 
+        const query = posSearch.trim();
+        let exactProd = products.find(p => p.barcode === query || p.name.toLowerCase() === query.toLowerCase());
+        let forcedMultiUnitId = null;
+        
+        if (!exactProd) {
+            for (let p of products) {
+                if (p.hasMultiUnit && p.multiUnits) {
+                    const matchedUnit = p.multiUnits.find(u => u.barcode === query);
+                    if (matchedUnit) {
+                        exactProd = p;
+                        forcedMultiUnitId = matchedUnit.id;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if(exactProd) { addToCart(exactProd, forcedMultiUnitId); setPosSearch(''); } 
         else if (displayProducts.length === 1) { addToCart(displayProducts[0]); setPosSearch(''); } 
         else { showToast('Produk tidak ditemukan', 'error'); playSound('pop', isSoundOn); }
      }
@@ -511,40 +578,51 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                 <div className={`flex flex-col items-center justify-center h-full ${colors.textMuted}`}><ShoppingCart size={40} className="mb-2 opacity-30" /><p className="text-sm">Keranjang kosong</p></div>
               ) : (
                 cart.map(item => (
-                  <div key={item.id} className={`flex gap-2 sm:gap-3 p-2 sm:p-3 border rounded-xl shadow-sm ${colors.border} bg-white/15 dark:bg-[#1e1e1e]/15 backdrop-blur-md relative overflow-hidden`}>
+                  <div key={item.cartId || item.id} className={`flex gap-2 sm:gap-3 p-2 sm:p-3 border rounded-xl shadow-sm ${colors.border} bg-white/15 dark:bg-[#1e1e1e]/15 backdrop-blur-md relative overflow-hidden`}>
                     {(item.isWholesale || item.appliedPromo) && (
                        <div className={`absolute top-0 left-0 w-1 h-full ${item.appliedPromo ? 'bg-blue-500' : 'bg-purple-500'}`}></div>
                     )}
                     
                     <div className="flex-1 pl-1 min-w-0">
                       <h4 className={`font-semibold text-xs sm:text-sm truncate ${colors.text}`}>{item.name}</h4>
-                      <div className={`text-[10px] sm:text-xs truncate ${colors.textMuted}`}>
-                         {item.isWholesale ? <span className="${colors.gold} font-bold mr-1">GROSIR</span> : ''} 
-                         {item.appliedPromo ? <span className="${colors.gold} font-bold mr-1"><Ticket size={10} className="inline mb-0.5"/> PROMO</span> : ''} 
+                      <div className={`text-[10px] sm:text-xs truncate ${colors.textMuted} flex items-center gap-1 mt-0.5`}>
+                         {item.isWholesale ? <span className={`${colors.gold} font-bold`}>GROSIR</span> : ''} 
+                         {item.appliedPromo ? <span className={`${colors.gold} font-bold`}><Ticket size={10} className="inline mb-0.5"/> PROMO</span> : ''} 
                          
+                         <span>
                          {item.isWholesale || item.appliedPromo ? (
-                            <><span className="line-through opacity-50 mr-1">Rp {formatIDR(item.basePrice)}</span> Rp {formatIDR(item.unitPrice)} / {item.unit}</>
+                            <><span className="line-through opacity-50 mr-1">Rp {formatIDR(item.basePrice)}</span> Rp {formatIDR(item.unitPrice)} / </>
                          ) : (
-                            <>Rp {formatIDR(item.unitPrice)} / {item.unit}</>
+                            <>Rp {formatIDR(item.unitPrice)} / </>
+                         )}
+                         </span>
+                         
+                         {item.hasMultiUnit ? (
+                            <select className={`bg-transparent border-b border-dashed border-gray-400 outline-none cursor-pointer font-bold ${colors.text} text-[10px] sm:text-xs`} value={item.selectedMultiUnitId || 'base'} onChange={(e) => changeCartItemUnit(item.cartId || item.id, e.target.value === 'base' ? null : e.target.value)}>
+                               <option value="base" className="text-black">{item.unit}</option>
+                               {item.multiUnits?.map(mu => <option key={mu.id} value={mu.id} className="text-black">{mu.unit}</option>)}
+                            </select>
+                         ) : (
+                            <span>{item.unit}</span>
                          )}
                       </div>
                       <div className={`font-bold mt-1 text-sm ${colors.gold}`}>Rp {formatIDR(item.subtotal)}</div>
                     </div>
                     
                     <div className="flex flex-col items-end justify-between shrink-0 ml-1">
-                      <button onClick={() => removeFromCart(item.id)} className="text-red-500 p-1 hover:bg-red-50 rounded"><X size={16} /></button>
+                      <button onClick={() => removeFromCart(item.cartId || item.id)} className="text-red-500 p-1 hover:bg-red-50 rounded"><X size={16} /></button>
                       <div className="flex items-center gap-1 border rounded-lg bg-[#F8FAFC] dark:bg-[#27272A] mt-1 overflow-hidden shrink-0">
-                        <button type="button" onClick={() => adjustQtyStep(item.id, -1)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 bg-[#F8FAFC] dark:bg-[#27272A] transition-colors font-bold">-</button>
+                        <button type="button" onClick={() => adjustQtyStep(item.cartId || item.id, -1)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 bg-[#F8FAFC] dark:bg-[#27272A] transition-colors font-bold">-</button>
                         <input 
                            type="text" 
                            inputMode="decimal"
                            className={`w-12 sm:w-14 text-center bg-transparent text-xs sm:text-sm font-semibold outline-none ${colors.text}`} 
                            value={item.qtyString !== undefined ? item.qtyString : String(item.qty).replace('.', ',')} 
-                           onChange={(e) => updateCartQtyString(item.id, e.target.value)}
-                           onBlur={(e) => { if(!e.target.value || parseFloat(e.target.value.replace(',','.')) <= 0) removeFromCart(item.id); }}
+                           onChange={(e) => updateCartQtyString(item.cartId || item.id, e.target.value)}
+                           onBlur={(e) => { if(!e.target.value || parseFloat(e.target.value.replace(',','.')) <= 0) removeFromCart(item.cartId || item.id); }}
                            onFocus={(e) => e.target.select()}
                         />
-                        <button type="button" onClick={() => adjustQtyStep(item.id, 1)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 bg-[#F8FAFC] dark:bg-[#27272A] transition-colors font-bold">+</button>
+                        <button type="button" onClick={() => adjustQtyStep(item.cartId || item.id, 1)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 bg-[#F8FAFC] dark:bg-[#27272A] transition-colors font-bold">+</button>
                       </div>
                     </div>
                   </div>
