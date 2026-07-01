@@ -1,11 +1,13 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { Search, Plus, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Search, Plus, Trash2, ChevronLeft, ChevronRight, X, Filter, Check } from 'lucide-react';
 import useDebounce from '../../hooks/useDebounce';
 
-export default function DataTable({ columns, data, onDelete, canDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false, headerRight }) {
+export default function DataTable({ columns, data, onDelete, canDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false, headerRight, noSortKey }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState(defaultSort);
+  const [filters, setFilters] = useState({});
+  const [openFilterKey, setOpenFilterKey] = useState(null);
   const debouncedSearch = useDebounce(search, 300);
   const limit = 10;
   const wheelTimeout = useRef(null);
@@ -17,7 +19,17 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
   };
 
   const sortedData = useMemo(() => {
-    return [...data].sort((a, b) => {
+    let temp = [...data];
+    
+    // Apply column filters first
+    Object.keys(filters).forEach(k => {
+       const activeOptions = filters[k];
+       if (activeOptions && activeOptions.length > 0) {
+          temp = temp.filter(row => activeOptions.includes(row[k]));
+       }
+    });
+
+    return temp.sort((a, b) => {
       if (!sortConfig.key) return 0;
       const valA = a[sortConfig.key];
       const valB = b[sortConfig.key];
@@ -25,7 +37,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
       if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [data, sortConfig]);
+  }, [data, sortConfig, filters]);
 
   const filtered = useMemo(() => {
     if (!debouncedSearch) return sortedData;
@@ -37,6 +49,28 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
        return searchWords.every(word => rowText.includes(word));
     });
   }, [sortedData, debouncedSearch]);
+
+  const toggleFilter = (colKey, option) => {
+    setFilters(prev => {
+      const active = prev[colKey] || [];
+      if (active.includes(option)) {
+         return { ...prev, [colKey]: active.filter(o => o !== option) };
+      } else {
+         return { ...prev, [colKey]: [...active, option] };
+      }
+    });
+  };
+
+  const filterRef = useRef();
+  useEffect(() => {
+     const handleClickOutside = (e) => {
+        if (filterRef.current && !filterRef.current.contains(e.target)) {
+           setOpenFilterKey(null);
+        }
+     };
+     document.addEventListener('mousedown', handleClickOutside);
+     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const totalPages = Math.ceil(filtered.length / limit);
   const paginated = filtered.slice((page - 1) * limit, page * limit);
@@ -118,15 +152,49 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
           <table className={`w-full text-sm text-left ${colors.text}`}>
             <thead className={`text-xs uppercase sticky top-0 ${colors.panel} border-b ${colors.border} shadow-sm z-10`}>
               <tr>
-                <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-center w-8 sm:w-12">No</th>
+                <th onClick={() => noSortKey && handleSort(noSortKey)} className={`px-2 sm:px-4 py-2 sm:py-2.5 text-center w-8 sm:w-12 ${noSortKey ? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group' : ''}`}>
+                   <div className="flex items-center justify-center gap-1">
+                      No
+                      {noSortKey && (
+                         <span className={`text-[10px] ${sortConfig.key === noSortKey ? colors.gold : 'text-transparent group-hover:text-gray-400'}`}>
+                            {sortConfig.key === noSortKey && sortConfig.direction === 'desc' ? '▼' : '▲'}
+                         </span>
+                      )}
+                   </div>
+                </th>
                 {columns.map(c => (
-                  <th key={c.key} onClick={() => handleSort(c.key)} className="px-2 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
-                     <div className="flex items-center gap-1">
+                  <th key={c.key} className="px-2 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap relative">
+                     <div className="flex items-center gap-1 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group rounded p-1" onClick={() => c.filterOptions ? setOpenFilterKey(openFilterKey === c.key ? null : c.key) : handleSort(c.key)}>
                         {c.label}
-                        <span className={`text-[10px] ${sortConfig.key === c.key ? colors.gold : 'text-transparent group-hover:text-gray-400'}`}>
-                           {sortConfig.key === c.key && sortConfig.direction === 'desc' ? '▼' : '▲'}
-                        </span>
+                        {c.filterOptions ? (
+                           <Filter size={12} className={filters[c.key]?.length > 0 ? colors.gold : 'text-gray-400 opacity-50 group-hover:opacity-100'} />
+                        ) : (
+                           <span className={`text-[10px] ${sortConfig.key === c.key ? colors.gold : 'text-transparent group-hover:text-gray-400'}`}>
+                              {sortConfig.key === c.key && sortConfig.direction === 'desc' ? '▼' : '▲'}
+                           </span>
+                        )}
                      </div>
+                     {openFilterKey === c.key && c.filterOptions && (
+                        <div ref={filterRef} className={`absolute top-full left-0 mt-1 w-48 rounded-xl shadow-lg border ${colors.border} ${colors.panel} z-50 overflow-hidden`}>
+                           <div className={`p-2 border-b ${colors.border} flex justify-between items-center`}>
+                              <span className={`text-xs font-bold ${colors.text}`}>Filter {c.label}</span>
+                              <button onClick={() => { setFilters(prev => ({...prev, [c.key]: []})); setOpenFilterKey(null); }} className="text-[10px] text-red-500 hover:underline">Reset</button>
+                           </div>
+                           <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
+                              {c.filterOptions.map(opt => {
+                                 const isChecked = (filters[c.key] || []).includes(opt);
+                                 return (
+                                    <div key={opt} onClick={() => toggleFilter(c.key, opt)} className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 ${colors.text} text-xs`}>
+                                       <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isChecked ? `border-[#D4AF37] ${colors.goldBg} text-[#18181B]` : `${colors.border}`}`}>
+                                          {isChecked && <Check size={12} />}
+                                       </div>
+                                       <span className="truncate">{opt}</span>
+                                    </div>
+                                 );
+                              })}
+                           </div>
+                        </div>
+                     )}
                   </th>
                 ))}
                 {(onDelete || actions.length > 0) && <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-center">Aksi</th>}

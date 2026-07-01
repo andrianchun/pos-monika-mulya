@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Edit, DownloadCloud, UploadCloud, Trash2, X, Plus } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload } from '../utils/helpers';
 import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import PasswordConfirmModal from '../components/modals/PasswordConfirmModal';
 
-export default function ProductManager({ products, setProducts, categories, units, colors, showToast, user, isSoundOn, editIntent }) {
+export default function ProductManager({ products, setProducts, categories, units, sales, colors, showToast, user, isSoundOn, editIntent }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -55,11 +55,28 @@ export default function ProductManager({ products, setProducts, categories, unit
 
   const columns = [
     { key: 'name', label: 'Nama Produk' },
-    { key: 'category', label: 'Kategori' },
+    { key: 'category', label: 'Kategori', filterOptions: sortedCats },
     { key: 'stock', label: 'Stok', render: r => `${r.stock} ${r.unit}` },
     { key: 'cost', label: 'Harga Beli', render: r => `Rp ${formatIDR(r.cost)}` },
     { key: 'price', label: 'Harga Jual', render: r => `Rp ${formatIDR(r.price)}` }
   ];
+
+  const displayProducts = useMemo(() => {
+    const popMap = {};
+    if (sales && sales.length > 0) {
+      sales.forEach(s => {
+        if (s.cart) {
+           s.cart.forEach(item => {
+              popMap[item.id] = (popMap[item.id] || 0) + Number(item.qty || 0);
+           });
+        }
+      });
+    }
+    return products.map(p => ({
+       ...p,
+       popularity: popMap[p.id] || 0
+    }));
+  }, [products, sales]);
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -113,31 +130,25 @@ export default function ProductManager({ products, setProducts, categories, unit
     showToast('Semua data produk dihapus', 'success');
   };
 
-  // =========================================================================================
-  // 🔥 PERBAIKAN: EKSPOR PURE CSV (TANPA KOLOM GAMBAR) AGAR BISA DIEDIT & DIIMPOR ULANG
-  // =========================================================================================
   const exportToExcel = () => {
     playSound('pop', isSoundOn);
     
-    // 1. Definisikan Header (Tanpa Gambar)
     const header = ["Barcode", "Nama Produk", "Kategori", "Satuan", "Stok", "Harga Beli", "Harga Jual"];
     
-    // 2. Loop Data Produk
     const csvRows = products.map(p => {
        return [
           p.barcode || '',
-          (p.name || '').replace(/;/g, '').replace(/"/g, ''), // Bersihkan karakter rawan error
+          (p.name || '').replace(/;/g, '').replace(/"/g, ''),
           p.category || '',
           p.unit || '',
           p.stock || 0,
           p.cost || 0,
           p.price || 0
-       ].join(';'); // Pakai pemisah Titik Koma (;) karena Excel Indonesia pakai koma untuk desimal
+       ].join(';');
     });
 
     const csvContent = header.join(';') + '\n' + csvRows.join('\n');
     
-    // Tambahkan BOM (\uFEFF) agar Excel mengenali ini sebagai UTF-8 (karakter khusus aman)
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -163,7 +174,6 @@ export default function ProductManager({ products, setProducts, categories, unit
           const processCols = (cols) => {
              const barcode = cols[0]?.textContent?.trim() ?? cols[0]?.trim() ?? '';
              const name = cols[1]?.textContent?.trim() ?? cols[1]?.trim() ?? '';
-             // Lewati baris header
              if (!name || name.toUpperCase() === 'NAMA PRODUK' || name.toUpperCase() === 'NAMA') return;
              
              const category = cols[2]?.textContent?.trim() ?? cols[2]?.trim() ?? sortedCats[0] ?? 'Lainnya';
@@ -173,27 +183,22 @@ export default function ProductManager({ products, setProducts, categories, unit
              const costStr = cols[5]?.textContent ?? cols[5] ?? '0';
              const priceStr = cols[6]?.textContent ?? cols[6] ?? '0';
 
-             // Pembersihan format angka (kalau user terlanjur ngetik Rp atau titik ribuan di Excel)
              const stock = Number(stockStr.toString().replace(/\./g, '').replace(/,/g, '.')) || 0;
              const cost = Number(costStr.toString().replace(/\./g, '').replace(/,/g, '')) || 0;
              const price = Number(priceStr.toString().replace(/\./g, '').replace(/,/g, '')) || 0;
 
-             // BULK UPDATE LOGIC: Cari berdasarkan Barcode, kalau kosong cari berdasarkan Nama
              const existingIdx = currentProducts.findIndex(p => 
                 (barcode && p.barcode === barcode) || (!barcode && p.name.toLowerCase() === name.toLowerCase())
              );
 
              if (existingIdx > -1) {
-                // Update barang lama
                 currentProducts[existingIdx] = {
                    ...currentProducts[existingIdx],
                    barcode: barcode || currentProducts[existingIdx].barcode,
                    name, category, unit, stock, cost, price
-                   // Gambar dibiarkan tidak berubah
                 };
                 updatedCount++;
              } else {
-                // Tambah barang baru
                 currentProducts.push({
                   id: Date.now() + Math.floor(Math.random() * 1000) + newCount, 
                   barcode, name, category, unit, stock, cost, price, img: '📦',
@@ -204,7 +209,6 @@ export default function ProductManager({ products, setProducts, categories, unit
              }
           };
 
-          // Parsing Cerdas: Dukung format HTML lawas DAN format CSV murni
           if (text.includes('<table') && text.includes('<tr')) {
             const doc = new DOMParser().parseFromString(text, 'text/html');
             const rows = doc.querySelectorAll('tr');
@@ -213,13 +217,12 @@ export default function ProductManager({ products, setProducts, categories, unit
               if (cols.length >= 6) processCols(cols);
             }
           } else {
-            // Deteksi pemisah (, atau ; atau tab)
             const delimiter = text.indexOf(';') > -1 ? ';' : (text.indexOf('\t') > -1 ? '\t' : ',');
             const lines = text.split(/\r\n|\n/);
             for (let i = 1; i < lines.length; i++) {
               if (!lines[i].trim()) continue;
               const cols = lines[i].split(delimiter);
-              if (cols.length >= 6) processCols(cols); // Minimal butuh 6 kolom (sampai harga jual)
+              if (cols.length >= 6) processCols(cols);
             }
           }
 
@@ -254,7 +257,9 @@ export default function ProductManager({ products, setProducts, categories, unit
           headerRight={customHeaderRight}
           posLayout={true}
           columns={columns} 
-          data={[...products].sort((a, b) => a.name.localeCompare(b.name))} 
+          data={displayProducts}
+          defaultSort={{ key: 'popularity', direction: 'desc' }}
+          noSortKey="popularity"
           colors={colors} 
           onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }} 
           actions={[ { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-stone-300', onClick: handleEdit } ]}
