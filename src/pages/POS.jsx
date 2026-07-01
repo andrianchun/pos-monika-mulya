@@ -134,6 +134,14 @@ export default function POS({ products, setProducts, customers, setCustomers, su
     let isWholesale = false;
     let basePrice = product.price;
     let unitPrice = basePrice;
+    
+    if (product.selectedMultiUnitId && product.hasMultiUnit && product.multiUnits) {
+       const mu = product.multiUnits.find(u => String(u.id) === String(product.selectedMultiUnitId));
+       if (mu) {
+          basePrice = Number(mu.price);
+          unitPrice = basePrice;
+       }
+    }
 
     const wholesales = storeInfo.wholesales || [];
     const productWholesales = wholesales.filter(w => String(w.productId) === String(product.id));
@@ -141,7 +149,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
       
     const ruleGrosir = productWholesales.find(w => newQty >= Number(w.minQty));
       
-    if (ruleGrosir) {
+    if (ruleGrosir && !product.selectedMultiUnitId) {
        unitPrice = Number(ruleGrosir.wholesalePrice);
        isWholesale = true;
     }
