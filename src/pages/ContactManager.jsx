@@ -112,20 +112,32 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
            handleNavigateAndEdit={handleNavigateAndEdit}
          />
          
-         {deleteContact && (
-            <DeleteConfirmModal 
-            title={`Hapus Data ${tab === 'customer' ? 'Customer' : 'Supplier'}?`} 
-            desc={`Yakin ingin menghapus ${deleteContact.name} dari daftar kontak?`} 
-            btnText="Hapus"
-            onConfirm={() => {
-               if(tab === 'customer') setCustomers(customers.filter(c => c.id !== deleteContact.id));
-               else setSuppliers(suppliers.filter(s => s.id !== deleteContact.id));
-               setDeleteContact(null); showToast('Kontak dihapus', 'success'); playSound('pop', isSoundOn);
-            }} 
-            onCancel={() => setDeleteContact(null)} 
-            colors={colors} isSoundOn={isSoundOn} 
-         />
-       )}
+         {deleteContact && (() => {
+            // ✅ Cek piutang/utang outstanding sebelum tampil modal
+            let warningMsg = '';
+            if (tab === 'customer') {
+               const piutang = sales.filter(s => s.customer === deleteContact.name && s.status === 'Tempo');
+               if (piutang.length > 0) warningMsg = `⚠️ Customer ini masih punya ${piutang.length} transaksi PIUTANG yang belum lunas!`;
+            } else {
+               const utang = purchases.filter(p => p.supplier === deleteContact.name && p.status === 'Tempo');
+               if (utang.length > 0) warningMsg = `⚠️ Supplier ini masih punya ${utang.length} transaksi UTANG yang belum lunas!`;
+            }
+            return (
+               <DeleteConfirmModal 
+               title={`Hapus Data ${tab === 'customer' ? 'Customer' : 'Supplier'}?`} 
+               desc={warningMsg ? `${warningMsg}\n\nYakin ingin menghapus ${deleteContact.name} dari daftar kontak?` : `Yakin ingin menghapus ${deleteContact.name} dari daftar kontak?`} 
+               btnText="Hapus"
+               onConfirm={() => {
+                  if(tab === 'customer') setCustomers(customers.filter(c => c.id !== deleteContact.id));
+                  else setSuppliers(suppliers.filter(s => s.id !== deleteContact.id));
+                  setDeleteContact(null); showToast('Kontak dihapus', 'success'); playSound('pop', isSoundOn);
+               }} 
+               onCancel={() => setDeleteContact(null)} 
+               colors={colors} isSoundOn={isSoundOn} 
+            />
+            );
+         })()
+        }
 
        {isModalOpen && (
           <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">

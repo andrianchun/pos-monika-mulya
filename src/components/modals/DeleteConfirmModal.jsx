@@ -8,7 +8,7 @@ export default function DeleteConfirmModal({ onConfirm, onCancel, colors, isSoun
         <div className={`w-full max-w-sm p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} text-center`}>
            <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
            <h3 className={`text-xl font-bold mb-2 ${colors.text}`}>{title}</h3>
-           <p className={`text-sm mb-6 ${colors.textMuted}`}>{desc}</p>
+           <p className={`text-sm mb-6 whitespace-pre-wrap ${colors.textMuted}`}>{desc}</p>
            <div className="flex gap-3">
              <button onClick={() => { playSound('pop', isSoundOn); onCancel(); }} className={`flex-1 py-2 rounded-xl border font-semibold ${colors.text} ${colors.border}`}>Batal</button>
              <button onClick={() => { playSound('pop', isSoundOn); onConfirm(); }} className="flex-1 py-2 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600">{btnText}</button>

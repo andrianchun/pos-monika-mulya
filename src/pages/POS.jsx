@@ -367,7 +367,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
         depositUsed, depositAdded, pointsRedeemed, pointDiscount,
         kasir: user?.name || 'Kasir', earnedPoints,
         paymentHistory: [
-           ...(depositUsed > 0 ? [{ date: docDate.toISOString(), amount: depositUsed, method: 'Saldo Deposit', accountId: null }] : []),
+           ...(depositUsed > 0 ? [{ date: docDate.toISOString(), amount: depositUsed, method: 'Saldo Deposit', accountId: null, customerId: selectedCustomer }] : []),
            ...(pointDiscount > 0 ? [{ date: docDate.toISOString(), amount: pointDiscount, method: 'Tukar Poin', accountId: null }] : []),
            ...(paidCash > 0 ? [{ date: docDate.toISOString(), amount: paidCash, method: activeAccount ? activeAccount.name : 'Unknown', accountId: Number(paymentMethodId) }] : [])
         ]
@@ -671,6 +671,9 @@ export default function POS({ products, setProducts, customers, setCustomers, su
             setActiveShift={setActiveShift}
             onClose={() => setShowKasEkstraModal(false)}
             showToast={showToast}
+            accounting={accounting}
+            setAccounting={setAccounting}
+            financialAccounts={financialAccounts}
         />
       )}
       {checkoutModal && <CheckoutModal posMode={posMode} total={total} financialAccounts={financialAccounts} paymentMethodId={paymentMethodId} setPaymentMethodId={setPaymentMethodId} dueDate={dueDate} setDueDate={setDueDate} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} handleCheckout={handleCheckout} setCheckoutModal={setCheckoutModal} colors={colors} isSoundOn={isSoundOn} activeCustomerDeposit={customers.find(c => String(c.id) === String(selectedCustomer))?.deposit || 0} activeCustomerPoints={customers.find(c => String(c.id) === String(selectedCustomer))?.points || 0} pointValue={storeInfo?.pointValue || 100} minPointRedeem={storeInfo?.minPointRedeem || 100} isCustomerUmum={isCustomerUmum} activeCustomerPhone={posMode === 'penjualan' ? (customers.find(c => String(c.id) === String(selectedCustomer))?.phone || '') : (suppliers.find(c => String(c.id) === String(selectedSupplier))?.phone || '')} showToast={showToast} />}

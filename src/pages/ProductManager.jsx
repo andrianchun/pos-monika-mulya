@@ -5,7 +5,7 @@ import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import PasswordConfirmModal from '../components/modals/PasswordConfirmModal';
 
-export default function ProductManager({ products, setProducts, categories, units, sales, colors, showToast, user, isSoundOn, editIntent, recordActivity }) {
+export default function ProductManager({ products, setProducts, categories, units, sales, colors, showToast, user, isSoundOn, editIntent, recordActivity, storeInfo, setStoreInfo }) {
   const canCreate = user?.role === 'admin' || (user?.permissions || []).includes('produk_create');
   const canEdit = user?.role === 'admin' || (user?.permissions || []).includes('produk_edit');
   const canDelete = user?.role === 'admin' || (user?.permissions || []).includes('produk_delete');
@@ -284,12 +284,29 @@ export default function ProductManager({ products, setProducts, categories, unit
            desc="Yakin ingin menghapus produk ini dari database?" 
            btnText="Hapus"
            onConfirm={() => { 
-              const pName = products.find(p => p.id === deleteProdId)?.name;
-              if (recordActivity) recordActivity('Hapus Produk', `Menghapus produk "${pName}"`);
-              setProducts(products.filter(p => p.id !== deleteProdId)); 
-              setDeleteProdId(null); 
-              showToast('Produk dihapus', 'success'); 
-              playSound('pop', isSoundOn); 
+               const prod = products.find(p => p.id === deleteProdId);
+               const pName = prod?.name;
+               if (recordActivity) recordActivity('Hapus Produk', `Menghapus produk "${pName}"`);
+               setProducts(products.filter(p => p.id !== deleteProdId)); 
+               // ✅ Bersihkan aturan grosir & promo yang terkait produk ini
+               if (setStoreInfo && storeInfo) {
+                  const needsClean = 
+                     (storeInfo.wholesales || []).some(w => String(w.productId) === String(deleteProdId)) ||
+                     (storeInfo.promos || []).some(p => (p.targetItems || []).includes(String(deleteProdId)));
+                  if (needsClean) {
+                     setStoreInfo({
+                        ...storeInfo,
+                        wholesales: (storeInfo.wholesales || []).filter(w => String(w.productId) !== String(deleteProdId)),
+                        promos: (storeInfo.promos || []).map(pr => ({
+                           ...pr,
+                           targetItems: (pr.targetItems || []).filter(id => id !== String(deleteProdId))
+                        })).filter(pr => pr.targetType !== 'spesifik' || (pr.targetItems || []).length > 0)
+                     });
+                  }
+               }
+               setDeleteProdId(null); 
+               showToast('Produk dihapus', 'success'); 
+               playSound('pop', isSoundOn); 
            }} 
            onCancel={() => setDeleteProdId(null)} 
            colors={colors} isSoundOn={isSoundOn} 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Wallet, ArrowDown, ArrowUp, X } from 'lucide-react';
 import { formatIDR, parseIDR } from '../../utils/helpers';
 
-export default function KasEkstraModal({ colors, activeShift, setActiveShift, onClose, showToast }) {
+export default function KasEkstraModal({ colors, activeShift, setActiveShift, onClose, showToast, accounting, setAccounting, financialAccounts }) {
     const [amountStr, setAmountStr] = useState('');
     const [type, setType] = useState('in'); // 'in' or 'out'
     const [desc, setDesc] = useState('');
@@ -25,6 +25,28 @@ export default function KasEkstraModal({ colors, activeShift, setActiveShift, on
                 updatedShift.expectedCash -= amount;
             }
             setActiveShift(updatedShift);
+
+            // ✅ PERBAIKAN: Catat ke jurnal akuntansi agar tampil di Laporan
+            if (setAccounting && accounting) {
+                const tunaiAcc = (financialAccounts || []).find(a => a.type === 'tunai');
+                const accId = tunaiAcc?.id || (financialAccounts || [])[0]?.id || null;
+                const keterangan = desc.trim()
+                    ? `Kas ${type === 'in' ? 'Masuk' : 'Keluar'} Shift – ${desc.trim()}`
+                    : `Kas ${type === 'in' ? 'Masuk' : 'Keluar'} Shift (Manual)`;
+                setAccounting([
+                    ...accounting,
+                    {
+                        id: Date.now(),
+                        type: 'kas',
+                        accountId: accId,
+                        name: keterangan,
+                        amount: type === 'in' ? amount : -amount,
+                        date: new Date().toISOString(),
+                        isSystemGenerated: false
+                    }
+                ]);
+            }
+
             showToast(`Kas ${type === 'in' ? 'Masuk' : 'Keluar'} berhasil dicatat`, 'success');
         } else {
             showToast('Tidak ada shift aktif', 'error');

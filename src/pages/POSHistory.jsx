@@ -34,8 +34,8 @@ export default function POSHistory({
      }
   }, [editIntent, activeData]);
 
-  console.log("POSHistory Render. Sales length:", sales.length, "Purchases length:", purchases.length);
   
+
   const confirmDeleteAction = () => {
     playSound('pop', isSoundOn);
     let doc = sales.find(s => s.id === deleteConfirmId);
@@ -68,12 +68,17 @@ export default function POSHistory({
            }
            
            if (isSale && totalDepositToRevert > 0 && setCustomers) {
-               setCustomers(prev => prev.map(c => {
-                   if (c.name === doc.customer) {
-                       return { ...c, deposit: (c.deposit || 0) + totalDepositToRevert };
-                   }
-                   return c;
-               }));
+                // ✅ Prioritas: cari by ID (dari paymentHistory), fallback ke name-match
+                const depositPayment = (doc.paymentHistory || []).find(ph => ph.method === 'Saldo Deposit');
+                const custIdFromDoc = depositPayment?.customerId || null;
+                setCustomers(prev => prev.map(c => {
+                    const matchById = custIdFromDoc && String(c.id) === String(custIdFromDoc);
+                    const matchByName = !custIdFromDoc && c.name === doc.customer;
+                    if (matchById || matchByName) {
+                        return { ...c, deposit: (c.deposit || 0) + totalDepositToRevert };
+                    }
+                    return c;
+                }));
            }
        }
        if(isSale) setSales(sales.filter(s => s.id !== deleteConfirmId));
