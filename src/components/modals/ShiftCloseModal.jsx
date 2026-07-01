@@ -85,7 +85,7 @@ export default function ShiftCloseModal({ colors,
        // Create Accounting Entries for shortages/overages if any
        let newAccounting = [...accounting];
        const accId = Date.now();
-       const operatorName = user?.email || '(anonim)';
+       const operatorName = user?.displayName || user?.name || (user?.email ? user.email.split('@')[0] : '(anonim)');
        
        if (summary.selisih !== 0) {
            newAccounting.push({
