@@ -119,7 +119,7 @@ export default function TransactionEditModal({
 
   const addPayment = (e) => {
      e.preventDefault();
-     const amt = parseInt(newPayment.amount.replace(/[^0-9]/g, ''), 10) || 0;
+     const amt = parseInt(String(newPayment.amount).replace(/[^0-9]/g, ''), 10) || 0;
      if(amt <= 0) { showToast('Nominal tidak valid!', 'error'); return; }
      const methName = financialAccounts.find(a => a.id === Number(newPayment.accountId))?.name || 'Unknown';
      const pmtObj = { date: new Date(newPayment.date).toISOString(), amount: amt, method: methName, accountId: Number(newPayment.accountId) };
