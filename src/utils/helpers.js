@@ -106,25 +106,27 @@ export const formatDateTime = (isoString) => {
 export const handleImageUpload = (e, callback, showToast, customMaxWidth = 300, customQuality = 0.7) => {
   const file = e.target.files[0];
   if (file) {
-    if (file.size > 5 * 1024 * 1024) { showToast('Ukuran maksimal gambar 5MB!', 'error'); return; }
+    if (file.size > 20 * 1024 * 1024) { showToast('Ukuran maksimal gambar 20MB!', 'error'); return; }
     const reader = new FileReader();
-    reader.onload = (evt) => {
-       const img = new Image();
-       img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = customMaxWidth;
-          let scaleSize = 1;
-          if (img.width > MAX_WIDTH) {
-             scaleSize = MAX_WIDTH / img.width;
-          }
-          canvas.width = img.width * scaleSize;
-          canvas.height = img.height * scaleSize;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          callback(canvas.toDataURL('image/jpeg', customQuality)); 
-       };
-       img.src = evt.target.result;
-    };
+      reader.onload = (evt) => {
+         const img = new Image();
+         img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = customMaxWidth;
+            let scaleSize = 1;
+            if (img.width > MAX_WIDTH) {
+               scaleSize = MAX_WIDTH / img.width;
+            }
+            canvas.width = img.width * scaleSize;
+            canvas.height = img.height * scaleSize;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            const isPNG = file.type === 'image/png';
+            callback(canvas.toDataURL(isPNG ? 'image/png' : 'image/jpeg', customQuality)); 
+         };
+         img.src = evt.target.result;
+      };
     reader.readAsDataURL(file);
   }
 };

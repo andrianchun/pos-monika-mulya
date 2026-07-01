@@ -44,7 +44,7 @@ export default function ProfileModal({ user, setUser, users, setUsers, colors, i
                <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-xs text-white text-center p-2">Ubah Foto</div>
                <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setAvatar, showToast)} />
             </label>
-            <p className="text-[10px] text-gray-500 mt-2">Maks 5MB. Otomatis dikompresi sistem.</p>
+            <p className="text-[10px] text-gray-500 mt-2">Maks 20MB. Otomatis dikompresi sistem.</p>
           </div>
           <div><label className={`block text-xs font-medium mb-1 ${colors.text}`}>Nama Lengkap</label><input type="text" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={name} onChange={e => setName(e.target.value)} required /></div>
           <div><label className={`block text-xs font-medium mb-1 ${colors.text}`}>Alamat Email</label><input type="email" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} placeholder="email@domain.com" value={email} onChange={e => setEmail(e.target.value)} required /></div>
