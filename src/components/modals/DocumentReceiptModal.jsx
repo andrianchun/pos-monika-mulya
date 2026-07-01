@@ -107,7 +107,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
      text += `No: ${doc.nota}\n`;
      text += `Tgl: ${new Date(doc.date).toLocaleString('id-ID')}\n`;
      text += `Kasir: ${doc.kasir || '-'}\n`;
-     text += `${isSales ? 'Pelanggan' : 'Supplier'}: ${isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}\n\n`;
+     text += `${isSales ? 'Cust' : 'Sup'}: ${isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}\n\n`;
      
      const cartItems = doc.cart || doc.items || [];
      cartItems.forEach(item => {
@@ -193,7 +193,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
 
   if (!doc) return null;
 
-  const isSales = doc.nota.includes(storeInfo.prefixSales);
+  const isSales = doc.type !== 'pembelian';
   const watermarkText = doc?.status?.toUpperCase() === 'LUNAS' ? 'LUNAS' : 'TEMPO';
 
   const isAuto = !!doc?.autoAction;
@@ -239,7 +239,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                           <tr><td style={{ width: '30px', padding: '1px 0' }}>Nota</td><td style={{ padding: '1px 0' }}>: <strong>{doc.nota}</strong></td></tr>
                           <tr><td style={{ padding: '1px 0' }}>Tgl</td><td style={{ padding: '1px 0' }}>: {new Date(doc.date).toLocaleString('id-ID')}</td></tr>
                           <tr><td style={{ padding: '1px 0' }}>Kasir</td><td style={{ padding: '1px 0' }}>: {doc.kasir}</td></tr>
-                          {doc.customer && <tr><td style={{ padding: '1px 0' }}>{isSales ? 'Plg' : 'Sup'}</td><td style={{ padding: '1px 0' }}>: {isSales ? doc.customer : doc.supplier}</td></tr>}
+                          <tr><td style={{ padding: '1px 0' }}>{isSales ? 'Cust' : 'Sup'}</td><td style={{ padding: '1px 0' }}>: {isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}</td></tr>
                        </tbody>
                     </table>
                     
