@@ -150,7 +150,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
       <div className={`flex-1 overflow-hidden rounded-xl border ${colors.border} ${colors.panel} flex flex-col shadow-sm`}>
         <div className="flex-1 overflow-auto custom-scrollbar" onWheel={handleTableWheel}>
           <table className={`w-full text-sm text-left ${colors.text}`}>
-            <thead className={`text-xs uppercase sticky top-0 ${colors.panel} border-b ${colors.border} shadow-sm z-10`}>
+            <thead className={`text-xs uppercase sticky top-0 bg-white dark:bg-[#1e1e1e] border-b ${colors.border} shadow-sm z-10`}>
               <tr>
                 <th onClick={() => noSortKey && handleSort(noSortKey)} className={`px-2 sm:px-4 py-2 sm:py-2.5 text-center w-8 sm:w-12 ${noSortKey ? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group' : ''}`}>
                    <div className="flex items-center justify-center gap-1">
@@ -175,7 +175,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
                         )}
                      </div>
                      {openFilterKey === c.key && c.filterOptions && (
-                        <div ref={filterRef} className={`absolute top-full left-0 mt-1 w-48 rounded-xl shadow-lg border ${colors.border} ${colors.panel} z-50 overflow-hidden`}>
+                        <div ref={filterRef} className={`absolute top-full left-0 mt-1 w-48 rounded-xl shadow-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] z-50 overflow-hidden`}>
                            <div className={`p-2 border-b ${colors.border} flex justify-between items-center`}>
                               <span className={`text-xs font-bold ${colors.text}`}>Filter {c.label}</span>
                               <button onClick={() => { setFilters(prev => ({...prev, [c.key]: []})); setOpenFilterKey(null); }} className="text-[10px] text-red-500 hover:underline">Reset</button>
