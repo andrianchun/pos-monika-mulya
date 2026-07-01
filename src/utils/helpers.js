@@ -121,9 +121,12 @@ export const handleImageUpload = (e, callback, showToast, customMaxWidth = 300, 
             canvas.height = img.height * scaleSize;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            const isPNG = file.type === 'image/png';
-            callback(canvas.toDataURL(isPNG ? 'image/png' : 'image/jpeg', customQuality)); 
+            const isPNG = file.type === 'image/png' || (file.name && file.name.toLowerCase().endsWith('.png'));
+            if (isPNG) {
+                callback(canvas.toDataURL('image/png'));
+            } else {
+                callback(canvas.toDataURL('image/jpeg', customQuality)); 
+            }
          };
          img.src = evt.target.result;
       };
