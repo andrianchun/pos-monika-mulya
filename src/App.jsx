@@ -499,6 +499,35 @@ export default function App() {
     setActiveMenu(loggedInUser.role === 'kasir' ? 'pos' : 'dashboard');
   };
 
+  useEffect(() => {
+    if (products && products.length > 0 && categories && units) {
+      const prodCats = products.map(p => p.category).filter(Boolean);
+      const prodUnits = products.map(p => p.unit).filter(Boolean);
+      
+      const uniqueCats = Array.from(new Set([...categories, ...prodCats].map(c => typeof c === 'string' ? c.toUpperCase().trim() : c))).sort();
+      const uniqueUnits = Array.from(new Set([...units, ...prodUnits].map(u => typeof u === 'string' ? u.toLowerCase().trim() : u))).sort();
+      
+      let changedCats = false;
+      let changedUnits = false;
+      
+      if (uniqueCats.length > categories.length) {
+         setCategories(uniqueCats);
+         changedCats = true;
+      }
+      if (uniqueUnits.length > units.length) {
+         setUnits(uniqueUnits);
+         changedUnits = true;
+      }
+      
+      if (changedCats) {
+         setDoc(doc(db, "settings", "categories"), { values: JSON.parse(JSON.stringify(uniqueCats)) }).catch(console.error);
+      }
+      if (changedUnits) {
+         setDoc(doc(db, "settings", "units"), { values: JSON.parse(JSON.stringify(uniqueUnits)) }).catch(console.error);
+      }
+    }
+  }, [products, categories, units]);
+
   if (loading) return (
     <div className="min-h-screen w-full bg-[#121212] flex flex-col items-center justify-center font-sans relative overflow-hidden">
        {storeInfo?.banner && (
