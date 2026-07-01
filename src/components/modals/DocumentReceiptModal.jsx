@@ -6,7 +6,7 @@ import html2canvas from 'html2canvas';
 export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, isSoundOn, showToast }) {
   const [notaBlob, setNotaBlob] = useState(null);
   const [isRendering, setIsRendering] = useState(doc?.autoAction === 'wa'); // Langsung true jika autoAction WA
-
+  const [printMode, setPrintMode] = useState('thermal');
   const hasAutoActionRun = React.useRef(false);
 
   useEffect(() => {
@@ -32,7 +32,11 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
 
   const handlePrint = () => {
     playSound('pop', isSoundOn);
-    const printContent = document.getElementById('receipt-print-area').innerHTML;
+    const targetId = printMode === 'a5' ? 'invoice-print-area' : 'receipt-print-area';
+    const printContent = document.getElementById(targetId).innerHTML;
+    const printSize = printMode === 'a5' ? 'A5 portrait' : '48mm auto';
+    const printWidth = printMode === 'a5' ? '148mm' : '48mm';
+    const zoomCss = printMode === 'a5' ? '' : 'zoom: 0.94;';
     
     // Hapus iframe lama jika ada (mencegah Chrome Print Crash)
     const oldIframe = document.getElementById('receipt-print-iframe');
@@ -57,7 +61,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
           <title>Cetak Nota</title>
           <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
-            @page { margin: 0; size: 48mm auto; } 
+            @page { margin: ${printMode === 'a5' ? '10mm' : '0'}; size: ${printSize}; } 
             html, body {
               margin: 0 !important;
               padding: 0 !important;
@@ -67,14 +71,16 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
             body { 
               font-family: Arial, Helvetica, sans-serif; 
               color: #000; 
-              width: 48mm; 
-              max-width: 48mm;
-              zoom: 0.94;
+              width: ${printWidth}; 
+              max-width: ${printWidth};
+              ${zoomCss}
             }
           </style>
         </head>
         <body>
-          ${printContent}
+          <div style="${printMode === 'a5' ? 'padding: 0; width: 100%;' : ''}">
+            ${printContent}
+          </div>
         </body>
       </html>
     `);
@@ -209,6 +215,13 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
 
            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-gray-100 dark:bg-[#121212] flex flex-col items-center relative">
               
+              {!isAuto && (
+                 <div className="flex items-center gap-2 mb-4 bg-white dark:bg-[#1e1e1e] p-1 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm shrink-0 sticky top-0 z-10 w-fit mx-auto">
+                    <button onClick={() => { playSound('pop', isSoundOn); setPrintMode('thermal'); }} className={`px-4 py-1.5 text-sm font-bold rounded-md transition-colors ${printMode === 'thermal' ? colors.goldBg + ' text-[#18181B]' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Thermal 58mm</button>
+                    <button onClick={() => { playSound('pop', isSoundOn); setPrintMode('a5'); }} className={`px-4 py-1.5 text-sm font-bold rounded-md transition-colors ${printMode === 'a5' ? colors.goldBg + ' text-[#18181B]' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Invoice A5</button>
+                 </div>
+              )}
+
               {isRendering && (
                    <div className="absolute inset-0 bg-white/80 dark:bg-black/80 z-[100] flex flex-col items-center justify-center backdrop-blur-md">
                       <div className="bg-white dark:bg-[#1e1e1e] p-6 rounded-2xl shadow-2xl flex flex-col items-center text-center max-w-[80%] border-2 border-[#D4AF37]">
@@ -219,6 +232,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                    </div>
               )}
 
+              {printMode === 'thermal' ? (
               <div className="bg-white text-black p-3 shadow-sm w-full mx-auto" style={{ maxWidth: '48mm', minHeight: 'fit-content' }}>
                  
                  <div id="receipt-print-area" style={{ color: '#000', backgroundColor: '#fff', fontSize: '10px', lineHeight: '1.2', fontFamily: 'Arial, sans-serif', width: '100%', maxWidth: '48mm', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>
@@ -253,8 +267,8 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                                    <td colSpan="2" style={{ fontWeight: 'bold', padding: '1px 0' }}>{item.name}</td>
                                 </tr>
                                 <tr>
-                                   <td style={{ padding: '0 0 2px 0' }}>{item.qty} {item.unit} x {formatIDR(item.unitPrice)}</td>
-                                   <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '0 0 2px 0' }}>Rp {formatIDR(item.subtotal)}</td>
+                                   <td style={{ padding: '0 0 2px 0' }}>{item.qty} {item.unit} x {formatIDR(item.unitPrice || item.price)}</td>
+                                   <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '0 0 2px 0' }}>Rp {formatIDR(item.subtotal || item.total)}</td>
                                 </tr>
                              </React.Fragment>
                           ))}
@@ -280,6 +294,104 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                  </div>
 
               </div>
+              ) : (
+                  <div className="bg-white text-black shadow-sm w-full mx-auto relative overflow-hidden" style={{ maxWidth: '148mm', minHeight: '210mm', padding: '10mm' }}>
+                     <div id="invoice-print-area" style={{ color: '#000', backgroundColor: '#fff', fontSize: '12px', lineHeight: '1.4', fontFamily: 'Arial, sans-serif', width: '100%', boxSizing: 'border-box' }}>
+                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '15px' }}>
+                             <div style={{ width: '50%' }}>
+                                 {(storeInfo.logoNota || storeInfo.logo) && (
+                                     <img src={storeInfo.logoNota || storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '60mm', maxHeight: '25mm', objectFit: 'contain', marginBottom: '8px' }}/>
+                                 )}
+                                 <div style={{ fontWeight: '900', fontSize: '16px' }}>{storeInfo.name}</div>
+                                 <div style={{ fontSize: '12px', color: '#333', marginTop: '4px' }}>
+                                     {storeInfo.address}<br/>Telp: {storeInfo.phone}
+                                 </div>
+                             </div>
+                             <div style={{ width: '45%', textAlign: 'right' }}>
+                                 <div style={{ fontSize: '24px', fontWeight: '900', color: '#D4AF37', letterSpacing: '2px', textTransform: 'uppercase' }}>INVOICE</div>
+                                 <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
+                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                         <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>No Nota</span>
+                                         <span style={{ fontWeight: 'bold' }}>: {doc.nota}</span>
+                                     </div>
+                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                         <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>Tanggal</span>
+                                         <span>: {new Date(doc.date).toLocaleString('id-ID')}</span>
+                                     </div>
+                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                         <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>Kasir</span>
+                                         <span>: {doc.kasir}</span>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+
+                         <div style={{ marginBottom: '15px' }}>
+                             <div style={{ fontSize: '11px', color: '#666', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px' }}>Kepada Yth:</div>
+                             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}</div>
+                         </div>
+
+                         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px', fontSize: '12px' }}>
+                             <thead>
+                                 <tr>
+                                     <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'left', width: '5%' }}>No</th>
+                                     <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'left', width: '40%' }}>Deskripsi Barang</th>
+                                     <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'center', width: '15%' }}>Qty</th>
+                                     <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'right', width: '20%' }}>Harga Satuan</th>
+                                     <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'right', width: '20%' }}>Total</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 {doc.items.map((item, index) => (
+                                     <tr key={item.id}>
+                                         <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top' }}>{index + 1}</td>
+                                         <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', fontWeight: 'bold' }}>{item.name}</td>
+                                         <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', textAlign: 'center' }}>{item.qty} {item.unit}</td>
+                                         <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', textAlign: 'right' }}>Rp {formatIDR(item.unitPrice || item.price)}</td>
+                                         <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', textAlign: 'right', fontWeight: 'bold' }}>Rp {formatIDR(item.subtotal || item.total)}</td>
+                                     </tr>
+                                 ))}
+                             </tbody>
+                         </table>
+
+                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', pageBreakInside: 'avoid' }}>
+                             <div style={{ width: '45%', display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '12px' }}>
+                                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100px' }}>
+                                     <div>Penerima,</div>
+                                     <div style={{ borderBottom: '1px solid #000', width: '120px', margin: '0 auto' }}></div>
+                                 </div>
+                                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100px' }}>
+                                     <div>Hormat Kami,</div>
+                                     <div style={{ borderBottom: '1px solid #000', width: '120px', margin: '0 auto' }}>{doc.kasir}</div>
+                                 </div>
+                             </div>
+
+                             <div style={{ width: '45%' }}>
+                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                     <tbody>
+                                         <tr><td style={{ padding: '4px', color: '#666' }}>Subtotal</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>Rp {formatIDR(doc.subtotal)}</td></tr>
+                                         {doc.discount > 0 && <tr><td style={{ padding: '4px', color: '#666' }}>Diskon</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold', color: 'red' }}>-Rp {formatIDR(doc.discount)}</td></tr>}
+                                         {doc.ongkir > 0 && <tr><td style={{ padding: '4px', color: '#666' }}>Ongkir</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>Rp {formatIDR(doc.ongkir)}</td></tr>}
+                                         <tr><td colSpan="2"><div style={{ borderTop: '2px solid #000', margin: '4px 0' }}></div></td></tr>
+                                         <tr><td style={{ padding: '4px', fontWeight: '900', fontSize: '14px' }}>GRAND TOTAL</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: '900', fontSize: '14px' }}>Rp {formatIDR(doc.total)}</td></tr>
+                                         <tr><td style={{ padding: '4px', color: '#666' }}>Telah Dibayar</td><td style={{ padding: '4px', textAlign: 'right' }}>Rp {formatIDR(doc.paid)}</td></tr>
+                                         <tr><td style={{ padding: '4px', color: '#666' }}>Kembali/Kurang</td><td style={{ padding: '4px', textAlign: 'right' }}>Rp {formatIDR(doc.paid - doc.total)}</td></tr>
+                                     </tbody>
+                                 </table>
+                                 
+                                 <div style={{ border: '2px solid #000', color: '#000', fontSize: '16px', fontWeight: '900', textAlign: 'center', padding: '8px', marginTop: '15px', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                                     {watermarkText}
+                                 </div>
+                             </div>
+                         </div>
+                         
+                         <div style={{ textAlign: 'center', marginTop: '30px', fontSize: '11px', color: '#666', fontStyle: 'italic', pageBreakInside: 'avoid' }}>
+                            Terima kasih telah berbelanja di {storeInfo.name}
+                         </div>
+
+                     </div>
+                  </div>
+              )}
            </div>
 
            {!isAuto && (

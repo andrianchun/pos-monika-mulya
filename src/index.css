@@ -34,12 +34,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   background: #475569;
 }
 
-/* WAJIB UNTUK PRINTER KASIR THERMAL */
+/* WAJIB UNTUK PRINTER KASIR THERMAL DAN INVOICE A5 */
 @media print {
   body * {
     visibility: hidden;
   }
-  #print-area, #print-area * {
+  #print-area, #print-area *,
+  #invoice-print-area, #invoice-print-area * {
     visibility: visible;
   }
   #print-area {
@@ -52,6 +53,17 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     color: black !important;
     background: white !important;
     padding: 0;
+    margin: 0;
+  }
+  #invoice-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 148mm; /* A5 width */
+    font-family: 'Arial', sans-serif;
+    color: black !important;
+    background: white !important;
+    padding: 10mm;
     margin: 0;
   }
   .no-print {
