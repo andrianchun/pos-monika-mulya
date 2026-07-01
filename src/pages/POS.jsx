@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ShoppingCart, Search, ChevronLeft, ChevronRight, X, Trash2, Calendar, Ticket, Gift, Package, Wallet } from 'lucide-react';
+import DateInput from '../components/DateInput';
 import { formatIDR, parseIDR, playSound, calculateDynamicPrice, smartFormatInput } from '../utils/helpers';
 import useDebounce from '../hooks/useDebounce';
 import SearchableSelect from '../components/ui/SearchableSelect';
@@ -500,7 +501,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                 </div>
                 <div className="w-[120px]">
                    <label className={`text-[10px] sm:text-xs font-semibold mb-1 block ${colors.textMuted}`}>Tanggal</label>
-                   <input type="date" className={`w-full p-[9px] rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none text-xs [color-scheme:light] dark:[color-scheme:dark]`} value={transactionDate} onChange={e => setTransactionDate(e.target.value)} />
+                   <DateInput className={`w-full p-[9px] rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none text-xs [color-scheme:light] dark:[color-scheme:dark]`} value={transactionDate} onChange={e => setTransactionDate(e.target.value)} />
                 </div>
                 <button onClick={clearCart} className={`p-2.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors h-[42px]`}><Trash2 size={18} /></button>
               </div>

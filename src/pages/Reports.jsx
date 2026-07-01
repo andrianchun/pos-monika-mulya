@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FileText, Package, PieChart, ChevronLeft, Filter, BarChart, TrendingUp, TrendingDown, Wallet, Store, CreditCard, Edit, Trash2, X, AlertTriangle, History } from 'lucide-react';
-import { formatIDR, parseIDR, playSound, calculateDateRange, formatDate, formatDateTime } from '../utils/helpers';
+import { formatIDR, parseIDR, playSound, calculateDateRange, formatDate, formatDateTime, getWeekStart, smartFormatInput } from '../utils/helpers';
+import DateInput from '../components/DateInput';
 import SimpleChart from '../components/ui/SimpleChart';
 import DataTable from '../components/ui/DataTable';
 import DonutChart from '../components/ui/DonutChart';
@@ -338,16 +339,16 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
                            onClick={(e) => { try { e.currentTarget.querySelector('input').showPicker(); } catch(err) {} }}
                         >
                            <span className={`px-2 text-xs font-semibold ${colors.text} pointer-events-none`}>{dateRangeInfo.label}</span>
-                           <input type="date" className="absolute inset-0 opacity-0 w-full h-full pointer-events-none" onChange={(e) => { playSound('pop', isSoundOn); handleDateJump(e); }} max={new Date().toISOString().split('T')[0]} />
+                           <DateInput className="absolute inset-0 opacity-0 w-full h-full pointer-events-none" onChange={(e) => { playSound('pop', isSoundOn); handleDateJump(e); }} max={new Date().toISOString().split('T')[0]} />
                         </div>
                         <button onClick={() => { if(dateOffset < 0) { playSound('pop', isSoundOn); setDateOffset(prev => prev + 1); } }} className={`px-3 h-full flex items-center transition-colors ${dateOffset >= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#27272A]'} ${colors.textMuted}`} disabled={dateOffset >= 0}><ChevronLeft size={16} className="transform rotate-180" /></button>
                      </div>
                   )}
                   {filterMode === 'Manual' && (
                      <div className="flex items-center gap-1">
-                        <input type="date" className={`p-2 text-sm rounded border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={startDate} onChange={e => setStartDate(e.target.value)} />
+                        <DateInput className={`p-2 text-sm rounded border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={startDate} onChange={e => setStartDate(e.target.value)} />
                         <span className={colors.textMuted}>-</span>
-                        <input type="date" className={`p-2 text-sm rounded border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={endDate} onChange={e => setEndDate(e.target.value)} />
+                        <DateInput className={`p-2 text-sm rounded border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={endDate} onChange={e => setEndDate(e.target.value)} />
                      </div>
                   )}
                   <div className="flex items-center gap-2 ml-2">
@@ -597,7 +598,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
                <form onSubmit={handleAccSave} className="space-y-4">
                  <div>
                    <label className={`block text-xs font-semibold mb-2 ${colors.textMuted}`}>Waktu & Tanggal</label>
-                   <input type="datetime-local" required className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37] [color-scheme:light] dark:[color-scheme:dark]`} value={accForm.date} onChange={e=>setAccForm({...accForm, date: e.target.value})} />
+                   <DateInput type="datetime-local" required className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37] [color-scheme:light] dark:[color-scheme:dark]`} value={accForm.date} onChange={e=>setAccForm({...accForm, date: e.target.value})} />
                  </div>
                  <div>
                    <label className={`block text-xs font-semibold mb-2 ${colors.textMuted}`}>Pilih Kelompok Akun</label>

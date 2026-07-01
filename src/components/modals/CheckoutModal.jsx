@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Printer, Send, ChevronDown } from 'lucide-react';
+import DateInput from '../DateInput';
 import { formatIDR, parseIDR, smartFormatInput, playSound } from '../../utils/helpers';
 
 export default function CheckoutModal({ posMode, total, financialAccounts, paymentMethodId, setPaymentMethodId, dueDate, setDueDate, paymentAmount, setPaymentAmount, handleCheckout, setCheckoutModal, colors, isSoundOn, activeCustomerDeposit = 0, activeCustomerPoints = 0, pointValue = 100, minPointRedeem = 100, isCustomerUmum = false, activeCustomerPhone = '', showToast }) {
@@ -126,7 +127,7 @@ export default function CheckoutModal({ posMode, total, financialAccounts, payme
           {remaining > 0 && (
              <div>
                 <label className={`block text-xs font-bold mb-2 ${colors.text}`}>Jatuh Tempo (Kredit)</label>
-                <input type="date" className={`w-full p-3 rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none [color-scheme:light] dark:[color-scheme:dark]`} value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                <DateInput className={`w-full p-3 rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none [color-scheme:light] dark:[color-scheme:dark]`} value={dueDate} onChange={e => setDueDate(e.target.value)} />
              </div>
           )}
 

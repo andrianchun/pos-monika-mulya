@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Lock, Store, Plus, Edit, Trash2, X, DownloadCloud, UploadCloud, Tags, Gift, Ticket, Camera, CheckSquare, Square, Image } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload, formatWhatsAppNumber } from '../utils/helpers';
+import DateInput from '../components/DateInput';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import SearchableSelect from '../components/ui/SearchableSelect';
 
@@ -1068,8 +1069,8 @@ export default function SettingsPage({
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                     <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tgl Mulai</label><input type="date" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm [color-scheme:light] dark:[color-scheme:dark]`} value={pForm.startDate} onChange={e=>setPForm({...pForm, startDate: e.target.value})} /></div>
-                     <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tgl Selesai</label><input type="date" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm [color-scheme:light] dark:[color-scheme:dark]`} value={pForm.endDate} onChange={e=>setPForm({...pForm, endDate: e.target.value})} /></div>
+                     <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tgl Mulai</label><DateInput className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm [color-scheme:light] dark:[color-scheme:dark]`} value={pForm.startDate} onChange={e=>setPForm({...pForm, startDate: e.target.value})} /></div>
+                     <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Tgl Selesai</label><DateInput className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent outline-none text-sm [color-scheme:light] dark:[color-scheme:dark]`} value={pForm.endDate} onChange={e=>setPForm({...pForm, endDate: e.target.value})} /></div>
                   </div>
                   <div>
                      <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nilai Diskon (Ketik % jika persentase)</label>
