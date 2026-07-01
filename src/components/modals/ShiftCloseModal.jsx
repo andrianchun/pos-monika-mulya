@@ -306,12 +306,12 @@ export default function ShiftCloseModal({ colors,
                        </div>
                        
                        {activeShift ? (
-                            <button
-                               onClick={handleFinalize}
-                               className={`w-full p-4 ${colors.button} rounded-xl font-bold shadow-lg hover:opacity-90 transition-all transform active:scale-[0.98] flex justify-center items-center gap-2`}
-                            >
-                               Selesai & Akhiri Shift
-                            </button>
+                             <button
+                                onClick={handleFinalize}
+                                className={`w-full p-4 ${colors.goldBg} text-[#18181B] rounded-xl font-bold shadow-lg hover:opacity-90 transition-all transform active:scale-[0.98] flex justify-center items-center gap-2`}
+                             >
+                                Selesai & Akhiri Shift
+                             </button>
                         ) : (
                             <button
                                onClick={onClose}
