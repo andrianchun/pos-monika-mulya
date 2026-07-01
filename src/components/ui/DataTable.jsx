@@ -117,8 +117,8 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
             <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
             <input 
               type="text" 
-              placeholder="Cari nama atau Barcode..." 
-              className={`w-full pl-10 pr-10 py-3 sm:py-1.5 h-[44px] rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} 
+              placeholder={searchPlaceholder === 'Cari nama atau Barcode...' ? 'Cari' : searchPlaceholder} 
+              className={`w-full pl-10 pr-10 py-3 sm:py-1.5 h-[44px] rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing} placeholder-gray-400/50 dark:placeholder-gray-500/50`} 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
             />

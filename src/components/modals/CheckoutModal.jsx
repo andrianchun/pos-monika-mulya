@@ -114,14 +114,25 @@ export default function CheckoutModal({ posMode, total, financialAccounts, payme
 
           <div className="pt-2 border-t border-dashed border-gray-300 dark:border-gray-700">
              <label className={`block text-xs font-bold mb-2 ${colors.text}`}>Metode Pembayaran</label>
-             <div className="relative">
-                <select className={`w-full p-3 pr-10 rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none appearance-none`} value={paymentMethodId} onChange={e => setPaymentMethodId(e.target.value)}>
-                   {financialAccounts.map(fa => <option key={fa.id} value={fa.id}>{fa.name}</option>)}
-                </select>
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500">
-                   <ChevronDown size={18} />
-                </div>
-             </div>
+               <div className="flex items-center gap-2 w-full justify-between">
+                  {financialAccounts.map(fa => {
+                     const isActive = String(paymentMethodId) === String(fa.id);
+                     return (
+                        <button
+                           type="button"
+                           key={fa.id}
+                           onClick={() => { playSound('pop', isSoundOn); setPaymentMethodId(fa.id); }}
+                           className={`flex-1 py-3 px-2 rounded-xl text-xs sm:text-sm font-bold border transition-all ${
+                              isActive 
+                               ? `${colors.goldBg} text-white dark:text-black border-transparent shadow-md` 
+                               : `bg-white dark:bg-[#1e1e1e] ${colors.border} ${colors.textMuted} hover:bg-gray-50 dark:hover:bg-[#2a2a24]`
+                           }`}
+                        >
+                           {fa.name}
+                        </button>
+                     );
+                  })}
+               </div>
           </div>
 
           {remaining > 0 && (

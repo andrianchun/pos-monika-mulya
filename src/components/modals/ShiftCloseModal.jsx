@@ -165,11 +165,11 @@ export default function ShiftCloseModal({ colors,
                   <LogOut size={20} />
                   <h3 className="font-bold text-lg">Tutup Shift Kasir</h3>
                </div>
-               {onClose && step === 1 && (
-                   <button onClick={onClose} className="p-1 hover:bg-white/20 rounded">
-                       <X size={20} />
-                   </button>
-               )}
+                 {onClose && (
+                     <button onClick={onClose} className="p-1 hover:bg-white/20 rounded transition-colors text-white">
+                         <X size={20} />
+                     </button>
+                 )}
             </div>
             
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
@@ -305,20 +305,13 @@ export default function ShiftCloseModal({ colors,
                            </div>
                        </div>
                        
-                       {activeShift ? (
+                       {activeShift && (
                              <button
                                 onClick={handleFinalize}
                                 className={`w-full p-4 ${colors.goldBg} text-[#18181B] rounded-xl font-bold shadow-lg hover:opacity-90 transition-all transform active:scale-[0.98] flex justify-center items-center gap-2`}
                              >
                                 Selesai & Akhiri Shift
                              </button>
-                        ) : (
-                            <button
-                               onClick={onClose}
-                               className={`w-full p-4 bg-gray-200 dark:bg-[#3F3F46] hover:bg-gray-300 dark:hover:bg-gray-600 rounded-xl font-bold text-gray-800 dark:text-white transition-all transform active:scale-[0.98] flex justify-center items-center gap-2`}
-                            >
-                               Tutup Modal
-                            </button>
                         )}
                    </div>
                )}

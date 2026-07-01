@@ -478,13 +478,12 @@ export default function POS({ products, setProducts, customers, setCustomers, su
               </div>
               <div className="relative flex-1">
                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
-                 <input type="text" placeholder="Cari nama atau Barcode..." className={`w-full pl-10 pr-10 py-3 sm:py-1.5 h-[44px] rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} value={posSearch} onChange={e => setPosSearch(e.target.value)} onKeyDown={handleSearchKeyDown} />
+                 <input type="text" placeholder="Cari" className={`w-full pl-10 pr-10 py-3 sm:py-1.5 h-[44px] rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing} placeholder-gray-400/50 dark:placeholder-gray-500/50`} value={posSearch} onChange={e => setPosSearch(e.target.value)} onKeyDown={handleSearchKeyDown} />
                  {posSearch && <button onClick={() => setPosSearch('')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X size={18}/></button>}
               </div>
               <button onClick={() => { 
                  if(activeShift) setShowKasEkstraModal(true); 
                  else {
-                    showToast('Buka shift terlebih dahulu', 'error');
                     if(setShowShiftOpenModal) setShowShiftOpenModal(true);
                  }
               }} className={`h-[44px] px-3 sm:px-4 rounded-xl border ${colors.border} ${colors.panel} hover:${colors.creamBg} transition-colors flex items-center justify-center gap-2 font-bold whitespace-nowrap shrink-0`}>
@@ -648,8 +647,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
               </div>
               <button onClick={() => { 
                   if (posMode === 'penjualan' && !activeShift) {
-                      playSound('error', isSoundOn);
-                      showToast('Buka shift terlebih dahulu!', 'error');
+                      playSound('pop', isSoundOn);
                       if (setShowShiftOpenModal) setShowShiftOpenModal(true);
                       return;
                   }
@@ -660,7 +658,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                   }
                   playSound('pop', isSoundOn); setCheckoutModal(true); 
               }} className={`w-full py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-transform ${(posMode === 'penjualan' && !activeShift) ? `bg-[#D4AF37]/20 border border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/30 hover:scale-[1.02] shadow-lg` : cart.length === 0 ? 'bg-gray-400 text-[#18181B] cursor-not-allowed' : posMode === 'penjualan' ? `${colors.goldBg} text-[#18181B] hover:scale-[1.02] shadow-lg` : `${colors.goldBg} text-[#18181B] hover:scale-[1.02] shadow-lg`}`}>
-                  {(posMode === 'penjualan' && !activeShift) ? 'BUKA SHIFT DULU' : posMode === 'penjualan' ? 'BAYAR SEKARANG' : 'PROSES PEMBELIAN'}
+                  {(posMode === 'penjualan' && !activeShift) ? 'BUKA SHIFT' : posMode === 'penjualan' ? 'BAYAR SEKARANG' : 'PROSES PEMBELIAN'}
               </button>
             </div>
           </div>

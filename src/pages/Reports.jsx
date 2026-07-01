@@ -9,16 +9,48 @@ import DocumentReceiptModal from '../components/modals/DocumentReceiptModal';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 const getLocalDatetime = (d) => { const date = d ? new Date(d) : new Date(); const tzoffset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - tzoffset).toISOString().slice(0, 16); };
 
+const MiniPieChart = ({ data }) => {
+   const total = data.reduce((sum, d) => sum + Math.abs(d.value), 0);
+   if (total === 0) return <PieChart className="absolute -top-4 -right-4 w-28 h-28 text-gray-500 opacity-10 pointer-events-none transform rotate-12" />;
+
+   let currentPercent = 0;
+   const segments = data.map(d => {
+       const percent = (Math.abs(d.value) / total) * 100;
+       const str = `${d.color} ${currentPercent}% ${currentPercent + percent}%`;
+       currentPercent += percent;
+       return str;
+   });
+
+   return (
+       <div 
+         className="absolute -top-4 -right-4 w-28 h-28 rounded-full opacity-30 dark:opacity-40 pointer-events-none transform rotate-12 shadow-inner border border-white/20 dark:border-black/20" 
+         style={{ background: `conic-gradient(${segments.join(', ')})` }}
+       />
+   );
+};
+
 export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, customers, colors, baseColors, isSoundOn, theme, storeInfo, showToast, globalMode, setGlobalMode, globalChartMode, setGlobalChartMode }) {
-  const [activeReport, setActiveReport] = useState(globalMode);
+  const [activeReport, setActiveReport] = useState(globalMode === 'penjualan' || globalMode === 'pembelian' || globalMode === 'produk' ? globalMode : 'neraca');
   
   useEffect(() => {
-     if (globalMode === 'penjualan' || globalMode === 'pembelian') {
+     if (globalMode === 'penjualan' || globalMode === 'pembelian' || globalMode === 'produk' || globalMode === 'neraca') {
         setActiveReport(globalMode);
      }
   }, [globalMode]);
-  const [selectedAccFilter, setSelectedAccFilter] = useState(''); 
-  const [selectedSysFilter, setSelectedSysFilter] = useState(''); 
+  const [selectedAccounts, setSelectedAccounts] = useState([]);
+  const [showIncome, setShowIncome] = useState(true);
+  const [showExpense, setShowExpense] = useState(true);
+  const [hideSystem, setHideSystem] = useState(false);
+  const [utangModalOpen, setUtangModalOpen] = useState(false);
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [piutangModalOpen, setPiutangModalOpen] = useState(false);
+  
+  const handleAccountClick = (accId) => {
+     playSound('pop', isSoundOn);
+     setSelectedAccounts([accId.toString()]);
+     setViewMode('tabel');
+     setTimeout(() => { document.getElementById('jurnal-table-section')?.scrollIntoView({ behavior: 'smooth' }); }, 100);
+  }; 
   const [filterMode, setFilterMode] = useState('Bulanan'); 
   const [dateOffset, setDateOffset] = useState(0);
   const dateRangeInfo = useMemo(() => calculateDateRange(filterMode, dateOffset), [filterMode, dateOffset]); 
@@ -28,6 +60,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
   const [showAccModal, setShowAccModal] = useState(false);
   const [deleteAccData, setDeleteAccData] = useState(null);
   const [accForm, setAccForm] = useState({ id: '', type: 'kas', accountId: financialAccounts[0]?.id || '', name: '', amount: '', date: getLocalDatetime(), isExpense: false });
+  const [viewMode, setViewMode] = useState('grafik');
 
   const getFilteredData = (dataArray) => {
      if(filterMode === 'Keseluruhan') return dataArray;
@@ -221,7 +254,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
 
       const persediaan = products.reduce((sum, p) => sum + (p.stock * p.cost), 0);
       const piutang = sales.filter(s => s.status === 'Tempo').reduce((sum, s) => sum + Math.max(0, s.total - (s.paid || 0)), 0);
-      const kasBalances = financialAccounts.map(acc => ({ name: acc.name, balance: accounting.filter(a => a.type === 'kas' && a.accountId === acc.id).reduce((sum, a) => sum + a.amount, 0) }));
+      const kasBalances = financialAccounts.map(acc => ({ id: acc.id, name: acc.name, balance: accounting.filter(a => a.type === 'kas' && a.accountId === acc.id).reduce((sum, a) => sum + a.amount, 0) }));
       const totalKas = kasBalances.reduce((sum, k) => sum + k.balance, 0);
       const asetLancarTotal = totalKas + piutang + persediaan;
       const asetTetap = accounting.filter(a => a.type === 'aset_tetap').reduce((sum, a) => sum + a.amount, 0);
@@ -236,12 +269,10 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
       const modalDisetor = accounting.filter(a => a.type === 'modal' || a.type === 'ekuitas').reduce((sum, a) => sum + a.amount, 0);
       const labaDitahan = totalEkuitas - modalDisetor - labaBersihBerjalan;
 
-      return { asetLancarTotal, asetTetap, totalAset, liabLainOnly, utang, totalDepositPelanggan, totalLiabilitas, modalDisetor, labaDitahan, labaBersihBerjalan, totalEkuitas, persediaan, piutang, kasBalances };
+      return { asetLancarTotal, asetTetap, totalAset, liabLainOnly, utang, totalDepositPelanggan, totalLiabilitas, modalDisetor, labaDitahan, labaBersihBerjalan, totalEkuitas, persediaan, piutang, kasBalances, totalKas };
    };
 
-
-
-   const neraca = useMemo(() => calculateNeraca(), [sales, purchases, accounting, products, financialAccounts, customers]);;
+   const neraca = useMemo(() => calculateNeraca(), [sales, purchases, accounting, products, financialAccounts, customers]);
 
   const handleDateJump = (e) => {
      if(!e.target.value) return;
@@ -278,10 +309,19 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
   });
 
   const filteredAccountingTable = enrichedAccounting.filter(a => {
-     const matchAcc = selectedAccFilter === '' || a.accountId === Number(selectedAccFilter);
      const isSystem = /^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Bayar Cicilan|Pelunasan\/Cicilan|Selisih Shift|Setoran Shift|Tukar Poin)/i.test(a.name || '');
-     const matchSys = selectedSysFilter === '' || (selectedSysFilter === 'otomatis' && isSystem) || (selectedSysFilter === 'manual' && !isSystem);
-     return matchAcc && matchSys;
+     if (hideSystem && isSystem) return false;
+     
+     if (!showIncome && !showExpense) return false;
+     if (!showIncome && a.amount > 0) return false;
+     if (!showExpense && a.amount < 0) return false;
+     
+     if (selectedAccounts.length > 0) {
+        if (!selectedAccounts.includes(a.accountId?.toString()) && !selectedAccounts.includes(a.type)) {
+           return false;
+        }
+     }
+     return true;
   });
 
   const accColumns = [
@@ -293,96 +333,118 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden -m-4 md:-m-6 bg-gray-50 dark:bg-[#121212]">
-      <div className="flex-1 overflow-y-auto p-2 sm:p-4 custom-scrollbar">
-         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-4 mb-4 min-h-[44px]">
-           <div className={`flex items-center rounded-lg p-1 ${colors.creamBg} border ${colors.border} w-fit h-fit shrink-0`}>
-              <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('penjualan'); setGlobalMode('penjualan'); }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${activeReport === 'penjualan' ? `${colors.goldBg} text-[#18181B] shadow` : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
-              <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('pembelian'); setGlobalMode('pembelian'); }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${activeReport === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
-              <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('neraca'); }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${activeReport === 'neraca' ? 'bg-[#D4AF37] text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Neraca</button>
-              <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('produk'); }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${activeReport === 'produk' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Produk</button>
-           </div>
-           {activeReport !== 'neraca' && (
-               <div className="flex items-center gap-2 flex-wrap justify-end">
-                  {filterMode !== 'Keseluruhan' && filterMode !== 'Manual' && (
-                     <div className={`flex items-center border ${colors.border} rounded-lg overflow-hidden h-[38px] bg-white dark:bg-[#1e1e1e]`}>
-                        <button onClick={() => { playSound('pop', isSoundOn); setDateOffset(prev => prev - 1); }} className={`px-3 h-full flex items-center hover:bg-gray-100 dark:hover:bg-[#27272A] ${colors.textMuted}`}><ChevronLeft size={16} /></button>
-                        <div 
-                           className="relative flex items-center justify-center flex-1 h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-[#27272A] transition-colors min-w-[120px]"
-                           onClick={(e) => { try { e.currentTarget.querySelector('input').showPicker(); } catch(err) {} }}
-                        >
-                           <span className={`px-2 text-xs font-semibold ${colors.text} pointer-events-none`}>{dateRangeInfo.label}</span>
-                           <DateInput className="absolute inset-0 opacity-0 w-full h-full pointer-events-none" onChange={(e) => { playSound('pop', isSoundOn); handleDateJump(e); }} max={new Date().toISOString().split('T')[0]} />
-                        </div>
-                        <button onClick={() => { if(dateOffset < 0) { playSound('pop', isSoundOn); setDateOffset(prev => prev + 1); } }} className={`px-3 h-full flex items-center transition-colors ${dateOffset >= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#27272A]'} ${colors.textMuted}`} disabled={dateOffset >= 0}><ChevronLeft size={16} className="transform rotate-180" /></button>
-                     </div>
-                  )}
-                  {filterMode === 'Manual' && (
-                     <div className="flex items-center gap-1">
-                        <DateInput className={`p-2 text-sm rounded border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={startDate} onChange={e => setStartDate(e.target.value)} />
-                        <span className={colors.textMuted}>-</span>
-                        <DateInput className={`p-2 text-sm rounded border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={endDate} onChange={e => setEndDate(e.target.value)} />
-                     </div>
-                  )}
-                  <div className="flex items-center gap-2 ml-2">
-                     <Filter size={16} className={colors.textMuted}/>
-                     <select className={`p-2 rounded-lg text-sm border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={filterMode} onChange={e => { playSound('pop', isSoundOn); setFilterMode(e.target.value); setDateOffset(0); }}>
-                        <option>Harian</option><option>Mingguan</option><option>Bulanan</option><option>Tahunan</option><option>Keseluruhan</option><option>Manual</option>
-                     </select>
-                  </div>
-               </div>
-            )}
-         </div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#18181B] px-4 pt-4 shadow-sm z-10 gap-4 shrink-0 overflow-x-auto custom-scrollbar select-none">
+          <div className="flex w-full sm:w-auto overflow-x-auto custom-scrollbar">
+             <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('neraca'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'neraca' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Neraca</button>
+             <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('penjualan'); setGlobalMode('penjualan'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'penjualan' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Penjualan</button>
+             <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('pembelian'); setGlobalMode('pembelian'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'pembelian' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Pembelian</button>
+             <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('produk'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'produk' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Produk</button>
+          </div>
+          {(activeReport === 'penjualan' || activeReport === 'pembelian' || activeReport === 'neraca') && (
+              <div className="flex items-center gap-2 mb-3 flex-wrap sm:flex-nowrap justify-end shrink-0">
+                 {activeReport !== 'neraca' && (
+                    <div className="flex items-center gap-2 mr-1">
+                       {filterMode !== 'Keseluruhan' && filterMode !== 'Manual' && (
+                          <div className={`flex items-center border ${colors.border} rounded-lg overflow-hidden h-[36px] bg-white dark:bg-[#18181B]`}>
+                             <button onClick={() => { playSound('pop', isSoundOn); setDateOffset(prev => prev - 1); }} className={`px-2 h-full flex items-center hover:bg-gray-100 dark:hover:bg-[#27272A] ${colors.textMuted}`}><ChevronLeft size={16} /></button>
+                             <div className="relative flex items-center justify-center h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-[#27272A] transition-colors" onClick={(e) => { try { e.currentTarget.querySelector('input').showPicker(); } catch(err) {} }}>
+                                <span className={`px-2 text-[13px] font-bold ${colors.text} pointer-events-none whitespace-nowrap`}>{dateRangeInfo.label}</span>
+                                <input type="date" className="absolute inset-0 opacity-0 w-full h-full pointer-events-none" onChange={(e) => { playSound('pop', isSoundOn); handleDateJump(e); }} max={new Date().toISOString().split('T')[0]} />
+                             </div>
+                             <button onClick={() => { if(dateOffset < 0) { playSound('pop', isSoundOn); setDateOffset(prev => prev + 1); } }} className={`px-2 h-full flex items-center transition-colors ${dateOffset >= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#27272A]'} ${colors.textMuted}`} disabled={dateOffset >= 0}><ChevronLeft size={16} className="transform rotate-180" /></button>
+                          </div>
+                       )}
+                       {filterMode === 'Manual' && (
+                          <div className="flex items-center gap-1 h-[36px]">
+                             <DateInput className={`h-full px-2 text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={startDate} onChange={e => setStartDate(e.target.value)} />
+                             <span className={colors.textMuted}>-</span>
+                             <DateInput className={`h-full px-2 text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={endDate} onChange={e => setEndDate(e.target.value)} />
+                          </div>
+                       )}
+                       <div className={`flex items-center gap-1 border ${colors.border} bg-white dark:bg-[#18181B] rounded-lg px-2 h-[36px]`}>
+                          <Filter size={14} className={colors.textMuted}/>
+                          <select className={`bg-transparent text-[13px] font-bold outline-none ${colors.text} cursor-pointer`} value={filterMode} onChange={e => { playSound('pop', isSoundOn); setFilterMode(e.target.value); setDateOffset(0); }}>
+                             <option className="bg-white dark:bg-[#18181B]">Harian</option>
+                             <option className="bg-white dark:bg-[#18181B]">Mingguan</option>
+                             <option className="bg-white dark:bg-[#18181B]">Bulanan</option>
+                             <option className="bg-white dark:bg-[#18181B]">Tahunan</option>
+                             <option className="bg-white dark:bg-[#18181B]">Keseluruhan</option>
+                             <option className="bg-white dark:bg-[#18181B]">Manual</option>
+                          </select>
+                       </div>
+                    </div>
+                 )}
+                 {activeReport === 'neraca' && (
+                    <button onClick={() => { playSound('pop', isSoundOn); setAccForm({ id: '', type: 'kas', accountId: financialAccounts[0]?.id||'', name: '', amount: '', date: getLocalDatetime(), isExpense: false }); setShowAccModal(true); }} className={`mr-2 px-4 py-1.5 font-bold text-[#18181B] rounded-md shadow-sm bg-[#D4AF37] hover:opacity-90 flex items-center gap-1 text-sm`}><Edit size={16}/> Input Data</button>
+                 )}
+                 <div className="hidden sm:flex bg-gray-100/50 dark:bg-[#2a2a24] rounded-lg p-1 items-center gap-1">
+                    <button onClick={() => { playSound('pop', isSoundOn); setViewMode('grafik'); }} className={`px-4 py-1.5 rounded-md text-[13px] font-bold flex items-center gap-2 transition-all ${viewMode === 'grafik' ? 'bg-white dark:bg-[#18181B] shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:text-gray-700'}`}>
+                       <BarChart size={16}/> Grafik
+                    </button>
+                    <button onClick={() => { playSound('pop', isSoundOn); setViewMode('tabel'); }} className={`px-4 py-1.5 rounded-md text-[13px] font-bold flex items-center gap-2 transition-all ${viewMode === 'tabel' ? 'bg-white dark:bg-[#18181B] shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:text-gray-700'}`}>
+                       <Filter size={16}/> Tabel
+                    </button>
+                 </div>
+              </div>
+          )}
+      </div>
 
-       <div className={`flex-1 rounded-xl border ${colors.border} ${colors.panel} p-4 sm:p-6 overflow-y-auto custom-scrollbar`}>
+      <div className={`flex-1 flex flex-col p-2 sm:p-4 overflow-hidden ${viewMode === 'tabel' && (activeReport === 'penjualan' || activeReport === 'pembelian') ? '' : 'overflow-y-auto custom-scrollbar'}`}>
           {(activeReport === 'penjualan' || activeReport === 'pembelian') && (
-             <div>
-                <div className="mb-6">
-                   <div className={`p-4 border rounded-xl ${colors.border} bg-gray-50 dark:bg-[#2a2a24]`}>
-                      <div className="flex justify-between items-center mb-2">
-                         <h3 className={`font-bold text-sm ${colors.text}`}>Grafik {activeReport} ({filterMode})</h3>
-                         <div className="flex gap-1 bg-[#E2E8F0] dark:bg-[#27272A] rounded p-0.5">
-                            <button onClick={() => { playSound('pop', isSoundOn); setGlobalChartMode('bar'); }} className={`p-1 rounded ${globalChartMode === 'bar' ? colors.goldBg + ' text-[#18181B]' : colors.textMuted}`}><BarChart size={12}/></button>
-                            <button onClick={() => { playSound('pop', isSoundOn); setGlobalChartMode('line'); }} className={`p-1 rounded ${globalChartMode === 'line' ? colors.goldBg + ' text-[#18181B]' : colors.textMuted}`}><TrendingUp size={12}/></button>
+             <div className="flex-1 flex flex-col overflow-hidden w-full">
+                {viewMode === 'grafik' ? (
+                   <div className={`flex-1 rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] p-4 sm:p-6 shadow-sm flex flex-col`}>
+                      <div className="mb-6 flex-1 flex flex-col min-h-[250px]">
+                         <div className={`flex-1 flex flex-col p-4 border rounded-xl ${colors.border} bg-gray-50 dark:bg-[#2a2a24]`}>
+                            <div className="flex justify-between items-center mb-2 shrink-0">
+                               <h3 className={`font-bold text-sm ${colors.text}`}>Grafik {activeReport} ({filterMode})</h3>
+                               <div className="flex gap-1 bg-[#E2E8F0] dark:bg-[#27272A] rounded p-0.5">
+                                  <button onClick={() => { playSound('pop', isSoundOn); setGlobalChartMode('bar'); }} className={`p-1 rounded ${globalChartMode === 'bar' ? colors.goldBg + ' text-[#18181B]' : colors.textMuted}`}><BarChart size={12}/></button>
+                                  <button onClick={() => { playSound('pop', isSoundOn); setGlobalChartMode('line'); }} className={`p-1 rounded ${globalChartMode === 'line' ? colors.goldBg + ' text-[#18181B]' : colors.textMuted}`}><TrendingUp size={12}/></button>
+                               </div>
+                            </div>
+                            <SimpleChart chartData={chartInfo.data} chartType={activeReport === 'pembelian' ? 'Pembelian' : 'Penjualan'} chartMode={globalChartMode} labels={chartInfo.labels} theme={theme} colors={colors} accentColor={activeReport === 'pembelian' ? '#3b82f6' : '#D4AF37'} heightClass=""/>
                          </div>
                       </div>
-                      <SimpleChart chartData={chartInfo.data} chartType={activeReport === 'pembelian' ? 'Pembelian' : 'Penjualan'} chartMode={globalChartMode} labels={chartInfo.labels} theme={theme} colors={colors} accentColor={activeReport === 'pembelian' ? '#3b82f6' : '#D4AF37'} heightClass="h-72"/>
-                   </div>
-                </div>
 
-                {activeDataArray.length > 0 && (
-                   <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 rounded-xl border ${colors.border} ${activeReport === 'pembelian' ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-yellow-50 dark:bg-[#D4AF37]/10'}`}>
-                      <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Total Transaksi</span><span className={`text-lg font-bold ${colors.text}`}>{activeDataArray.length} Nota</span></div>
-                      {activeReport === 'penjualan' ? (
-                         <>
-                            <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Modal Pokok (HPP)</span><span className={`text-lg font-bold ${colors.text}`}>Rp {formatIDR(totalHppAll)}</span></div>
-                            <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Total Neto (Omset)</span><span className={`text-lg font-bold ${colors.gold}`}>Rp {formatIDR(totalNetoAll)}</span></div>
-                            <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Laba Kotor</span><span className={`text-lg font-bold ${colors.gold}`}>Rp {formatIDR(totalLabaAll)}</span></div>
-                         </>
-                      ) : (
-                         <>
-                            <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Total Item Dibeli</span><span className={`text-lg font-bold ${colors.text}`}>{activeDataArray.reduce((acc, curr) => acc + curr.items.reduce((sum, i) => sum + i.qty, 0), 0)} Barang</span></div>
-                            <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Rata-Rata Transaksi</span><span className={`text-lg font-bold ${colors.text}`}>Rp {formatIDR(Math.round(totalNetoAll / (activeDataArray.length || 1)))}</span></div>
-                            <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Total Pengeluaran</span><span className={`text-lg font-bold text-blue-600`}>Rp {formatIDR(totalNetoAll)}</span></div>
-                         </>
+                      {activeDataArray.length > 0 && (
+                         <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl border ${colors.border} ${activeReport === 'pembelian' ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-yellow-50 dark:bg-[#D4AF37]/10'} flex-shrink-0 mt-auto`}>
+                            <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Total Transaksi</span><span className={`text-lg font-bold ${colors.text}`}>{activeDataArray.length} Nota</span></div>
+                            {activeReport === 'penjualan' ? (
+                               <>
+                                  <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Modal Pokok (HPP)</span><span className={`text-lg font-bold ${colors.text}`}>Rp {formatIDR(totalHppAll)}</span></div>
+                                  <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Total Neto (Omset)</span><span className={`text-lg font-bold ${colors.gold}`}>Rp {formatIDR(totalNetoAll)}</span></div>
+                                  <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Laba Kotor</span><span className={`text-lg font-bold ${colors.gold}`}>Rp {formatIDR(totalLabaAll)}</span></div>
+                               </>
+                            ) : (
+                               <>
+                                  <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Total Item Dibeli</span><span className={`text-lg font-bold ${colors.text}`}>{activeDataArray.reduce((acc, curr) => acc + curr.items.reduce((sum, i) => sum + i.qty, 0), 0)} Barang</span></div>
+                                  <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Rata-Rata Transaksi</span><span className={`text-lg font-bold ${colors.text}`}>Rp {formatIDR(Math.round(totalNetoAll / (activeDataArray.length || 1)))}</span></div>
+                                  <div className="flex flex-col"><span className={`text-xs font-semibold ${colors.textMuted}`}>Total Pengeluaran</span><span className={`text-lg font-bold text-blue-600`}>Rp {formatIDR(totalNetoAll)}</span></div>
+                               </>
+                            )}
+                         </div>
                       )}
                    </div>
+                ) : (
+                   <div className="flex-1 overflow-hidden print:hidden w-full h-full flex flex-col">
+                      <DataTable 
+                         title={null}
+                         columns={reportColumns} 
+                         data={enrichedReportData} 
+                         defaultSort={{key: 'date', direction: 'desc'}} 
+                         colors={colors} 
+                         posLayout={true}
+                         searchPlaceholder="Cari nota transaksi..."
+                      />
+                   </div>
                 )}
-
-                <div className="overflow-hidden print:hidden mb-4">
-                   <DataTable 
-                      title="Rincian Transaksi" 
-                      columns={reportColumns} 
-                      data={enrichedReportData} 
-                      defaultSort={{key: 'date', direction: 'desc'}} 
-                      colors={colors} 
-                   />
-                </div>
              </div>
           )}
 
           {activeReport === 'produk' && (
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full pb-10">
-                <div className={`p-5 border rounded-xl ${colors.border} bg-gray-50 dark:bg-[#2a2a24] flex flex-col shadow-sm`}>
+             <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 pb-10 flex-1 rounded-xl border ${colors.border} ${colors.panel} p-4 sm:p-6 shadow-sm overflow-hidden`}>
+                <div className={`p-5 border rounded-xl ${colors.border} bg-gray-50 dark:bg-[#2a2a24] flex flex-col shadow-sm overflow-hidden`}>
                    <h3 className={`font-black text-xl mb-4 ${colors.text} flex items-center gap-2`}>
                       <TrendingUp className="text-blue-600" size={24}/> Item Paling Laris
                    </h3>
@@ -434,90 +496,145 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
              </div>
           )}
 
-
-
           {activeReport === 'neraca' && (
-             <div>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-                    <h3 className={`text-xl font-bold ${colors.text}`}>Neraca Keuangan Toko (Buku Besar)</h3>
-                    <button onClick={() => { playSound('pop', isSoundOn); setAccForm({ id: '', type: 'kas', accountId: financialAccounts[0]?.id||'', name: '', amount: '', date: getLocalDatetime(), isExpense: false }); setShowAccModal(true); }} className={`flex-1 sm:flex-none px-4 py-2 font-bold text-[#18181B] rounded-lg shadow-sm bg-[#D4AF37] hover:opacity-90`}>Input Data</button>
-                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             <div className={`flex-1 rounded-xl border ${colors.border} ${colors.panel} p-4 sm:p-6 shadow-sm overflow-y-auto custom-scrollbar`}>
+                {viewMode === 'grafik' ? (
+                  <>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                    <div className="space-y-4">
-                      <div className={`p-5 rounded-2xl border ${colors.border} bg-gray-50 dark:bg-[#2a2a24] shadow-sm relative overflow-hidden`}>
-                         <h4 className={`font-bold text-lg mb-3 border-b border-gray-300 dark:border-gray-600 pb-2 ${colors.text}`}>1. Aset Lancar</h4>
-                         <div className="space-y-2 text-base relative z-10">
-                            <div className="flex justify-between"><span className={colors.textMuted}>Kas & Bank (Saldo Total)</span><span className="font-semibold text-green-600">Rp {formatIDR(neraca.totalKas)}</span></div>
-                            <div className="pl-3 border-l-2 border-green-200 dark:border-green-900 space-y-1 my-2">
-                               {neraca.kasBalances.map((k, i) => (<div key={i} className="flex justify-between text-sm"><span className={colors.textMuted}>- {k.name}</span><span className="font-semibold">Rp {formatIDR(k.balance)}</span></div>))}
-                            </div>
-                            <div className="flex justify-between"><span className={colors.textMuted}>Piutang Usaha (Bon)</span><span className="font-semibold">Rp {formatIDR(neraca.piutang)}</span></div>
-                            <div className="flex justify-between"><span className={colors.textMuted}>Persediaan (Inventory)</span><span className={`font-semibold ${colors.gold}`}>Rp {formatIDR(neraca.persediaan)}</span></div>
-                         </div>
-                         <div className="flex justify-between mt-3 pt-2 border-t border-dashed font-bold"><span>Total Aset Lancar</span><span>Rp {formatIDR(neraca.totalKas + neraca.piutang + neraca.persediaan)}</span></div>
-                      </div>
-                      <div className={`p-5 rounded-2xl border ${colors.border} bg-gray-50 dark:bg-[#2a2a24] shadow-sm`}>
-                         <h4 className={`font-bold text-lg mb-3 border-b border-gray-300 dark:border-gray-600 pb-2 ${colors.text}`}>2. Aset Tetap</h4>
-                         <div className="space-y-2 text-base">
-                            {accounting.filter(a => a.type === 'aset_tetap').map(a => (<div key={a.id} className="flex justify-between"><span className={colors.textMuted}>{a.name}</span><span className="font-semibold">Rp {formatIDR(a.amount)}</span></div>))}
-                         </div>
-                         <div className="flex justify-between mt-3 pt-2 border-t border-dashed font-bold"><span>Total Aset Tetap</span><span>Rp {formatIDR(neraca.asetTetap)}</span></div>
-                      </div>
+                        <div className={`p-5 rounded-2xl border border-[#D4AF37]/50 bg-yellow-50/30 dark:bg-[#D4AF37]/10 shadow-sm relative overflow-hidden`}>
+                           <MiniPieChart data={[
+                              { value: neraca.totalKas, color: '#22c55e' },
+                              { value: neraca.piutang, color: '#eab308' },
+                              { value: neraca.persediaan, color: '#d946ef' }
+                           ]} />
+                           <h4 className={`font-bold text-lg mb-3 border-b border-gray-300 dark:border-gray-600 pb-2 ${colors.gold} relative z-10`}>1. Aset Lancar</h4>
+                           <div className="space-y-2 text-base relative z-10">
+                              <div className="flex justify-between"><span className={colors.textMuted}>Kas & Bank (Saldo Total)</span><span className="font-semibold text-green-600">Rp {formatIDR(neraca.totalKas)}</span></div>
+                              <div className="pl-3 border-l-2 border-green-200 dark:border-green-900 space-y-1 my-2">
+                                 {neraca.kasBalances.map((k, i) => (
+                                    <div key={i} onClick={() => handleAccountClick(k.id)} className="flex justify-between text-sm cursor-pointer hover:bg-yellow-100 dark:hover:bg-[#D4AF37]/20 p-1 rounded transition-colors group">
+                                       <span className={`${colors.textMuted} group-hover:text-[#18181B] dark:group-hover:text-white`}>- {k.name}</span><span className="font-semibold">Rp {formatIDR(k.balance)}</span>
+                                    </div>
+                                 ))}
+                              </div>
+                              <div onClick={() => { playSound('pop', isSoundOn); setPiutangModalOpen(true); }} className="flex justify-between cursor-pointer hover:bg-yellow-100 dark:hover:bg-[#D4AF37]/20 p-1 rounded transition-colors group">
+                                 <span className={`${colors.textMuted} group-hover:text-[#18181B] dark:group-hover:text-white`}>Piutang Usaha (Bon)</span><span className="font-semibold">Rp {formatIDR(neraca.piutang)}</span>
+                              </div>
+                              <div className="flex justify-between p-1"><span className={colors.textMuted}>Persediaan (Inventory)</span><span className={`font-semibold ${colors.gold}`}>Rp {formatIDR(neraca.persediaan)}</span></div>
+                           </div>
+                           <div className={`flex justify-between mt-3 pt-2 border-t border-dashed font-bold ${colors.text}`}><span>Total Aset Lancar</span><span>Rp {formatIDR(neraca.totalKas + neraca.piutang + neraca.persediaan)}</span></div>
+                        </div>
+                        <div className={`p-5 rounded-2xl border border-[#D4AF37]/50 bg-yellow-50/30 dark:bg-[#D4AF37]/10 shadow-sm relative overflow-hidden`}>
+                           <MiniPieChart data={accounting.filter(a => a.type === 'aset_tetap').map((a,i) => ({ value: a.amount, color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] }))} />
+                           <h4 className={`font-bold text-lg mb-3 border-b border-gray-300 dark:border-gray-600 pb-2 ${colors.gold} relative z-10`}>2. Aset Tetap</h4>
+                           <div className="space-y-2 text-base relative z-10">
+                              {accounting.filter(a => a.type === 'aset_tetap').map(a => (
+                                 <div key={a.id} onClick={() => handleAccountClick('aset_tetap')} className="flex justify-between cursor-pointer hover:bg-yellow-100 dark:hover:bg-[#D4AF37]/20 p-1 rounded transition-colors group">
+                                    <span className={`${colors.textMuted} group-hover:text-[#18181B] dark:group-hover:text-white`}>{a.name}</span><span className="font-semibold">Rp {formatIDR(a.amount)}</span>
+                                 </div>
+                              ))}
+                           </div>
+                           <div className={`flex justify-between mt-3 pt-2 border-t border-dashed font-bold ${colors.text}`}><span>Total Aset Tetap</span><span>Rp {formatIDR(neraca.asetTetap)}</span></div>
+                        </div>
                    </div>
                    <div className="space-y-4">
-                      <div className={`p-5 rounded-2xl border ${colors.border} bg-gray-50 dark:bg-[#2a2a24] shadow-sm relative overflow-hidden`}>
-                         <h4 className={`font-bold text-lg mb-3 border-b border-gray-300 dark:border-gray-600 pb-2 ${colors.text}`}>3. Liabilitas (Kewajiban)</h4>
-                         <div className="space-y-2 text-base relative z-10">
-                            <div className="flex justify-between"><span className={colors.textMuted}>Utang Usaha (Ke Supplier)</span><span className="font-semibold text-red-500">Rp {formatIDR(neraca.utang)}</span></div>
-                            <div className="flex justify-between"><span className={colors.textMuted}>Deposit Pelanggan</span><span className="font-semibold text-orange-500">Rp {formatIDR(neraca.totalDepositPelanggan)}</span></div>
-                            {accounting.filter(a => a.type === 'liabilitas').map(a => (<div key={a.id} className="flex justify-between"><span className={colors.textMuted}>{a.name}</span><span className="font-semibold text-red-500">Rp {formatIDR(a.amount)}</span></div>))}
-                         </div>
-                         <div className="flex justify-between mt-3 pt-2 border-t border-dashed font-bold"><span>Total Liabilitas</span><span>Rp {formatIDR(neraca.totalLiabilitas)}</span></div>
-                      </div>
-                      <div className={`p-5 rounded-2xl border ${colors.border} bg-gray-50 dark:bg-[#2a2a24] shadow-sm relative overflow-hidden`}>
-                         <h4 className={`font-bold text-lg mb-3 border-b border-gray-300 dark:border-gray-600 pb-2 ${colors.text}`}>4. Ekuitas (Modal & Laba)</h4>
-                         <div className="space-y-2 text-base relative z-10">
-                            <div className="flex justify-between"><span className={colors.textMuted}>Modal Disetor</span><span className="font-semibold">Rp {formatIDR(neraca.modalDisetor)}</span></div>
-                            <div className="flex justify-between"><span className={colors.textMuted}>Laba Bersih (Tahun Berjalan)</span><span className={`font-semibold ${neraca.labaBersihBerjalan >= 0 ? 'text-green-600' : 'text-red-500'}`}>{neraca.labaBersihBerjalan < 0 ? '-' : ''}Rp {formatIDR(Math.abs(neraca.labaBersihBerjalan))}</span></div>
-                            <div className="flex justify-between"><span className={colors.textMuted}>Laba Ditahan / Penyesuaian</span><span className={`font-semibold ${colors.gold}`}>{neraca.labaDitahan < 0 ? '-' : ''}Rp {formatIDR(Math.abs(neraca.labaDitahan))}</span></div>
-                         </div>
-                         <div className="flex justify-between mt-3 pt-2 border-t border-dashed font-bold"><span>Total Ekuitas</span><span>Rp {formatIDR(neraca.totalEkuitas)}</span></div>
-                      </div>
+                        <div className={`p-5 rounded-2xl border border-blue-500/50 bg-blue-50/50 dark:bg-blue-900/10 shadow-sm relative overflow-hidden`}>
+                           <MiniPieChart data={[
+                              { value: neraca.utang, color: '#ef4444' },
+                              { value: neraca.totalDepositPelanggan, color: '#f97316' },
+                              { value: neraca.liabLainOnly, color: '#3b82f6' }
+                           ]} />
+                           <h4 className={`font-bold text-lg mb-3 border-b border-gray-300 dark:border-gray-600 pb-2 text-blue-600 dark:text-blue-400 relative z-10`}>3. Liabilitas (Kewajiban)</h4>
+                           <div className="space-y-2 text-base relative z-10">
+                              <div onClick={() => { playSound('pop', isSoundOn); setUtangModalOpen(true); }} className="flex justify-between cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1 rounded transition-colors group">
+                                 <span className={`${colors.textMuted} group-hover:text-[#18181B] dark:group-hover:text-white`}>Utang Usaha (Ke Supplier)</span><span className="font-semibold text-red-500">Rp {formatIDR(neraca.utang)}</span>
+                              </div>
+                              <div onClick={() => { playSound('pop', isSoundOn); setDepositModalOpen(true); }} className="flex justify-between cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1 rounded transition-colors group">
+                                 <span className={`${colors.textMuted} group-hover:text-[#18181B] dark:group-hover:text-white`}>Deposit Pelanggan</span><span className="font-semibold text-orange-500">Rp {formatIDR(neraca.totalDepositPelanggan)}</span>
+                              </div>
+                              {accounting.filter(a => a.type === 'liabilitas').map(a => (
+                                 <div key={a.id} onClick={() => handleAccountClick('liabilitas')} className="flex justify-between cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1 rounded transition-colors group">
+                                    <span className={`${colors.textMuted} group-hover:text-[#18181B] dark:group-hover:text-white`}>{a.name}</span><span className="font-semibold text-red-500">Rp {formatIDR(a.amount)}</span>
+                                 </div>
+                              ))}
+                           </div>
+                           <div className={`flex justify-between mt-3 pt-2 border-t border-dashed font-bold ${colors.text}`}><span>Total Liabilitas</span><span>Rp {formatIDR(neraca.totalLiabilitas)}</span></div>
+                        </div>
+                        <div className={`p-5 rounded-2xl border border-blue-500/50 bg-blue-50/50 dark:bg-blue-900/10 shadow-sm relative overflow-hidden`}>
+                           <MiniPieChart data={[
+                              { value: neraca.modalDisetor, color: '#10b981' },
+                              { value: neraca.labaBersihBerjalan, color: '#eab308' },
+                              { value: neraca.labaDitahan, color: '#3b82f6' }
+                           ]} />
+                           <h4 className={`font-bold text-lg mb-3 border-b border-gray-300 dark:border-gray-600 pb-2 text-blue-600 dark:text-blue-400 relative z-10`}>4. Ekuitas (Modal & Laba)</h4>
+                           <div className="space-y-2 text-base relative z-10">
+                              <div onClick={() => handleAccountClick('ekuitas')} className="flex justify-between cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1 rounded transition-colors group">
+                                 <span className={`${colors.textMuted} group-hover:text-[#18181B] dark:group-hover:text-white`}>Modal Disetor</span><span className="font-semibold">Rp {formatIDR(neraca.modalDisetor)}</span>
+                              </div>
+                              <div className="flex justify-between p-1"><span className={colors.textMuted}>Laba Bersih (Tahun Berjalan)</span><span className={`font-semibold ${neraca.labaBersihBerjalan >= 0 ? 'text-green-600' : 'text-red-500'}`}>{neraca.labaBersihBerjalan < 0 ? '-' : ''}Rp {formatIDR(Math.abs(neraca.labaBersihBerjalan))}</span></div>
+                              <div className="flex justify-between p-1"><span className={colors.textMuted}>Laba Ditahan / Penyesuaian</span><span className={`font-semibold ${colors.gold}`}>{neraca.labaDitahan < 0 ? '-' : ''}Rp {formatIDR(Math.abs(neraca.labaDitahan))}</span></div>
+                           </div>
+                           <div className={`flex justify-between mt-3 pt-2 border-t border-dashed font-bold ${colors.text}`}><span>Total Ekuitas</span><span>Rp {formatIDR(neraca.totalEkuitas)}</span></div>
+                        </div>
                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                   <div className={`p-5 rounded-2xl border-4 border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 flex justify-between items-center font-black text-xl shadow-md`}>
+                   <div className={`p-5 rounded-2xl border-4 border-[#D4AF37] bg-yellow-50 dark:bg-[#D4AF37]/20 ${colors.gold} flex justify-between items-center font-black text-xl shadow-md`}>
                       <span>TOTAL ASET (HARTA)</span><span>Rp {formatIDR(neraca.totalAset)}</span>
                    </div>
-                   <div className={`p-5 rounded-2xl border-4 border-[#D4AF37] bg-yellow-50 dark:bg-[#D4AF37]/20 ${colors.gold} flex justify-between items-center font-black text-xl shadow-md`}>
+                   <div className={`p-5 rounded-2xl border-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 flex justify-between items-center font-black text-xl shadow-md`}>
                       <span>TOTAL LIAB. + EKUITAS</span><span>Rp {formatIDR(neraca.totalLiabilitas + neraca.totalEkuitas)}</span>
                    </div>
                 </div>
-
-                <div className="mt-8 space-y-4">
-                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 dark:bg-[#1e1e1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700 gap-4">
-                        <span className={`font-bold text-sm ${colors.text}`}>Filter Jurnal Pembukuan:</span>
-                        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                           <select className={`p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#2a2a24] ${colors.text} outline-none text-sm w-full sm:w-48`} value={selectedSysFilter} onChange={e => setSelectedSysFilter(e.target.value)}>
-                              <option value="">Semua Jenis (Otomatis & Manual)</option>
-                              <option value="otomatis">Jurnal Otomatis Sistem</option>
-                              <option value="manual">Jurnal Manual (Input Sendiri)</option>
-                           </select>
-                           <select className={`p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#2a2a24] ${colors.text} outline-none text-sm w-full sm:w-48`} value={selectedAccFilter} onChange={e => setSelectedAccFilter(e.target.value)}>
-                              <option value="">Semua Akun (Gabungan)</option>
-                              {financialAccounts.map(fa => <option key={fa.id} value={fa.id}>{fa.name}</option>)}
-                           </select>
+                </>
+                ) : (
+                <div className="space-y-4" id="jurnal-table-section">
+                     <div className="flex flex-col gap-4 bg-gray-50 dark:bg-[#1e1e1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200 dark:border-gray-800 pb-3">
+                           <span className={`font-bold text-base ${colors.text}`}>Filter Jurnal Pembukuan</span>
+                           <label className={`flex items-center gap-2 cursor-pointer text-sm font-semibold ${colors.textMuted} hover:text-red-500 transition-colors`}>
+                              <input type="checkbox" checked={hideSystem} onChange={e => { playSound('pop', isSoundOn); setHideSystem(e.target.checked); }} className="rounded w-4 h-4 text-red-500 focus:ring-red-500" />
+                              Sembunyikan Jurnal Otomatis Sistem
+                           </label>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                           <div>
+                              <span className={`block text-xs font-bold mb-2 ${colors.textMuted} uppercase tracking-wider`}>Filter Akun</span>
+                              <div className="flex flex-wrap gap-2">
+                                 <button onClick={() => { playSound('pop', isSoundOn); setSelectedAccounts([]); }} className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${selectedAccounts.length === 0 ? colors.goldBg + ' text-[#18181B] border-[#D4AF37]' : `bg-white dark:bg-[#2a2a24] ${colors.textMuted} ${colors.border} hover:bg-gray-100 dark:hover:bg-[#3f3f46]`}`}>Semua Akun</button>
+                                 {financialAccounts.map(fa => (
+                                    <button key={fa.id} onClick={() => { playSound('pop', isSoundOn); setSelectedAccounts(prev => prev.includes(fa.id.toString()) ? prev.filter(x => x !== fa.id.toString()) : [...prev, fa.id.toString()]); }} className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${selectedAccounts.includes(fa.id.toString()) ? colors.goldBg + ' text-[#18181B] border-[#D4AF37]' : `bg-white dark:bg-[#2a2a24] ${colors.textMuted} ${colors.border} hover:bg-gray-100 dark:hover:bg-[#3f3f46]`}`}>{fa.name}</button>
+                                 ))}
+                                 <button onClick={() => { playSound('pop', isSoundOn); setSelectedAccounts(prev => prev.includes('liabilitas') ? prev.filter(x => x !== 'liabilitas') : [...prev, 'liabilitas']); }} className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${selectedAccounts.includes('liabilitas') ? 'bg-blue-500 text-white border-blue-500' : `bg-white dark:bg-[#2a2a24] ${colors.textMuted} ${colors.border} hover:bg-blue-50 dark:hover:bg-blue-900/30`}`}>Liabilitas</button>
+                                 <button onClick={() => { playSound('pop', isSoundOn); setSelectedAccounts(prev => prev.includes('ekuitas') ? prev.filter(x => x !== 'ekuitas') : [...prev, 'ekuitas']); }} className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${selectedAccounts.includes('ekuitas') ? 'bg-purple-500 text-white border-purple-500' : `bg-white dark:bg-[#2a2a24] ${colors.textMuted} ${colors.border} hover:bg-purple-50 dark:hover:bg-purple-900/30`}`}>Ekuitas</button>
+                                 <button onClick={() => { playSound('pop', isSoundOn); setSelectedAccounts(prev => prev.includes('aset_tetap') ? prev.filter(x => x !== 'aset_tetap') : [...prev, 'aset_tetap']); }} className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${selectedAccounts.includes('aset_tetap') ? 'bg-green-500 text-white border-green-500' : `bg-white dark:bg-[#2a2a24] ${colors.textMuted} ${colors.border} hover:bg-green-50 dark:hover:bg-green-900/30`}`}>Aset Tetap</button>
+                              </div>
+                           </div>
+                           <div>
+                              <span className={`block text-xs font-bold mb-2 ${colors.textMuted} uppercase tracking-wider`}>Tipe Transaksi</span>
+                              <div className="flex gap-4">
+                                 <label className={`flex items-center gap-2 cursor-pointer text-sm font-semibold p-2 rounded border ${colors.border} ${showIncome ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-500/50' : `bg-white dark:bg-[#2a2a24] ${colors.textMuted}`}`}>
+                                    <input type="checkbox" checked={showIncome} onChange={e => { playSound('pop', isSoundOn); setShowIncome(e.target.checked); }} className="rounded w-4 h-4 text-green-500 focus:ring-green-500" />
+                                    Pemasukan
+                                 </label>
+                                 <label className={`flex items-center gap-2 cursor-pointer text-sm font-semibold p-2 rounded border ${colors.border} ${showExpense ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-500/50' : `bg-white dark:bg-[#2a2a24] ${colors.textMuted}`}`}>
+                                    <input type="checkbox" checked={showExpense} onChange={e => { playSound('pop', isSoundOn); setShowExpense(e.target.checked); }} className="rounded w-4 h-4 text-red-500 focus:ring-red-500" />
+                                    Pengeluaran
+                                 </label>
+                              </div>
+                           </div>
                         </div>
                      </div>
-                   <DataTable title="Rincian Jurnal Pembukuan" columns={accColumns} data={filteredAccountingTable} defaultSort={{key: 'date', direction: 'desc'}} colors={colors} canDelete={(a) => !/^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Bayar Cicilan|Pelunasan\/Cicilan|Selisih Shift|Setoran Shift|Tukar Poin)/i.test(a.name || '')} actions={[
+                     <DataTable title="Rincian Jurnal Pembukuan" columns={accColumns} data={filteredAccountingTable} defaultSort={{key: 'date', direction: 'desc'}} colors={colors} canDelete={(a) => !/^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Bayar Cicilan|Pelunasan\/Cicilan|Selisih Shift|Setoran Shift|Tukar Poin)/i.test(a.name || '')} actions={[
                      { icon: Edit, label: 'Edit', disabled: (a) => /^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Bayar Cicilan|Pelunasan\/Cicilan|Selisih Shift|Setoran Shift|Tukar Poin)/i.test(a.name || ''), colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-blue-200', onClick: (a) => { playSound('pop', isSoundOn); setAccForm({...a, amount: Math.abs(a.amount).toString(), isExpense: a.amount < 0, date: getLocalDatetime(a.date) }); setShowAccModal(true); } }
                    ]} onDelete={(a) => { playSound('pop', isSoundOn); setDeleteAccData(a); }} />
-                </div>
-             </div>
+                 </div>
+                 )}
+               </div>
           )}
        </div>
-       
        {deleteAccData && (
           <DeleteConfirmModal 
              title="Hapus Data Jurnal?" 
@@ -595,7 +712,77 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
              </div>
           </div>
        )}
-      </div>
+       {utangModalOpen && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+             <div className={`w-full max-w-2xl max-h-[80vh] flex flex-col p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
+                <div className="flex justify-between items-center mb-4">
+                   <h3 className={`text-xl font-bold text-red-500`}>Rincian Utang Usaha</h3>
+                   <button onClick={() => { playSound('pop', isSoundOn); setUtangModalOpen(false); }} className="text-gray-500 hover:text-red-500 hover:scale-110"><X size={24}/></button>
+                </div>
+                <div className="overflow-y-auto custom-scrollbar flex-1 space-y-2">
+                   {purchases.filter(s => s.status === 'Tempo' && s.total > (s.paid || 0)).length === 0 ? <p className="text-center py-4 text-gray-500">Tidak ada utang usaha.</p> : purchases.filter(s => s.status === 'Tempo' && s.total > (s.paid || 0)).map(p => (
+                      <div key={p.id} className="p-3 border rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-[#2a2a24] flex justify-between items-center">
+                         <div>
+                            <p className={`font-bold ${colors.text}`}>{p.supplierId || 'Supplier Umum'}</p>
+                            <p className="text-xs text-gray-500">Ref: {p.id} | Tgl: {new Date(p.date).toLocaleDateString('id-ID')}</p>
+                         </div>
+                         <div className="text-right">
+                            <p className="font-bold text-red-500">Rp {formatIDR(p.total - (p.paid || 0))}</p>
+                            <p className="text-[10px] text-gray-500">Total: Rp {formatIDR(p.total)}</p>
+                         </div>
+                      </div>
+                   ))}
+                </div>
+             </div>
+          </div>
+       )}
+       {piutangModalOpen && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+             <div className={`w-full max-w-2xl max-h-[80vh] flex flex-col p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
+                <div className="flex justify-between items-center mb-4">
+                   <h3 className={`text-xl font-bold ${colors.gold}`}>Rincian Piutang Usaha</h3>
+                   <button onClick={() => { playSound('pop', isSoundOn); setPiutangModalOpen(false); }} className="text-gray-500 hover:text-red-500 hover:scale-110"><X size={24}/></button>
+                </div>
+                <div className="overflow-y-auto custom-scrollbar flex-1 space-y-2">
+                   {sales.filter(s => s.status === 'Tempo' && s.total > (s.paid || 0)).length === 0 ? <p className="text-center py-4 text-gray-500">Tidak ada piutang usaha.</p> : sales.filter(s => s.status === 'Tempo' && s.total > (s.paid || 0)).map(s => (
+                      <div key={s.id} className="p-3 border rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-[#2a2a24] flex justify-between items-center">
+                         <div>
+                            <p className={`font-bold ${colors.text}`}>{s.customerId ? customers?.find(c => c.id === s.customerId)?.name || s.customerId : 'Pelanggan Umum'}</p>
+                            <p className="text-xs text-gray-500">Nota: {s.id} | Tgl: {new Date(s.date).toLocaleDateString('id-ID')}</p>
+                         </div>
+                         <div className="text-right">
+                            <p className="font-bold text-yellow-600 dark:text-yellow-500">Rp {formatIDR(s.total - (s.paid || 0))}</p>
+                            <p className="text-[10px] text-gray-500">Total: Rp {formatIDR(s.total)}</p>
+                         </div>
+                      </div>
+                   ))}
+                </div>
+             </div>
+          </div>
+       )}
+       {depositModalOpen && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+             <div className={`w-full max-w-2xl max-h-[80vh] flex flex-col p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
+                <div className="flex justify-between items-center mb-4">
+                   <h3 className={`text-xl font-bold text-orange-500`}>Rincian Deposit Pelanggan</h3>
+                   <button onClick={() => { playSound('pop', isSoundOn); setDepositModalOpen(false); }} className="text-gray-500 hover:text-red-500 hover:scale-110"><X size={24}/></button>
+                </div>
+                <div className="overflow-y-auto custom-scrollbar flex-1 space-y-2">
+                   {customers?.filter(c => Number(c.deposit) > 0).length === 0 ? <p className="text-center py-4 text-gray-500">Tidak ada pelanggan dengan deposit.</p> : customers?.filter(c => Number(c.deposit) > 0).map(c => (
+                      <div key={c.id} className="p-3 border rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-[#2a2a24] flex justify-between items-center">
+                         <div>
+                            <p className={`font-bold ${colors.text}`}>{c.name}</p>
+                            <p className="text-xs text-gray-500">{c.phone || '-'}</p>
+                         </div>
+                         <div className="text-right">
+                            <p className="font-bold text-orange-500">Rp {formatIDR(c.deposit)}</p>
+                         </div>
+                      </div>
+                   ))}
+                </div>
+             </div>
+          </div>
+       )}
     </div>
   );
 }

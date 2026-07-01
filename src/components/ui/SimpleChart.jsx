@@ -4,14 +4,20 @@ import { formatIDR } from '../../utils/helpers'; // Import dari fungsi helper ya
 export default function SimpleChart({ chartData, chartType, theme, colors, heightClass="h-48", chartMode="line", labels=[], accentColor="#D4AF37" }) {
   const generatePoints = () => {
     if(chartData.length === 0) return '';
-    if(chartData.length === 1) return `50,50`;
     
     const values = chartData.map(d => d.value);
     const maxVal = Math.max(...values, 1);
     
+    if(chartData.length === 1) {
+       let y = 100 - ((chartData[0].value / maxVal) * 100);
+       if (y < 5) y = 5;
+       return `50,${y}`;
+    }
+    
     return chartData.map((d, i) => {
        const x = (i / (chartData.length - 1)) * 100;
-       const y = 100 - ((d.value / maxVal) * 100);
+       let y = 100 - ((d.value / maxVal) * 100);
+       if (y < 5) y = 5;
        return `${x},${y}`;
     }).join(' ');
   };
@@ -20,13 +26,13 @@ export default function SimpleChart({ chartData, chartType, theme, colors, heigh
   const colorToUse = isCustomer ? '#fb923c' : accentColor;
 
   return (
-   <div className="w-full overflow-x-auto custom-scrollbar pb-2">
-    <div className={`flex flex-col relative w-full ${heightClass} pt-2`} style={{ minWidth: chartData.length > 12 ? `${chartData.length * 40}px` : '100%' }}>
+   <div className="w-full h-full min-h-0 overflow-x-auto custom-scrollbar pb-2 flex flex-col">
+    <div className={`flex flex-col relative w-full ${heightClass} pt-2 flex-1 min-h-0`} style={{ minWidth: chartData.length > 12 ? `${chartData.length * 40}px` : '100%' }}>
        
-       <div className="flex-1 relative w-full overflow-hidden rounded-md">
+       <div className="flex-1 relative w-full overflow-hidden rounded-md min-h-0">
          {chartMode === 'line' ? (
            <>
-             <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+             <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
                 <defs>
                    <linearGradient id={`lineGradSimple-${colorToUse.replace('#','')}`} x1="0%" y1="0%" x2="0%" y2="100%">
                       <stop offset="0%" stopColor={colorToUse} stopOpacity="0.4" />

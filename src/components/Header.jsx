@@ -198,22 +198,19 @@ export default function Header({
             </div>
           )}
 
-            <div className="hidden md:flex items-center">
+            <div className="hidden md:flex items-center gap-2">
                 {activeShift && activeShift.status === 'OPEN' ? (
-                    <span className={`px-2 py-1 text-xs font-bold rounded-md ${colors.goldBg}/10 ${colors.gold} border border-[#D4AF37]/30 flex items-center gap-1 cursor-pointer hover:${colors.goldBg}/20 transition-colors`} onClick={() => setShowShiftCloseModal(true)} title="Tutup Shift">
-                        <span className={`w-1.5 h-1.5 rounded-full ${colors.goldBg} animate-pulse shadow-[0_0_5px_rgba(212,175,55,0.8)]`}></span> Tutup Shift
+                    <span className={`px-2 py-1 text-xs font-bold rounded-md bg-red-500/10 text-red-500 border border-red-500/30 flex items-center gap-1 cursor-pointer hover:bg-red-500/20 transition-colors`} onClick={() => setShowShiftCloseModal(true)} title="Tutup Shift">
+                        <span className={`w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_5px_rgba(239,68,68,0.8)]`}></span> Tutup Shift
                     </span>
                 ) : (
-                    <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 text-xs font-bold rounded-md ${colors.goldBg}/10 ${colors.gold} border border-[#D4AF37]/30 flex items-center cursor-pointer hover:${colors.goldBg}/20 transition-colors`} onClick={() => setShowShiftOpenModal(true)} title="Buka Shift Baru">
-                            Buka Shift
-                        </span>
+                    <>
                         {shiftHistory.length > 0 && (
                           <span className="px-2 py-1 text-xs font-bold rounded-md bg-gray-500/10 text-gray-500 border border-gray-500/30 flex items-center gap-1 cursor-pointer hover:bg-gray-500/20 transition-colors" onClick={() => setShowShiftCloseModal(true)} title="Riwayat Laporan Shift">
                               <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Laporan Shift
                           </span>
                         )}
-                    </div>
+                    </>
                 )}
             </div>
 

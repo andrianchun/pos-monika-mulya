@@ -99,12 +99,6 @@ export default function App() {
   const [showShiftCloseModal, setShowShiftCloseModal] = useState(false);
   const [showShiftOpenModal, setShowShiftOpenModal] = useState(false);
 
-  // Behavior Shift: Kasir dipaksa buka shift di awal login jika belum ada shift aktif
-  useEffect(() => {
-      if (user && user.role === 'kasir' && !activeShift) {
-          setShowShiftOpenModal(true);
-      }
-  }, [user, activeShift]);
 
   useEffect(() => {
      if (activeShift) localStorage.setItem('mmpos_activeShift', JSON.stringify(activeShift));
@@ -615,7 +609,7 @@ export default function App() {
               }}>
          </div>
       )}
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} activeMenu={activeMenu} handleMenuClick={setActiveMenu} colors={themeColors} user={user} storeInfo={storeInfo} />
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} activeMenu={activeMenu} handleMenuClick={(menu) => { setActiveMenu(menu); if (menu === 'laporan') setGlobalMode('neraca'); }} colors={themeColors} user={user} storeInfo={storeInfo} />
       <div className="flex-1 flex flex-col min-w-0 z-10 relative">
          <Header activeMenu={activeMenu} user={user} setUser={setUser} 
             isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}
@@ -631,7 +625,7 @@ export default function App() {
          
          <main className="flex-1 overflow-auto p-4 pb-0 md:p-6 md:pb-0 custom-scrollbar relative">
              <div className={activeMenu === 'pos' ? 'block h-full' : 'hidden'}>
-                <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} activeShift={activeShift} setActiveShift={setActiveShift} />
+                <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} activeShift={activeShift} setActiveShift={setActiveShift} setShowShiftOpenModal={setShowShiftOpenModal} />
              </div>
              
              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white"></div></div>}>

@@ -33,7 +33,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
         <div className={`absolute z-[100] w-full mt-1 border ${colors.border} rounded-lg shadow-lg bg-white dark:bg-[#1e1e1e] max-h-48 overflow-y-auto custom-scrollbar`}>
            <div className={`p-2 sticky top-0 ${colors.panel} border-b border-gray-200 dark:border-gray-700 z-10 relative`}>
               <div className="relative">
-                 <input type="text" autoFocus className={`w-full p-1.5 pr-7 text-xs border rounded ${colors.creamBg} ${colors.text} outline-none focus:border-[#D4AF37]`} placeholder="Cari nama / no HP..." value={search} onChange={e => setSearch(e.target.value)} />
+                 <input type="text" autoFocus className={`w-full p-1.5 pr-7 text-xs border rounded ${colors.creamBg} ${colors.text} outline-none focus:border-[#D4AF37] placeholder-gray-400/50 dark:placeholder-gray-500/50`} placeholder="Cari" value={search} onChange={e => setSearch(e.target.value)} />
                  {search && <button onClick={() => setSearch('')} className="absolute right-1.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-0.5"><X size={14}/></button>}
               </div>
            </div>

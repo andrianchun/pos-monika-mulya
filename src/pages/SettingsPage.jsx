@@ -463,30 +463,24 @@ export default function SettingsPage({
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden -m-4 md:-m-6 bg-gray-50 dark:bg-[#121212]">
-      <div className="flex-1 overflow-y-auto p-2 sm:p-4 custom-scrollbar">
-        <div className="flex flex-col w-full pb-10 select-none">
-        
-        <div className="flex items-center shrink-0 mb-4 overflow-x-auto custom-scrollbar pb-2 sm:pb-0 min-h-[44px]">
-           <div className={`flex items-center rounded-lg p-1 ${colors.creamBg} border ${colors.border} w-fit h-fit shrink-0`}>
-           {[
-             { id: 'toko', label: 'Profil Toko' }, 
-             { id: 'harga', label: 'Harga & Poin' }, 
-             { id: 'akun', label: 'Akun & Akses' }, 
-             { id: 'kategori', label: 'Kategori & Satuan' }, 
-             { id: 'database', label: 'Database' }
-           ].map(t => (
-             <button 
-               key={t.id} 
-               onClick={() => handleTabClick(t.id)} 
-               className={`w-[110px] sm:w-[130px] py-1.5 text-[13px] sm:text-sm font-bold rounded-md transition-all flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis ${activeTab === t.id ? `${colors.goldBg} text-[#18181B] shadow` : `${colors.textMuted} ${colors.goldHoverText}`}`}
-             >
-               {t.label}
-             </button>
-           ))}
-           </div>
-        </div>
-
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+      <div className="flex border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#18181B] px-4 pt-4 shadow-sm z-10 gap-2 shrink-0 overflow-x-auto custom-scrollbar select-none">
+          {[
+            { id: 'toko', label: 'Profil Toko' }, 
+            { id: 'harga', label: 'Harga & Poin' }, 
+            { id: 'akun', label: 'Akun & Akses' }, 
+            { id: 'kategori', label: 'Kategori & Satuan' }, 
+            { id: 'database', label: 'Database' }
+          ].map(t => (
+            <button 
+              key={t.id} 
+              onClick={() => handleTabClick(t.id)} 
+              className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[120px] ${activeTab === t.id ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
+            >
+              {t.label}
+            </button>
+          ))}
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar pb-10 select-none w-full">
          
          {/* 1. PROFIL TOKO & ATURAN KODE NOTA */}
          {activeTab === 'toko' && (
@@ -1320,8 +1314,6 @@ export default function SettingsPage({
               </div>
           </div>
       )}
-        </div>
-      </div>
     </div>
   );
 }
