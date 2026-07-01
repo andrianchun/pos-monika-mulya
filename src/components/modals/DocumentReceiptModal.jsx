@@ -284,9 +284,9 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
 
            {!isAuto && (
              <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex gap-3 shrink-0 bg-white dark:bg-[#1e1e1e]">
-                <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="flex-1 py-3 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-transform bg-stone-500 hover:bg-stone-600 active:scale-95">
-                   <X size={20}/>
-                   <span>Tutup Preview</span>
+                <button onClick={() => { handlePrint(); }} className={`flex-1 py-3 text-[#18181B] font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-transform ${colors.goldBg} hover:opacity-90 active:scale-95`}>
+                   <Printer size={20}/>
+                  <span>Print Setruk</span>
                 </button>
              </div>
            )}

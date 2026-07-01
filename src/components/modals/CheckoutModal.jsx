@@ -132,7 +132,7 @@ export default function CheckoutModal({ posMode, total, financialAccounts, payme
 
           <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-dashed border-gray-300 dark:border-gray-700">
              <button type="button" onClick={(e) => handleCheckout(e, 'simpan', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0, usePoints ? pointsToRedeem : 0)} className="flex-1 py-3 rounded-xl font-bold bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 flex justify-center items-center gap-2 transition-transform active:scale-95 text-xs"><Save size={16}/> Simpan Saja</button>
-             <button type="button" onClick={(e) => handleCheckout(e, 'cetak', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0, usePoints ? pointsToRedeem : 0)} className={`flex-1 py-3 rounded-xl font-bold text-[#18181B] flex justify-center items-center gap-2 transition-transform active:scale-95 ${colors.goldBg} hover:opacity-90 text-xs`}><Printer size={16}/> [Enter] Lihat Setruk</button>
+             <button type="button" onClick={(e) => handleCheckout(e, 'cetak', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0, usePoints ? pointsToRedeem : 0)} className={`flex-1 py-3 rounded-xl font-bold text-[#18181B] flex justify-center items-center gap-2 transition-transform active:scale-95 ${colors.goldBg} hover:opacity-90 text-xs`}><Printer size={16}/> [Enter] Simpan & Print</button>
              <button type="button" onClick={(e) => {
                  const rawPhone = String(activeCustomerPhone || '').replace(/\D/g, '');
                  if (rawPhone.length < 9) {
