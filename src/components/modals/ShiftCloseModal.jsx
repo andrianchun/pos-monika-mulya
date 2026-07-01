@@ -91,11 +91,11 @@ export default function ShiftCloseModal({ colors,
            newAccounting.push({
                id: accId,
                date: summary.endTime,
-               type: summary.selisih < 0 ? 'expense' : 'income',
+               type: 'kas',
                category: summary.selisih < 0 ? 'Selisih Shift (Minus)' : 'Selisih Shift (Plus)',
-               description: `Selisih kasir ${operatorName}`,
-               amount: Math.abs(summary.selisih),
-               accountId: 'laci_kasir',
+               name: `Selisih Shift kasir ${operatorName}`,
+               amount: summary.selisih,
+               accountId: financialAccounts[0]?.id || 1,
                isSystemGenerated: true
            });
        }
@@ -105,11 +105,11 @@ export default function ShiftCloseModal({ colors,
            newAccounting.push({
                id: accId + 1,
                date: summary.endTime,
-               type: 'transfer_out',
+               type: 'kas',
                category: 'Setoran Kas',
-               description: `Setoran kasir ${operatorName}`,
-               amount: summary.dropCash,
-               accountId: 'laci_kasir',
+               name: `Setoran Shift kasir ${operatorName}`,
+               amount: -summary.dropCash,
+               accountId: financialAccounts[0]?.id || 1,
                isSystemGenerated: true
            });
        }

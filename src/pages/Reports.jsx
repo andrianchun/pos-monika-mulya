@@ -306,7 +306,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
 
   const filteredAccountingTable = enrichedAccounting.filter(a => {
      const matchAcc = selectedAccFilter === '' || a.accountId === Number(selectedAccFilter);
-     const isSystem = /^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Tukar Poin)/i.test(a.name || '');
+     const isSystem = /^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Bayar Cicilan|Pelunasan\/Cicilan|Selisih Shift|Setoran Shift|Tukar Poin)/i.test(a.name || '');
      const matchSys = selectedSysFilter === '' || (selectedSysFilter === 'otomatis' && isSystem) || (selectedSysFilter === 'manual' && !isSystem);
      return matchAcc && matchSys;
   });
@@ -568,8 +568,8 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
                            </select>
                         </div>
                      </div>
-                   <DataTable title="Rincian Jurnal Pembukuan" columns={accColumns} data={filteredAccountingTable} defaultSort={{key: 'date', direction: 'desc'}} colors={colors} canDelete={(a) => !/^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Tukar Poin)/i.test(a.name || '')} actions={[
-                     { icon: Edit, label: 'Edit', disabled: (a) => /^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Tukar Poin)/i.test(a.name || ''), colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-blue-200', onClick: (a) => { playSound('pop', isSoundOn); setAccForm({...a, amount: Math.abs(a.amount).toString(), isExpense: a.amount < 0, date: getLocalDatetime(a.date) }); setShowAccModal(true); } }
+                   <DataTable title="Rincian Jurnal Pembukuan" columns={accColumns} data={filteredAccountingTable} defaultSort={{key: 'date', direction: 'desc'}} colors={colors} canDelete={(a) => !/^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Bayar Cicilan|Pelunasan\/Cicilan|Selisih Shift|Setoran Shift|Tukar Poin)/i.test(a.name || '')} actions={[
+                     { icon: Edit, label: 'Edit', disabled: (a) => /^(Penerimaan Nota|Pembayaran Nota|Hapus Nota|Retur|Deposit|Refund Deposit|Pembayaran Cicilan Nota|Bayar Cicilan|Pelunasan\/Cicilan|Selisih Shift|Setoran Shift|Tukar Poin)/i.test(a.name || ''), colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-blue-200', onClick: (a) => { playSound('pop', isSoundOn); setAccForm({...a, amount: Math.abs(a.amount).toString(), isExpense: a.amount < 0, date: getLocalDatetime(a.date) }); setShowAccModal(true); } }
                    ]} onDelete={(a) => { playSound('pop', isSoundOn); setDeleteAccData(a); }} />
                 </div>
              </div>

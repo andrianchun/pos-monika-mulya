@@ -54,17 +54,34 @@ export default function TransactionEditModal({
 
      let newAccounting = [...(accounting || [])];
 
-     if(removedIds.length > 0 && setAccounting) {
-         const reversingEntries = removedIds.map((id, i) => {
+     if(removedIds.length > 0) {
+         let depositToRevert = 0;
+         const reversingEntries = [];
+         
+         removedIds.forEach((id, i) => {
              const pmt = (doc.paymentHistory || [])[id];
-             return {
-                  id: Date.now() + 1000 + i, type: 'kas', accountId: pmt?.accountId || null,
-                  name: `Batal Bayar Nota ${editedDoc.nota}`,
-                  amount: isSale ? -(pmt?.amount || 0) : (pmt?.amount || 0),
-                  date: new Date().toISOString()
-             };
+             if (pmt?.method === 'Saldo Deposit') {
+                 depositToRevert += (pmt.amount || 0);
+             } else {
+                 reversingEntries.push({
+                      id: Date.now() + 1000 + i, type: 'kas', accountId: pmt?.accountId || null,
+                      name: `Batal Bayar Nota ${editedDoc.nota}`,
+                      amount: isSale ? -(pmt?.amount || 0) : (pmt?.amount || 0),
+                      date: new Date().toISOString()
+                 });
+             }
          });
-         newAccounting = [...newAccounting, ...reversingEntries];
+         
+         if (reversingEntries.length > 0 && setAccounting) {
+             newAccounting = [...newAccounting, ...reversingEntries];
+         }
+         
+         if (isSale && depositToRevert > 0 && customers && setCustomers) {
+             const updatedCustomers = customers.map(c => 
+                 c.name === doc.customer ? { ...c, deposit: (c.deposit || 0) + depositToRevert } : c
+             );
+             setCustomers(updatedCustomers);
+         }
      }
 
      if(addedPayments.length > 0 && setAccounting) {
@@ -72,7 +89,7 @@ export default function TransactionEditModal({
              const fAcc = financialAccounts.find(a => a.id === pmt.accountId);
              return {
                  id: Date.now() + 2000 + i, type: 'kas', accountId: pmt.accountId,
-                 name: `${isSale ? 'Pelunasan/Cicilan' : 'Bayar Cicilan'} Nota ${editedDoc.nota} (${fAcc ? fAcc.name : '-'})`,
+                 name: `Pembayaran Cicilan Nota ${editedDoc.nota} (${fAcc ? fAcc.name : '-'})`,
                  amount: isSale ? pmt.amount : -pmt.amount,
                  date: new Date(pmt.date).toISOString()
              };
