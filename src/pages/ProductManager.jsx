@@ -261,24 +261,24 @@ export default function ProductManager({ products, setProducts, categories, unit
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-              <div className={`w-full max-w-4xl p-6 sm:p-8 rounded-3xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] flex flex-col`}>
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-2 sm:p-4">
+              <div className={`w-full max-w-5xl p-6 sm:p-8 rounded-3xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[95vh] flex flex-col`}>
                  <div className="flex justify-between items-center mb-6 shrink-0">
                     <h3 className={`text-xl font-bold ${colors.text}`}>{editingId ? 'Edit Produk' : 'Tambah Produk'}</h3>
                      <div className="flex items-center gap-2">
                         <button onClick={() => { playSound('pop', isSoundOn); setIsModalOpen(false); }} className="text-red-500 hover:scale-110 p-1"><X size={24}/></button>
                      </div>
                  </div>
-                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-4">
+                 <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-1 sm:px-3 pb-4">
                     <form id="productForm" onSubmit={handleSave} className="space-y-5">
               <div className="flex flex-col items-center mb-4">
-                 <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`} title="Upload Thumbnail Produk">
+                 <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group shrink-0`} title="Upload Thumbnail Produk">
                     {form.img && form.img.startsWith('data:image') ? <img src={form.img} className="w-full h-full object-cover" alt="Thumb" /> : <span className="text-4xl">{form.img}</span>}
                     <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-xs text-white text-center p-2 font-bold">Ubah Gambar</div>
                     <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, (res) => setForm({...form, img: res}), showToast)} />
                  </label>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                  <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Barcode (Opsional)</label><input type="text" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} placeholder="Scan/ketik barcode" /></div>
                  <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nama Produk *</label><input type="text" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
                  <div>
@@ -294,7 +294,7 @@ export default function ProductManager({ products, setProducts, categories, unit
                      </select>
                   </div>
                   
-                  <div className="md:col-span-2 mt-2">
+                  <div className="sm:col-span-2 md:col-span-4 mt-2 border-t border-dashed pt-4 border-gray-300 dark:border-gray-700">
                      <label className={`flex items-center gap-2 cursor-pointer ${colors.text} text-sm font-bold`}>
                         <input type="checkbox" checked={form.hasMultiUnit || false} onChange={e => {
                            const checked = e.target.checked;
@@ -307,12 +307,12 @@ export default function ProductManager({ products, setProducts, categories, unit
                   </div>
 
                   {form.hasMultiUnit && form.multiUnits?.map((mu, index) => (
-                     <div key={mu.id} className={`md:col-span-2 grid grid-cols-1 md:grid-cols-5 gap-3 p-4 rounded-xl border ${colors.border} relative bg-black/5 dark:bg-white/5`}>
+                     <div key={mu.id} className={`sm:col-span-2 md:col-span-4 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3 p-4 mt-2 mb-2 mx-1 rounded-xl border ${colors.border} relative bg-black/5 dark:bg-white/5`}>
                         <button type="button" onClick={() => {
                            const m = [...form.multiUnits];
                            m.splice(index, 1);
                            setForm({...form, multiUnits: m});
-                        }} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-lg z-10"><X size={16}/></button>
+                        }} className="absolute -top-3 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-lg z-10"><X size={16}/></button>
                         <div className="md:col-span-1">
                            <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Satuan Turunan</label>
                            <select required className={`w-full p-2.5 rounded-lg border bg-white dark:bg-[#1e1e1e] ${colors.text} ${colors.border} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={mu.unit} onChange={e => {
@@ -341,7 +341,7 @@ export default function ProductManager({ products, setProducts, categories, unit
                               setForm({...form, multiUnits: m});
                            }} />
                         </div>
-                        <div className="md:col-span-2">
+                        <div className="sm:col-span-3 lg:col-span-2">
                            <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Barcode Khusus (Opsional)</label>
                            <input type="text" className={`w-full p-2.5 rounded-lg border bg-transparent ${colors.text} ${colors.border} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={mu.barcode || ''} onChange={e => {
                               const m = [...form.multiUnits];
@@ -352,7 +352,7 @@ export default function ProductManager({ products, setProducts, categories, unit
                      </div>
                   ))}
                   {form.hasMultiUnit && (
-                     <div className="md:col-span-2">
+                     <div className="sm:col-span-2 md:col-span-4">
                         <button type="button" onClick={() => {
                            const m = [...(form.multiUnits || [])];
                            m.push({ id: Date.now(), unit: sortedUnits.find(u => u !== form.unit) || sortedUnits[0] || '', conversion: 1, price: 0, barcode: '', conversionStr: '1', priceStr: '0' });
