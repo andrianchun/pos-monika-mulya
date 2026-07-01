@@ -68,6 +68,16 @@ export default function ProductManager({ products, setProducts, categories, unit
       showToast('Harga jual tidak boleh lebih kecil dari harga beli!', 'error');
       return;
     }
+    
+    if (form.hasMultiUnit && form.multiUnits?.length > 0) {
+       for (let mu of form.multiUnits) {
+           if (!mu.price || mu.price <= 0) {
+               playSound('pop', isSoundOn);
+               showToast(`Harga jual Satuan Turunan (${mu.unit || 'Baru'}) wajib diisi & valid!`, 'error');
+               return;
+           }
+       }
+    }
 
     playSound('success', isSoundOn);
     if (editingId) {
@@ -84,7 +94,14 @@ export default function ProductManager({ products, setProducts, categories, unit
     playSound('pop', isSoundOn);
     setEditingId(prod.id);
     const margin = prod.cost > 0 ? ((prod.price - prod.cost) / prod.cost * 100) : 0;
-    setForm({ barcode: prod.barcode || '', name: prod.name, category: prod.category, unit: prod.unit, stock: prod.stock, minStock: prod.minStock !== undefined ? prod.minStock : 5, cost: prod.cost, price: prod.price, img: prod.img || '📦', margin: margin, marginStr: String(Number(margin.toFixed(2))).replace('.', ',') });
+    setForm({ 
+       barcode: prod.barcode || '', name: prod.name, category: prod.category, unit: prod.unit, 
+       stock: prod.stock, minStock: prod.minStock !== undefined ? prod.minStock : 5, 
+       cost: prod.cost, price: prod.price, img: prod.img || '📦', 
+       margin: margin, marginStr: String(Number(margin.toFixed(2))).replace('.', ','),
+       hasMultiUnit: prod.hasMultiUnit || false,
+       multiUnits: prod.multiUnits ? prod.multiUnits.map(mu => ({...mu, conversionStr: String(mu.conversion).replace('.', ','), priceStr: formatIDR(mu.price)})) : []
+    });
     setIsModalOpen(true);
   };
 
@@ -302,7 +319,7 @@ export default function ProductManager({ products, setProducts, categories, unit
                            if (checked && newMulti.length === 0) newMulti = [{ id: Date.now(), unit: sortedUnits.find(u => u !== form.unit) || sortedUnits[0] || '', conversion: 1, price: 0, barcode: '', conversionStr: '1', priceStr: '0' }];
                            setForm({...form, hasMultiUnit: checked, multiUnits: newMulti});
                         }} className="w-4 h-4 rounded text-[#D4AF37] focus:ring-[#D4AF37] accent-[#D4AF37]" />
-                        Aktifkan Multi-Satuan (Grosir/Eceran)
+                        Aktifkan Multi-Satuan
                      </label>
                   </div>
 
@@ -333,7 +350,7 @@ export default function ProductManager({ products, setProducts, categories, unit
                            }} placeholder="Contoh: 100" />
                         </div>
                         <div className="md:col-span-1">
-                           <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Harga Jual</label>
+                           <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Harga Jual *</label>
                            <input type="text" inputMode="numeric" required className={`w-full p-2.5 rounded-lg border bg-transparent ${colors.text} ${colors.border} focus:ring-1 focus:ring-[#D4AF37] outline-none`} value={mu.priceStr !== undefined ? mu.priceStr : formatIDR(mu.price)} onChange={e => {
                               const m = [...form.multiUnits];
                               m[index].price = parseIDR(e.target.value);
