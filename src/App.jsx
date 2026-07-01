@@ -598,7 +598,7 @@ export default function App() {
             shiftHistory={shiftHistory}
          />
          
-         <main className="flex-1 overflow-auto p-4 md:p-6 custom-scrollbar relative">
+         <main className="flex-1 overflow-auto p-4 pb-0 md:p-6 md:pb-0 custom-scrollbar relative">
              <div className={activeMenu === 'pos' ? 'block h-full' : 'hidden'}>
                 <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} activeShift={activeShift} setActiveShift={setActiveShift} />
              </div>

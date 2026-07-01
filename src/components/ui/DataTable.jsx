@@ -116,11 +116,11 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
       <div className={`flex-1 overflow-hidden rounded-xl border ${colors.border} ${colors.panel} flex flex-col shadow-sm`}>
         <div className="flex-1 overflow-auto custom-scrollbar" onWheel={handleTableWheel}>
           <table className={`w-full text-sm text-left ${colors.text}`}>
-            <thead className={`text-xs uppercase sticky top-0 ${colors.creamBg} border-b ${colors.border} shadow-sm z-10`}>
+            <thead className={`text-xs uppercase sticky top-0 ${colors.panel} border-b ${colors.border} shadow-sm z-10`}>
               <tr>
-                <th className="px-2 sm:px-4 py-3 text-center w-8 sm:w-12">No</th>
+                <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-center w-8 sm:w-12">No</th>
                 {columns.map(c => (
-                  <th key={c.key} onClick={() => handleSort(c.key)} className="px-2 sm:px-4 py-3 whitespace-nowrap cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
+                  <th key={c.key} onClick={() => handleSort(c.key)} className="px-2 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
                      <div className="flex items-center gap-1">
                         {c.label}
                         <span className={`text-[10px] ${sortConfig.key === c.key ? colors.gold : 'text-transparent group-hover:text-gray-400'}`}>
@@ -129,7 +129,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
                      </div>
                   </th>
                 ))}
-                {(onDelete || actions.length > 0) && <th className="px-2 sm:px-4 py-3 text-center">Aksi</th>}
+                {(onDelete || actions.length > 0) && <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-center">Aksi</th>}
               </tr>
             </thead>
             <tbody>
@@ -138,10 +138,10 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
               ) : (
                 paginated.map((row, i) => (
                   <tr key={row.id} className={`border-b ${colors.border} hover:${colors.creamBg}`}>
-                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{(page - 1) * limit + i + 1}</td>
-                    {columns.map(c => <td key={c.key} className="px-2 sm:px-4 py-2 sm:py-3">{c.render ? c.render(row) : row[c.key]}</td>)}
+                    <td className="px-2 sm:px-4 py-1.5 sm:py-2 text-center">{(page - 1) * limit + i + 1}</td>
+                    {columns.map(c => <td key={c.key} className="px-2 sm:px-4 py-1.5 sm:py-2">{c.render ? c.render(row) : row[c.key]}</td>)}
                     {(onDelete || actions.length > 0) && (
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 flex justify-center gap-1 sm:gap-2">
+                      <td className="px-2 sm:px-4 py-1 sm:py-1.5 flex justify-center gap-1 sm:gap-2">
                         {actions.map((act, idx) => {
                            const isBtnDisabled = act.disabled ? act.disabled(row) : false;
                            return <button key={idx} disabled={isBtnDisabled} onClick={() => act.onClick(row)} className={`p-1.5 rounded ${act.colorClass} ${isBtnDisabled ? 'opacity-50 cursor-not-allowed grayscale' : ''}`} title={act.label}><act.icon size={16} /></button>
