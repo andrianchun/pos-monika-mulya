@@ -142,7 +142,7 @@ export default function CheckoutModal({ posMode, total, financialAccounts, payme
                  }
                  
                  handleCheckout(e, 'wa', useDeposit ? depositUsed : 0, saveChangeAsDeposit ? Math.abs(remaining) : 0, usePoints ? pointsToRedeem : 0);
-             }} className="flex-1 py-3 rounded-xl font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-900/50 flex justify-center items-center gap-2 transition-transform active:scale-95 text-xs"><Send size={16}/> Simpan & Kirim WA</button>
+             }} className="flex-1 py-3 rounded-xl font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-900/50 flex justify-center items-center gap-2 transition-transform active:scale-95 text-xs"><Send size={16}/> Simpan & Kirim</button>
           </div>
         </div>
       </div>
