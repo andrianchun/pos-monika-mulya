@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, MessageCircle, Loader2, Send } from 'lucide-react';
+import { X, Printer, MessageCircle, Loader2 } from 'lucide-react';
 import { formatIDR, playSound } from '../../utils/helpers';
 import html2canvas from 'html2canvas';
 
@@ -7,8 +7,6 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
   const [notaBlob, setNotaBlob] = useState(null);
   const [isRendering, setIsRendering] = useState(doc?.autoAction === 'wa'); // Langsung true jika autoAction WA
   const [printMode, setPrintMode] = useState('thermal');
-  const [waReadyUrl, setWaReadyUrl] = useState(null);
-
   const hasAutoActionRun = React.useRef(false);
 
   useEffect(() => {
@@ -167,8 +165,6 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
      let phone = doc.phone ? String(doc.phone).replace(/\D/g, '') : '';
      if (phone.startsWith('0')) phone = '62' + phone.substring(1);
      
-     const waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
-     
      if (isMobile && currentBlob && navigator.share) {
          try {
              const file = new File([currentBlob], `Nota_${doc.nota}.png`, { type: 'image/png' });
@@ -177,15 +173,27 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                  text: text,
                  files: [file]
              });
-             setIsRendering(false);
-             if (isAuto) setTimeout(onClose, 800);
          } catch (shareErr) {
-             setIsRendering(false);
-             setWaReadyUrl(waUrl);
+             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
          }
      } else {
-         setIsRendering(false);
-         setWaReadyUrl(waUrl);
+         const waUrl = phone ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}` : `whatsapp://send?text=${encodeURIComponent(text)}`;
+         
+         window.isWAFiring = true; 
+         const iframe = document.createElement('iframe');
+         iframe.style.display = 'none';
+         iframe.src = waUrl;
+         document.body.appendChild(iframe);
+         
+         setTimeout(() => {
+             if (document.body.contains(iframe)) document.body.removeChild(iframe);
+             window.isWAFiring = false;
+         }, 3000);
+     }
+     
+     setIsRendering(false);
+     if (doc?.autoAction === 'wa') {
+         setTimeout(onClose, 800);
      }
   };
 
@@ -197,8 +205,8 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
   const isAuto = !!doc?.autoAction;
 
   return (
-     <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 ${(isAuto && !waReadyUrl) ? 'opacity-0 pointer-events-none' : 'bg-black/70'}`}>
-        <div className={`w-full ${printMode === 'a5' ? 'max-w-3xl' : 'max-w-sm'} rounded-2xl shadow-2xl bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh] transition-all duration-300 relative`}>
+     <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 ${isAuto ? 'opacity-0 pointer-events-none' : 'bg-black/70'}`}>
+        <div className={`w-full ${printMode === 'a5' ? 'max-w-3xl' : 'max-w-sm'} rounded-2xl shadow-2xl bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh] transition-all duration-300`}>
            
            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
              <h3 className="text-lg font-bold text-gray-800 dark:text-[#FFFDD0]">Preview Nota</h3>
@@ -221,29 +229,6 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Memproses Gambar...</h3>
                          <p className="text-xs text-gray-500 dark:text-gray-400">Sistem sedang merangkai gambar nota.<br/>(Animasi mungkin membeku sesaat, ini normal)</p>
                       </div>
-                   </div>
-              )}
-
-              {waReadyUrl && (
-                   <div className="absolute inset-0 bg-white dark:bg-[#121212] z-[150] flex flex-col items-center justify-center p-6 text-center">
-                      <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-lg">
-                          <MessageCircle size={40} />
-                      </div>
-                      <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">Siap Dikirim!</h2>
-                      <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm">Gambar nota sudah tersalin ke clipboard. Silakan klik tombol di bawah untuk membuka WhatsApp, lalu <strong>Paste (Ctrl+V)</strong> gambar di kolom obrolan.</p>
-                      <button 
-                          onClick={() => {
-                              window.open(waReadyUrl, '_blank');
-                              setTimeout(onClose, 500);
-                          }}
-                          className="bg-green-500 hover:bg-green-600 active:scale-95 transition-all text-white font-bold py-4 px-8 rounded-2xl shadow-xl flex items-center gap-3"
-                      >
-                          <Send size={24} />
-                          Lanjutkan ke WhatsApp
-                      </button>
-                      <button onClick={onClose} className="mt-6 text-gray-400 hover:text-gray-600 font-semibold underline">
-                          Tutup Saja
-                      </button>
                    </div>
               )}
 
