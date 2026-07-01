@@ -9,7 +9,7 @@ import DocumentReceiptModal from '../components/modals/DocumentReceiptModal';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 const getLocalDatetime = (d) => { const date = d ? new Date(d) : new Date(); const tzoffset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - tzoffset).toISOString().slice(0, 16); };
 
-export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, customers, colors, baseColors, isSoundOn, theme, storeInfo, showToast, globalMode, setGlobalMode, globalChartMode, setGlobalChartMode, shiftHistory = [] }) {
+export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, customers, colors, baseColors, isSoundOn, theme, storeInfo, showToast, globalMode, setGlobalMode, globalChartMode, setGlobalChartMode }) {
   const [activeReport, setActiveReport] = useState(globalMode);
   
   useEffect(() => {
