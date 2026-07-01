@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FileText, Package, PieChart, ChevronLeft, Filter, BarChart, TrendingUp, TrendingDown, Wallet, Store, CreditCard, Edit, Trash2, X, AlertTriangle, History } from 'lucide-react';
-import { formatIDR, parseIDR, playSound, calculateDateRange, formatDate, formatDateTime, getWeekStart, smartFormatInput } from '../utils/helpers';
+import { formatIDR, parseIDR, playSound, calculateDateRange, formatDate, formatDateTime, smartFormatInput } from '../utils/helpers';
 import DateInput from '../components/DateInput';
 import SimpleChart from '../components/ui/SimpleChart';
 import DataTable from '../components/ui/DataTable';

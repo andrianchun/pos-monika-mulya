@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Edit, DownloadCloud, UploadCloud, Trash2, X } from 'lucide-react';
+import { Edit, DownloadCloud, UploadCloud, Trash2, X, Plus } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload } from '../utils/helpers';
 import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
@@ -262,7 +262,7 @@ export default function ProductManager({ products, setProducts, categories, unit
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-              <div className={`w-full max-w-xl p-6 rounded-3xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] flex flex-col`}>
+              <div className={`w-full max-w-4xl p-6 sm:p-8 rounded-3xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] flex flex-col`}>
                  <div className="flex justify-between items-center mb-6 shrink-0">
                     <h3 className={`text-xl font-bold ${colors.text}`}>{editingId ? 'Edit Produk' : 'Tambah Produk'}</h3>
                      <div className="flex items-center gap-2">
