@@ -225,7 +225,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                     
                     {storeInfo.logo && (
                       <div style={{ textAlign: 'center', marginBottom: '4px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-                        <img src={storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '35mm', maxHeight: '12mm', objectFit: 'contain', filter: 'grayscale(100%) contrast(200%)', display: 'block', margin: '0 auto' }}/>
+                        <img src={storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '35mm', maxHeight: '12mm', objectFit: 'contain', filter: 'grayscale(100%) contrast(1000%)', display: 'block', margin: '0 auto' }}/>
                       </div>
                     )}
 
