@@ -201,7 +201,10 @@ export default function App() {
                
                return obj;
             });
-            if (sortDesc) data.sort((a, b) => b.id - a.id);
+            if (sortDesc) data.sort((a, b) => {
+               if (typeof a.id === 'string' && typeof b.id === 'string') return b.id.localeCompare(a.id);
+               return b.id - a.id;
+            });
             setter(data);
             checkLoaded();
          }, (error) => { clearTimeout(safetyTimer); setLoading(false); });
