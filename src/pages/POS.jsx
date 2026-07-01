@@ -440,11 +440,11 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                        
                        {/* Content Layer */}
                        <div className="relative z-10 p-3 sm:p-4 text-left w-full">
-                         <div className={`font-bold text-[11px] sm:text-sm leading-tight mb-2 line-clamp-2 text-white drop-shadow-md ${globalMode === 'penjualan' ? 'group-hover:text-[#D4AF37]' : 'group-hover:text-blue-400'} transition-colors`}>{p.name}</div>
+                         <div className={`font-bold text-[11px] sm:text-sm leading-tight mb-2 truncate text-white drop-shadow-md ${globalMode === 'penjualan' ? 'group-hover:text-[#D4AF37]' : 'group-hover:text-blue-400'} transition-colors`} title={p.name}>{p.name}</div>
                          
                          <div className="flex justify-between items-end">
                             <div className={`font-black text-[13px] sm:text-base ${posMode === 'penjualan' ? 'text-[#D4AF37]' : 'text-blue-500'} drop-shadow-md`}>Rp {formatIDR(posMode === 'penjualan' ? calcItemPricing(p, 1).unitPrice : p.cost)}</div>
-                            <div className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md backdrop-blur-sm bg-black/40 border border-white/10 ${posMode === 'penjualan' && p.currentStock < 5 ? 'text-red-400 font-bold border-red-500/30' : 'text-gray-300 font-medium'}`}>{String(p.currentStock).replace('.', ',')} {p.unit}</div>
+                            <div className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md backdrop-blur-sm bg-black/40 border border-white/10 ${posMode === 'penjualan' && p.currentStock < 5 ? 'text-red-400 font-bold border-red-500/30' : 'text-gray-300 font-medium'}`}>{String(Number(Number(p.currentStock).toFixed(2))).replace('.', ',')} {p.unit}</div>
                          </div>
                        </div>
                      </div>
