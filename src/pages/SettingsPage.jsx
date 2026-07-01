@@ -34,6 +34,7 @@ export default function SettingsPage({
   const [sAddress, setSAddress] = useState(storeInfo.address || '');
   const [sPhone, setSPhone] = useState(storeInfo.phone || '');
   const [sLogo, setSLogo] = useState(storeInfo.logo || null);
+  const [sLogoNota, setSLogoNota] = useState(storeInfo.logoNota || null);
   const [sBanner, setSBanner] = useState(storeInfo.banner || null);
   const [sOngkir, setSOngkir] = useState(storeInfo.ongkirPerKm || 0);
   
@@ -57,6 +58,7 @@ export default function SettingsPage({
      sAddress !== (storeInfo.address || '') ||
      sPhone !== (storeInfo.phone || '') ||
      sLogo !== (storeInfo.logo || null) ||
+     sLogoNota !== (storeInfo.logoNota || null) ||
      sBanner !== (storeInfo.banner || null) ||
      sPrefSales !== (storeInfo.prefixSales || 'INV') ||
      sPrefPurch !== (storeInfo.prefixPurchase || 'PO');
@@ -74,6 +76,7 @@ export default function SettingsPage({
      setSAddress(storeInfo.address || '');
      setSPhone(storeInfo.phone || '');
      setSLogo(storeInfo.logo || null);
+     setSLogoNota(storeInfo.logoNota || null);
      setSBanner(storeInfo.banner || null);
      setSPrefSales(storeInfo.prefixSales || 'INV');
      setSPrefPurch(storeInfo.prefixPurchase || 'PO');
@@ -122,7 +125,7 @@ export default function SettingsPage({
      e.preventDefault(); 
      playSound('success', isSoundOn);
      setStoreInfo({ 
-       ...storeInfo, name: sName, tagline: sTagline, address: sAddress, phone: sPhone, logo: sLogo, banner: sBanner,
+       ...storeInfo, name: sName, tagline: sTagline, address: sAddress, phone: sPhone, logo: sLogo, logoNota: sLogoNota, banner: sBanner,
        ongkirPerKm: Number(sOngkir) || 0, prefixSales: sPrefSales, prefixPurchase: sPrefPurch
      });
      showToast('Pengaturan profil & kode nota berhasil diperbarui.', 'success');
@@ -484,7 +487,14 @@ export default function SettingsPage({
                               {sLogo ? <img src={sLogo} className="w-full h-full object-cover" alt="Logo" /> : <Store size={32} />}
                               <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSLogo, showToast, 600, 0.85)} />
                            </label>
-                           <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase w-full text-center">Logo Toko</span>
+                           <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase w-full text-center">Logo Aplikasi</span>
+                         </div>
+                         <div className="flex flex-col items-start">
+                           <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
+                              {sLogoNota ? <img src={sLogoNota} className="w-full h-full object-cover" alt="Logo Nota" /> : <Store size={32} />}
+                              <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSLogoNota, showToast, 600, 0.85)} />
+                           </label>
+                           <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase w-full text-center">Logo Nota</span>
                          </div>
                          <div className="flex flex-col items-start flex-1">
                            <label className={`relative w-full h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>

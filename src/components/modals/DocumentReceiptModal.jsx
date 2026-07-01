@@ -223,9 +223,9 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                  
                  <div id="receipt-print-area" style={{ color: '#000', backgroundColor: '#fff', fontSize: '10px', lineHeight: '1.2', fontFamily: 'Arial, sans-serif', width: '100%', maxWidth: '48mm', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>
                     
-                    {storeInfo.logo && (
+                    {(storeInfo.logoNota || storeInfo.logo) && (
                       <div style={{ textAlign: 'center', marginBottom: '4px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-                        <img src={storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '35mm', maxHeight: '12mm', objectFit: 'contain', filter: 'grayscale(100%) contrast(1000%)', display: 'block', margin: '0 auto' }}/>
+                        <img src={storeInfo.logoNota || storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '35mm', maxHeight: '12mm', objectFit: 'contain', filter: 'grayscale(100%) contrast(1000%)', display: 'block', margin: '0 auto' }}/>
                       </div>
                     )}
 
