@@ -722,7 +722,7 @@ export default function SettingsPage({
                                <p className="text-[10px] text-gray-500">{u.email || '-'}</p>
                             </div>
                          </td>
-                         <td className="py-3 px-4 font-bold text-xs">{u.role === 'admin' ? <span className={"font-extrabold " + colors.gold}>ADMIN MASTER</span> : <span className={"font-medium " + colors.textMuted}>KASIR / STAFF</span>}</td>
+                         <td className="py-3 px-4 font-bold text-xs">{u.role === 'admin' ? <span className={"font-extrabold " + colors.gold}>ADMIN</span> : <span className={"font-medium " + colors.textMuted}>STAFF</span>}</td>
                          <td className="py-3 px-4 font-mono text-gray-500">{u.username}</td>
                          <td className="py-3 px-4">
                             <div className="flex justify-center gap-2">
@@ -1171,7 +1171,7 @@ export default function SettingsPage({
                 <div>
                    <label className={`block text-xs mb-1 ${colors.textMuted}`}>Tipe Akun Dasar</label>
                    <select className={`w-full p-2 border rounded-lg bg-white dark:bg-[#1e1e1e] ${colors.text} ${colors.border} outline-none`} value={uForm.role} onChange={e=>setUForm({...uForm, role: e.target.value})} disabled={uForm.id === 1}>
-                      <option value="kasir">Staff (Bisa Kustom Akses)</option><option value="admin">Admin Master (Full Akses)</option>
+                        <option value="kasir">STAFF (Bisa Kustom Akses)</option><option value="admin">ADMIN (Full Akses)</option>
                    </select>
                 </div>
                 {uForm.role === 'kasir' && (
