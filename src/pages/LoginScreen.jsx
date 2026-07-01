@@ -36,9 +36,13 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
 
       <div className={`w-full max-w-md p-8 rounded-2xl shadow-2xl z-10 ${colors.panel} border ${colors.border}`}>
         <div className="text-center mb-8">
-          <div className={`w-20 h-20 mx-auto rounded-2xl ${colors.goldBg} flex items-center justify-center shadow-lg mb-4 overflow-hidden`}>
-            {storeInfo.logo ? <img src={storeInfo.logo} className="w-full h-full object-cover" alt="logo"/> : <ShoppingCart size={40} className="text-white" />}
-          </div>
+          {storeInfo.logo ? (
+            <img src={storeInfo.logo} className="w-24 h-24 mx-auto object-contain mb-4 drop-shadow-md" alt="logo"/>
+          ) : (
+            <div className={`w-20 h-20 mx-auto rounded-2xl ${colors.goldBg} flex items-center justify-center shadow-lg mb-4 overflow-hidden`}>
+              <ShoppingCart size={40} className="text-white" />
+            </div>
+          )}
           <h1 className={`text-3xl font-extrabold ${colors.gold}`}>{storeInfo.name}</h1>
         </div>
 

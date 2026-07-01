@@ -580,7 +580,7 @@ export default function App() {
        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.15)_0%,transparent_60%)]"></div>
        <div className="relative z-10 flex flex-col items-center animate-pulse">
           {storeInfo?.logo ? (
-             <img src={storeInfo.logo} alt="Logo" className="w-24 h-24 object-cover rounded-2xl mb-6 shadow-[0_0_30px_rgba(212,175,55,0.3)]" />
+             <img src={storeInfo.logo} alt="Logo" className="w-28 h-28 object-contain mb-6 drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]" />
           ) : (
              <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#B8860B] mb-6 flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.3)]">
                 <span className="text-4xl font-black text-[#121212]">{storeInfo?.name ? storeInfo.name.charAt(0) : 'M'}</span>
