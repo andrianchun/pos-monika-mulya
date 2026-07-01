@@ -25,7 +25,7 @@ export default function TransactionEditModal({
      return parsed;
   });
   const [activeSubTab, setActiveSubTab] = useState('items'); 
-  const [newPayment, setNewPayment] = useState({ date: new Date().toISOString().split('T')[0], amount: '', accountId: financialAccounts[0]?.id || '' });
+  const [newPayment, setNewPayment] = useState({ date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16), amount: '', accountId: financialAccounts[0]?.id || '' });
 
   const isSale = tab === 'penjualan';
 
@@ -285,7 +285,7 @@ export default function TransactionEditModal({
                       <form onSubmit={addPayment} className={`p-4 rounded-xl border ${colors.border} ${colors.creamBg}`}>
                          <h4 className={`font-bold text-sm ${colors.text} mb-3`}>Tambah Cicilan / Pelunasan</h4>
                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                            <div><label className={`block text-xs font-semibold mb-1 ${colors.text}`}>Tanggal Bayar</label><DateInput required className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none [color-scheme:light] dark:[color-scheme:dark]`} value={newPayment.date} onChange={e => setNewPayment({...newPayment, date: e.target.value})} /></div>
+                            <div><label className={`block text-xs font-semibold mb-1 ${colors.text}`}>Tanggal Bayar</label><DateInput type="datetime-local" required className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none [color-scheme:light] dark:[color-scheme:dark]`} value={newPayment.date} onChange={e => setNewPayment({...newPayment, date: e.target.value})} /></div>
                             <div><label className={`block text-xs font-semibold mb-1 ${colors.text}`}>Akun Keuangan</label><select required className={`w-full p-2 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} value={newPayment.accountId} onChange={e => setNewPayment({...newPayment, accountId: e.target.value})}>{financialAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
                              <div>
                                 <label className={`block text-xs font-semibold mb-1 ${colors.text}`}>Nominal (Rp)</label>

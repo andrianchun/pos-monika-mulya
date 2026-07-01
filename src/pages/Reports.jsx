@@ -598,7 +598,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
                <form onSubmit={handleAccSave} className="space-y-4">
                  <div>
                    <label className={`block text-xs font-semibold mb-2 ${colors.textMuted}`}>Waktu & Tanggal</label>
-                   <DateInput type="datetime-local" required className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37] [color-scheme:light] dark:[color-scheme:dark]`} value={accForm.date} onChange={e=>setAccForm({...accForm, date: e.target.value})} />
+                   <input type="datetime-local" required className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37] [color-scheme:light] dark:[color-scheme:dark]`} value={accForm.date} onChange={e=>setAccForm({...accForm, date: e.target.value})} />
                  </div>
                  <div>
                    <label className={`block text-xs font-semibold mb-2 ${colors.textMuted}`}>Pilih Kelompok Akun</label>

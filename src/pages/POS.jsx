@@ -30,8 +30,8 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const [useAutoOngkir, setUseAutoOngkir] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(customers[0]?.id || '');
   const [selectedSupplier, setSelectedSupplier] = useState(1);
-  const getTodayStr = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
-  const [transactionDate, setTransactionDate] = useState(getTodayStr()); 
+  const getLocalDatetime = () => { const date = new Date(); const tzoffset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - tzoffset).toISOString().slice(0, 16); };
+  const [transactionDate, setTransactionDate] = useState(getLocalDatetime()); 
   const [checkoutModal, setCheckoutModal] = useState(false);
   const [showMobileCart, setShowMobileCart] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -340,12 +340,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
       }
 
       playSound('cash', isSoundOn);
-      
-      let docDate = new Date();
-      if (transactionDate && transactionDate !== getTodayStr()) {
-          const [y, m, d] = transactionDate.split('-');
-          docDate.setFullYear(Number(y), Number(m) - 1, Number(d));
-      }
+      let docDate = transactionDate ? new Date(transactionDate) : new Date();
       const dstr = `${String(docDate.getDate()).padStart(2,'0')}${String(docDate.getMonth()+1).padStart(2,'0')}${docDate.getFullYear()}`;
       let genNota = posMode === 'penjualan' ? `${storeInfo?.prefixSales || 'INV'}${dstr}-${String(storeInfo?.nextSeqSales || 1).padStart(4,'0')}` : `${storeInfo?.prefixPurchase || 'PO'}${dstr}-${String(storeInfo?.nextSeqPurchase || 1).padStart(4,'0')}`;
       
@@ -385,7 +380,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
       setPosOngkirStr(''); 
       setPaymentAmount(''); 
       setDueDate(''); 
-      setTransactionDate(getTodayStr()); 
+      setTransactionDate(getLocalDatetime()); 
       setPaymentMethodId(financialAccounts[0]?.id || '');
       setUseAutoOngkir(false);
       setSelectedCustomer(customers[0]?.id || '');
@@ -575,8 +570,8 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                    )}
                 </div>
                 <div className="w-[120px]">
-                   <label className={`text-[10px] sm:text-xs font-semibold mb-1 block ${colors.textMuted}`}>Tanggal</label>
-                   <DateInput className={`w-full p-[9px] rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none text-xs [color-scheme:light] dark:[color-scheme:dark]`} value={transactionDate} onChange={e => setTransactionDate(e.target.value)} />
+                     <label className={`text-[10px] sm:text-xs font-semibold mb-1 block ${colors.textMuted}`}>Waktu & Tanggal</label>
+                     <DateInput type="datetime-local" className={`w-full p-[9px] rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none text-xs [color-scheme:light] dark:[color-scheme:dark]`} value={transactionDate} onChange={e => setTransactionDate(e.target.value)} />
                 </div>
                 <button onClick={clearCart} className={`p-2.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors h-[42px]`}><Trash2 size={18} /></button>
               </div>
