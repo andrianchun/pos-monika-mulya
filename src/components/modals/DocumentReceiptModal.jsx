@@ -200,7 +200,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
   if (!doc) return null;
 
   const isSales = doc.type !== 'pembelian';
-  const watermarkText = doc?.status?.toUpperCase() === 'LUNAS' ? 'LUNAS' : 'TEMPO';
+  const watermarkText = doc?.status?.toUpperCase() === 'LUNAS' ? 'LUNAS' : 'BELUM LUNAS';
 
   const isAuto = !!doc?.autoAction;
 
@@ -235,160 +235,164 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
               {printMode === 'thermal' ? (
               <div className="bg-white text-black p-3 shadow-sm w-full mx-auto" style={{ maxWidth: '48mm', minHeight: 'fit-content' }}>
                  
-                 <div id="receipt-print-area" style={{ color: '#000', backgroundColor: '#fff', fontSize: '10px', lineHeight: '1.2', fontFamily: 'Arial, sans-serif', width: '100%', maxWidth: '48mm', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>
+                 <div id="receipt-print-area" style={{ position: 'relative', color: '#000', backgroundColor: '#fff', fontSize: '10px', lineHeight: '1.2', fontFamily: 'Arial, sans-serif', width: '100%', maxWidth: '48mm', margin: '0 auto', padding: '16px', boxSizing: 'border-box', overflow: 'hidden' }}>
                     
-                    {(storeInfo.logoNota || storeInfo.logo) && (
-                      <div style={{ textAlign: 'center', marginBottom: '4px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-                        <img src={storeInfo.logoNota || storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '35mm', maxHeight: '12mm', objectFit: 'contain', filter: 'grayscale(100%) contrast(1000%)', display: 'block', margin: '0 auto' }}/>
-                      </div>
-                    )}
+                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', fontSize: '38px', fontWeight: '900', color: 'transparent', WebkitTextStroke: '1px #a0a0a0', zIndex: 0, whiteSpace: 'nowrap', pointerEvents: 'none', opacity: 0.6 }}>
+                        {watermarkText}
+                    </div>
 
-                    <div style={{ textAlign: 'center', fontWeight: '900', fontSize: '14px', marginBottom: '2px' }}>{storeInfo.name}</div>
-                    <div style={{ textAlign: 'center', fontSize: '10px', marginBottom: '4px' }}>{storeInfo.address}<br/>Telp: {storeInfo.phone}</div>
-                    
-                    <div style={{ borderBottom: '1px dashed #000', marginBottom: '4px' }}></div>
-                    
-                    <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse', marginBottom: '4px' }}>
-                       <tbody>
-                          <tr><td style={{ width: '30px', padding: '1px 0' }}>Nota</td><td style={{ padding: '1px 0' }}>: <strong>{doc.nota}</strong></td></tr>
-                          <tr><td style={{ padding: '1px 0' }}>Tgl</td><td style={{ padding: '1px 0' }}>: {new Date(doc.date).toLocaleString('id-ID')}</td></tr>
-                          <tr><td style={{ padding: '1px 0' }}>Kasir</td><td style={{ padding: '1px 0' }}>: {doc.kasir}</td></tr>
-                          <tr><td style={{ padding: '1px 0' }}>{isSales ? 'Cust' : 'Sup'}</td><td style={{ padding: '1px 0' }}>: {isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}</td></tr>
-                       </tbody>
-                    </table>
-                    
-                    <div style={{ borderBottom: '1px dashed #000', marginBottom: '4px' }}></div>
-                    
-                    <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse', marginBottom: '4px' }}>
-                       <tbody>
-                          {doc.items.map(item => (
-                             <React.Fragment key={item.id}>
-                                <tr>
-                                   <td colSpan="2" style={{ fontWeight: 'bold', padding: '1px 0' }}>{item.name}</td>
-                                </tr>
-                                <tr>
-                                   <td style={{ padding: '0 0 2px 0' }}>{item.qty} {item.unit} x {formatIDR(item.unitPrice || item.price)}</td>
-                                   <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '0 0 2px 0' }}>Rp {formatIDR(item.subtotal || item.total)}</td>
-                                </tr>
-                             </React.Fragment>
-                          ))}
-                       </tbody>
-                    </table>
-                    
-                    <div style={{ borderTop: '1px dashed #000', paddingTop: '4px', marginTop: '2px' }}></div>
-                    
-                    <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
-                       <tbody>
-                          <tr><td style={{ padding: '1px 0' }}>Subtotal</td><td style={{ textAlign: 'right', padding: '1px 0' }}>Rp {formatIDR(doc.subtotal)}</td></tr>
-                          {doc.discount > 0 && <tr><td style={{ padding: '1px 0' }}>Diskon</td><td style={{ textAlign: 'right', padding: '1px 0' }}>-Rp {formatIDR(doc.discount)}</td></tr>}
-                          {doc.ongkir > 0 && <tr><td style={{ padding: '1px 0' }}>Ongkir</td><td style={{ textAlign: 'right', padding: '1px 0' }}>Rp {formatIDR(doc.ongkir)}</td></tr>}
-                          <tr><td style={{ fontWeight: '900', fontSize: '13px', paddingTop: '2px' }}>TOTAL</td><td style={{ textAlign: 'right', fontWeight: '900', fontSize: '13px', paddingTop: '2px' }}>Rp {formatIDR(doc.total)}</td></tr>
-                          <tr><td style={{ paddingTop: '2px' }}>Bayar</td><td style={{ textAlign: 'right', paddingTop: '2px' }}>Rp {formatIDR(doc.paid)}</td></tr>
-                          <tr><td style={{ fontWeight: 'bold', paddingBottom: '2px' }}>KEMBALI</td><td style={{ textAlign: 'right', fontWeight: 'bold', paddingBottom: '2px' }}>Rp {formatIDR(doc.paid - doc.total)}</td></tr>
-                       </tbody>
-                    </table>
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                        {(storeInfo.logoNota || storeInfo.logo) && (
+                          <div style={{ textAlign: 'center', marginBottom: '4px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                            <img src={storeInfo.logoNota || storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '35mm', maxHeight: '12mm', objectFit: 'contain', filter: 'grayscale(100%) contrast(1000%)', display: 'block', margin: '0 auto' }}/>
+                          </div>
+                        )}
 
-                    <div style={{ border: '2px solid #000', color: '#000', fontSize: '13px', fontWeight: '900', textAlign: 'center', padding: '4px', marginTop: '8px', marginBottom: '0px', width: '100%', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                       {watermarkText}
+                        <div style={{ textAlign: 'center', fontWeight: '900', fontSize: '14px', marginBottom: '2px' }}>{storeInfo.name}</div>
+                        <div style={{ textAlign: 'center', fontSize: '10px', marginBottom: '4px' }}>{storeInfo.address}<br/>Telp: {storeInfo.phone}</div>
+                        
+                        <div style={{ borderBottom: '1px dashed #000', marginBottom: '4px' }}></div>
+                        
+                        <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse', marginBottom: '4px' }}>
+                           <tbody>
+                              <tr><td style={{ width: '30px', padding: '1px 0' }}>Nota</td><td style={{ padding: '1px 0' }}>: <strong>{doc.nota}</strong></td></tr>
+                              <tr><td style={{ padding: '1px 0' }}>Tgl</td><td style={{ padding: '1px 0' }}>: {new Date(doc.date).toLocaleString('id-ID')}</td></tr>
+                              <tr><td style={{ padding: '1px 0' }}>Kasir</td><td style={{ padding: '1px 0' }}>: {doc.kasir}</td></tr>
+                              <tr><td style={{ padding: '1px 0' }}>{isSales ? 'Cust' : 'Sup'}</td><td style={{ padding: '1px 0' }}>: {isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}</td></tr>
+                           </tbody>
+                        </table>
+                        
+                        <div style={{ borderBottom: '1px dashed #000', marginBottom: '4px' }}></div>
+                        
+                        <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse', marginBottom: '4px' }}>
+                           <tbody>
+                              {doc.items.map(item => (
+                                 <React.Fragment key={item.id}>
+                                    <tr>
+                                       <td colSpan="2" style={{ fontWeight: 'bold', padding: '1px 0' }}>{item.name}</td>
+                                    </tr>
+                                    <tr>
+                                       <td style={{ padding: '0 0 2px 0' }}>{item.qty} {item.unit} x {formatIDR(item.unitPrice || item.price)}</td>
+                                       <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '0 0 2px 0' }}>Rp {formatIDR(item.subtotal || item.total)}</td>
+                                    </tr>
+                                 </React.Fragment>
+                              ))}
+                           </tbody>
+                        </table>
+                        
+                        <div style={{ borderTop: '1px dashed #000', paddingTop: '4px', marginTop: '2px' }}></div>
+                        
+                        <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
+                           <tbody>
+                              <tr><td style={{ padding: '1px 0' }}>Subtotal</td><td style={{ textAlign: 'right', padding: '1px 0' }}>Rp {formatIDR(doc.subtotal)}</td></tr>
+                              {doc.discount > 0 && <tr><td style={{ padding: '1px 0' }}>Diskon</td><td style={{ textAlign: 'right', padding: '1px 0' }}>-Rp {formatIDR(doc.discount)}</td></tr>}
+                              {doc.ongkir > 0 && <tr><td style={{ padding: '1px 0' }}>Ongkir</td><td style={{ textAlign: 'right', padding: '1px 0' }}>Rp {formatIDR(doc.ongkir)}</td></tr>}
+                              <tr><td style={{ fontWeight: '900', fontSize: '13px', paddingTop: '2px' }}>TOTAL</td><td style={{ textAlign: 'right', fontWeight: '900', fontSize: '13px', paddingTop: '2px' }}>Rp {formatIDR(doc.total)}</td></tr>
+                              <tr><td style={{ paddingTop: '2px' }}>Bayar</td><td style={{ textAlign: 'right', paddingTop: '2px' }}>Rp {formatIDR(doc.paid)}</td></tr>
+                              <tr><td style={{ fontWeight: 'bold', paddingBottom: '2px' }}>KEMBALI</td><td style={{ textAlign: 'right', fontWeight: 'bold', paddingBottom: '2px' }}>Rp {formatIDR(doc.paid - doc.total)}</td></tr>
+                           </tbody>
+                        </table>
                     </div>
                  </div>
 
               </div>
               ) : (
                   <div className="bg-white text-black shadow-sm w-full mx-auto relative overflow-hidden" style={{ maxWidth: '148mm', minHeight: '210mm', padding: '10mm' }}>
-                     <div id="invoice-print-area" style={{ color: '#000', backgroundColor: '#fff', fontSize: '12px', lineHeight: '1.4', fontFamily: 'Arial, sans-serif', width: '100%', boxSizing: 'border-box' }}>
-                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '15px' }}>
-                             <div style={{ width: '50%' }}>
-                                 {(storeInfo.logoNota || storeInfo.logo) && (
-                                     <img src={storeInfo.logoNota || storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '60mm', maxHeight: '25mm', objectFit: 'contain', marginBottom: '8px' }}/>
-                                 )}
-                                 <div style={{ fontWeight: '900', fontSize: '16px' }}>{storeInfo.name}</div>
-                                 <div style={{ fontSize: '12px', color: '#333', marginTop: '4px' }}>
-                                     {storeInfo.address}<br/>Telp: {storeInfo.phone}
-                                 </div>
-                             </div>
-                             <div style={{ width: '45%', textAlign: 'right' }}>
-                                 <div style={{ fontSize: '24px', fontWeight: '900', color: '#D4AF37', letterSpacing: '2px', textTransform: 'uppercase' }}>INVOICE</div>
-                                 <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
-                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                         <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>No Nota</span>
-                                         <span style={{ fontWeight: 'bold' }}>: {doc.nota}</span>
-                                     </div>
-                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                         <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>Tanggal</span>
-                                         <span>: {new Date(doc.date).toLocaleString('id-ID')}</span>
-                                     </div>
-                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                         <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>Kasir</span>
-                                         <span>: {doc.kasir}</span>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-
-                         <div style={{ marginBottom: '15px' }}>
-                             <div style={{ fontSize: '11px', color: '#666', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px' }}>Kepada Yth:</div>
-                             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}</div>
-                         </div>
-
-                         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px', fontSize: '12px' }}>
-                             <thead>
-                                 <tr>
-                                     <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'left', width: '5%' }}>No</th>
-                                     <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'left', width: '40%' }}>Deskripsi Barang</th>
-                                     <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'center', width: '15%' }}>Qty</th>
-                                     <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'right', width: '20%' }}>Harga Satuan</th>
-                                     <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'right', width: '20%' }}>Total</th>
-                                 </tr>
-                             </thead>
-                             <tbody>
-                                 {doc.items.map((item, index) => (
-                                     <tr key={item.id}>
-                                         <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top' }}>{index + 1}</td>
-                                         <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', fontWeight: 'bold' }}>{item.name}</td>
-                                         <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', textAlign: 'center' }}>{item.qty} {item.unit}</td>
-                                         <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', textAlign: 'right' }}>Rp {formatIDR(item.unitPrice || item.price)}</td>
-                                         <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', textAlign: 'right', fontWeight: 'bold' }}>Rp {formatIDR(item.subtotal || item.total)}</td>
-                                     </tr>
-                                 ))}
-                             </tbody>
-                         </table>
-
-                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', pageBreakInside: 'avoid' }}>
-                             <div style={{ width: '45%', display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '12px' }}>
-                                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100px' }}>
-                                     <div>Penerima,</div>
-                                     <div style={{ borderBottom: '1px solid #000', width: '120px', margin: '0 auto' }}></div>
-                                 </div>
-                                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100px' }}>
-                                     <div>Hormat Kami,</div>
-                                     <div style={{ borderBottom: '1px solid #000', width: '120px', margin: '0 auto' }}>{doc.kasir}</div>
-                                 </div>
-                             </div>
-
-                             <div style={{ width: '45%' }}>
-                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                                     <tbody>
-                                         <tr><td style={{ padding: '4px', color: '#666' }}>Subtotal</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>Rp {formatIDR(doc.subtotal)}</td></tr>
-                                         {doc.discount > 0 && <tr><td style={{ padding: '4px', color: '#666' }}>Diskon</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold', color: 'red' }}>-Rp {formatIDR(doc.discount)}</td></tr>}
-                                         {doc.ongkir > 0 && <tr><td style={{ padding: '4px', color: '#666' }}>Ongkir</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>Rp {formatIDR(doc.ongkir)}</td></tr>}
-                                         <tr><td colSpan="2"><div style={{ borderTop: '2px solid #000', margin: '4px 0' }}></div></td></tr>
-                                         <tr><td style={{ padding: '4px', fontWeight: '900', fontSize: '14px' }}>GRAND TOTAL</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: '900', fontSize: '14px' }}>Rp {formatIDR(doc.total)}</td></tr>
-                                         <tr><td style={{ padding: '4px', color: '#666' }}>Telah Dibayar</td><td style={{ padding: '4px', textAlign: 'right' }}>Rp {formatIDR(doc.paid)}</td></tr>
-                                         <tr><td style={{ padding: '4px', color: '#666' }}>Kembali/Kurang</td><td style={{ padding: '4px', textAlign: 'right' }}>Rp {formatIDR(doc.paid - doc.total)}</td></tr>
-                                     </tbody>
-                                 </table>
-                                 
-                                 <div style={{ border: '2px solid #000', color: '#000', fontSize: '16px', fontWeight: '900', textAlign: 'center', padding: '8px', marginTop: '15px', letterSpacing: '2px', textTransform: 'uppercase' }}>
-                                     {watermarkText}
-                                 </div>
-                             </div>
-                         </div>
+                     <div id="invoice-print-area" style={{ position: 'relative', color: '#000', backgroundColor: '#fff', fontSize: '12px', lineHeight: '1.4', fontFamily: 'Arial, sans-serif', width: '100%', boxSizing: 'border-box' }}>
                          
-                         <div style={{ textAlign: 'center', marginTop: '30px', fontSize: '11px', color: '#666', fontStyle: 'italic', pageBreakInside: 'avoid' }}>
-                            Terima kasih telah berbelanja di {storeInfo.name}
+                         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', fontSize: '110px', fontWeight: '900', color: 'transparent', WebkitTextStroke: '2px #a0a0a0', opacity: 0.35, zIndex: 0, whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+                             {watermarkText}
                          </div>
 
+                         <div style={{ position: 'relative', zIndex: 1 }}>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '15px' }}>
+                                 <div style={{ width: '50%' }}>
+                                     {(storeInfo.logoNota || storeInfo.logo) && (
+                                         <img src={storeInfo.logoNota || storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '60mm', maxHeight: '25mm', objectFit: 'contain', marginBottom: '8px' }}/>
+                                     )}
+                                     <div style={{ fontWeight: '900', fontSize: '16px' }}>{storeInfo.name}</div>
+                                     <div style={{ fontSize: '12px', color: '#333', marginTop: '4px' }}>
+                                         {storeInfo.address}<br/>Telp: {storeInfo.phone}
+                                     </div>
+                                 </div>
+                                 <div style={{ width: '45%', textAlign: 'right' }}>
+                                     <div style={{ fontSize: '24px', fontWeight: '900', color: '#D4AF37', letterSpacing: '2px', textTransform: 'uppercase' }}>INVOICE</div>
+                                     <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
+                                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                             <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>No Nota</span>
+                                             <span style={{ fontWeight: 'bold' }}>: {doc.nota}</span>
+                                         </div>
+                                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                             <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>Tanggal</span>
+                                             <span>: {new Date(doc.date).toLocaleString('id-ID')}</span>
+                                         </div>
+                                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                             <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>Kasir</span>
+                                             <span>: {doc.kasir}</span>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+
+                             <div style={{ marginBottom: '15px' }}>
+                                 <div style={{ fontSize: '11px', color: '#666', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px' }}>Kepada Yth:</div>
+                                 <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}</div>
+                             </div>
+
+                             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px', fontSize: '12px' }}>
+                                 <thead>
+                                     <tr>
+                                         <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'left', width: '5%' }}>No</th>
+                                         <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'left', width: '40%' }}>Deskripsi Barang</th>
+                                         <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'center', width: '15%' }}>Qty</th>
+                                         <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'right', width: '20%' }}>Harga Satuan</th>
+                                         <th style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '8px 4px', textAlign: 'right', width: '20%' }}>Total</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody>
+                                     {doc.items.map((item, index) => (
+                                         <tr key={item.id}>
+                                             <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top' }}>{index + 1}</td>
+                                             <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', fontWeight: 'bold' }}>{item.name}</td>
+                                             <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', textAlign: 'center' }}>{item.qty} {item.unit}</td>
+                                             <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', textAlign: 'right' }}>Rp {formatIDR(item.unitPrice || item.price)}</td>
+                                             <td style={{ borderBottom: '1px solid #eee', padding: '8px 4px', verticalAlign: 'top', textAlign: 'right', fontWeight: 'bold' }}>Rp {formatIDR(item.subtotal || item.total)}</td>
+                                         </tr>
+                                     ))}
+                                 </tbody>
+                             </table>
+
+                             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', pageBreakInside: 'avoid' }}>
+                                 <div style={{ width: '45%', display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '12px' }}>
+                                     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100px' }}>
+                                         <div>Penerima,</div>
+                                         <div style={{ borderBottom: '1px solid #000', width: '120px', margin: '0 auto' }}></div>
+                                     </div>
+                                     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100px' }}>
+                                         <div>Hormat Kami,</div>
+                                         <div style={{ borderBottom: '1px solid #000', width: '120px', margin: '0 auto' }}>{doc.kasir}</div>
+                                     </div>
+                                 </div>
+
+                                 <div style={{ width: '45%' }}>
+                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                         <tbody>
+                                             <tr><td style={{ padding: '4px', color: '#666' }}>Subtotal</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>Rp {formatIDR(doc.subtotal)}</td></tr>
+                                             {doc.discount > 0 && <tr><td style={{ padding: '4px', color: '#666' }}>Diskon</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold', color: 'red' }}>-Rp {formatIDR(doc.discount)}</td></tr>}
+                                             {doc.ongkir > 0 && <tr><td style={{ padding: '4px', color: '#666' }}>Ongkir</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>Rp {formatIDR(doc.ongkir)}</td></tr>}
+                                             <tr><td colSpan="2"><div style={{ borderTop: '2px solid #000', margin: '4px 0' }}></div></td></tr>
+                                             <tr><td style={{ padding: '4px', fontWeight: '900', fontSize: '14px' }}>GRAND TOTAL</td><td style={{ padding: '4px', textAlign: 'right', fontWeight: '900', fontSize: '14px' }}>Rp {formatIDR(doc.total)}</td></tr>
+                                             <tr><td style={{ padding: '4px', color: '#666' }}>Telah Dibayar</td><td style={{ padding: '4px', textAlign: 'right' }}>Rp {formatIDR(doc.paid)}</td></tr>
+                                             <tr><td style={{ padding: '4px', color: '#666' }}>Kembali/Kurang</td><td style={{ padding: '4px', textAlign: 'right' }}>Rp {formatIDR(doc.paid - doc.total)}</td></tr>
+                                         </tbody>
+                                     </table>
+                                 </div>
+                             </div>
+                             
+                             <div style={{ textAlign: 'center', marginTop: '30px', fontSize: '11px', color: '#666', fontStyle: 'italic', pageBreakInside: 'avoid' }}>
+                                Terima kasih telah berbelanja di {storeInfo.name}
+                             </div>
+                         </div>
                      </div>
                   </div>
               )}
