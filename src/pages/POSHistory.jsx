@@ -133,9 +133,9 @@ export default function POSHistory({
   const actions = [
     { 
       icon: Printer, 
-      label: 'Print Ulang', 
+      label: 'Lihat / Cetak', 
       colorClass: 'bg-gray-100 text-gray-600 hover:bg-gray-200', 
-      onClick: (r) => { playSound('pop', isSoundOn); setSelectedDoc({ ...r, autoAction: 'cetak' }); } 
+      onClick: (r) => { playSound('pop', isSoundOn); setSelectedDoc(r); } 
     },
     { 
       icon: Send, 
