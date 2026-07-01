@@ -31,11 +31,14 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
 
     return temp.sort((a, b) => {
       if (!sortConfig.key) return 0;
-      const valA = a[sortConfig.key];
-      const valB = b[sortConfig.key];
-      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
+      const valA = Number(a[sortConfig.key]) || (typeof a[sortConfig.key] === 'string' ? a[sortConfig.key] : 0);
+        const valB = Number(b[sortConfig.key]) || (typeof b[sortConfig.key] === 'string' ? b[sortConfig.key] : 0);
+        
+        if (typeof valA === 'string' && typeof valB === 'string') {
+           return sortConfig.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        
+        return sortConfig.direction === 'asc' ? (valA - valB) : (valB - valA);
     });
   }, [data, sortConfig, filters]);
 
@@ -157,7 +160,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
                       No
                       {noSortKey && (
                          <span className={`text-[10px] ${sortConfig.key === noSortKey ? colors.gold : 'text-transparent group-hover:text-gray-400'}`}>
-                            {sortConfig.key === noSortKey && sortConfig.direction === 'desc' ? '▼' : '▲'}
+                            {sortConfig.key === noSortKey ? (sortConfig.direction === 'desc' ? '▼' : '▲') : ''}
                          </span>
                       )}
                    </div>
@@ -170,7 +173,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
                            <Filter size={12} className={filters[c.key]?.length > 0 ? colors.gold : 'text-gray-400 opacity-50 group-hover:opacity-100'} />
                         ) : (
                            <span className={`text-[10px] ${sortConfig.key === c.key ? colors.gold : 'text-transparent group-hover:text-gray-400'}`}>
-                              {sortConfig.key === c.key && sortConfig.direction === 'desc' ? '▼' : '▲'}
+                              {sortConfig.key === c.key ? (sortConfig.direction === 'desc' ? '▼' : '▲') : ''}
                            </span>
                         )}
                      </div>
