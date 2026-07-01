@@ -206,14 +206,14 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
 
   return (
      <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 ${isAuto ? 'opacity-0 pointer-events-none' : 'bg-black/70'}`}>
-        <div className="w-full max-w-sm rounded-2xl shadow-2xl bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
+        <div className={`w-full ${printMode === 'a5' ? 'max-w-3xl' : 'max-w-sm'} rounded-2xl shadow-2xl bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh] transition-all duration-300`}>
            
            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
              <h3 className="text-lg font-bold text-gray-800 dark:text-[#FFFDD0]">Preview Nota</h3>
              <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="text-red-500 hover:scale-110 p-1"><X size={24}/></button>
            </div>
 
-           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-gray-100 dark:bg-[#121212] flex flex-col items-center relative">
+           <div className="flex-1 overflow-auto p-4 custom-scrollbar bg-gray-100 dark:bg-[#121212] flex flex-col items-center relative">
               
               {!isAuto && (
                  <div className="flex items-center gap-2 mb-4 bg-white dark:bg-[#1e1e1e] p-1 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm shrink-0 sticky top-0 z-10 w-fit mx-auto">
