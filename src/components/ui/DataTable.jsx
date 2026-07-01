@@ -168,7 +168,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
                 {columns.map(c => (
                   <th key={c.key} className="px-2 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap relative">
                      <div className="flex items-center gap-1 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group rounded p-1" onClick={() => c.filterOptions ? setOpenFilterKey(openFilterKey === c.key ? null : c.key) : handleSort(c.key)}>
-                        {c.label}
+                        <span className={filters[c.key]?.length > 0 ? `${colors.gold} font-bold` : ''}>{c.label}</span>
                         {c.filterOptions ? (
                            <Filter size={12} className={filters[c.key]?.length > 0 ? colors.gold : 'text-gray-400 opacity-50 group-hover:opacity-100'} />
                         ) : (

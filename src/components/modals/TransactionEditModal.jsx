@@ -24,6 +24,15 @@ export default function TransactionEditModal({
      });
      return parsed;
   });
+  
+  const [localTxDate, setLocalTxDate] = useState(() => {
+      try {
+          return new Date(new Date(editedDoc.date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      } catch (e) {
+          return '';
+      }
+  });
+
   const [activeSubTab, setActiveSubTab] = useState('items'); 
   const [newPayment, setNewPayment] = useState({ date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16), amount: '', accountId: financialAccounts[0]?.id || '' });
 
@@ -188,7 +197,7 @@ export default function TransactionEditModal({
                    <div className="grid grid-cols-2 gap-4">
                       <div>
                          <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Waktu Transaksi</label>
-                         <input type="datetime-local" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none [color-scheme:light] dark:[color-scheme:dark]`} value={new Date(new Date(editedDoc.date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)} onChange={e => setEditedDoc({...editedDoc, date: new Date(e.target.value).toISOString()})} />
+                         <DateInput type="datetime-local" className={`w-full p-2.5 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none [color-scheme:light] dark:[color-scheme:dark]`} value={localTxDate} onChange={e => { setLocalTxDate(e.target.value); if (e.target.value) { const d = new Date(e.target.value); if (!isNaN(d.getTime())) setEditedDoc({...editedDoc, date: d.toISOString()}); } }} />
                       </div>
                       <div>
                          <label className={`block text-xs font-bold mb-1 ${colors.text}`}>{isSale ? 'Customer' : 'Supplier'}</label>

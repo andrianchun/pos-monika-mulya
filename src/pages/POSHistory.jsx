@@ -124,9 +124,18 @@ export default function POSHistory({
   const columns = [
     { key: 'nota', label: 'No. Nota', render: (r) => <span className={`font-bold ${colors.gold} cursor-pointer hover:underline`} onClick={() => setSelectedDoc(r)}>{r.nota}</span> },
     { key: 'date', label: 'Tanggal & Waktu', render: (r) => new Date(r.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
-    { key: tab === 'penjualan' ? 'customer' : 'supplier', label: tab === 'penjualan' ? 'Customer' : 'Supplier' },
+    { 
+       key: tab === 'penjualan' ? 'customer' : 'supplier', 
+       label: tab === 'penjualan' ? 'Customer' : 'Supplier',
+       filterOptions: Array.from(new Set(activeData.map(r => tab === 'penjualan' ? r.customer : r.supplier))).filter(Boolean).sort()
+    },
     { key: 'total', label: 'Total', render: (r) => <span className={`font-bold ${colors.gold}`}>Rp {formatIDR(r.total)}</span> },
-    { key: 'status', label: 'Status', render: (r) => <span className={`px-2 py-1 rounded text-xs font-bold ${r.status === 'Lunas' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{r.status}</span> }
+    { 
+       key: 'status', 
+       label: 'Status', 
+       filterOptions: ['Lunas', 'Tempo'],
+       render: (r) => <span className={`px-2 py-1 rounded text-xs font-bold ${r.status === 'Lunas' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{r.status}</span> 
+    }
   ];
 
   // PERBAIKAN 2: Seragamkan aksi Print dan tambahkan aksi Kirim WA pakai trik autoAction
