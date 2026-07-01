@@ -5,7 +5,10 @@ import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import PasswordConfirmModal from '../components/modals/PasswordConfirmModal';
 
-export default function ProductManager({ products, setProducts, categories, units, sales, colors, showToast, user, isSoundOn, editIntent }) {
+export default function ProductManager({ products, setProducts, categories, units, sales, colors, showToast, user, isSoundOn, editIntent, recordActivity }) {
+  const canCreate = user?.role === 'admin' || (user?.permissions || []).includes('produk_create');
+  const canEdit = user?.role === 'admin' || (user?.permissions || []).includes('produk_edit');
+  const canDelete = user?.role === 'admin' || (user?.permissions || []).includes('produk_delete');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -99,9 +102,16 @@ export default function ProductManager({ products, setProducts, categories, unit
     playSound('success', isSoundOn);
     if (editingId) {
       setProducts(products.map(p => p.id === editingId ? { ...p, ...form } : p));
+      const oldProd = products.find(p => p.id === editingId);
+      const changes = [];
+      if (oldProd?.price !== form.price) changes.push(`harga jual dari Rp${oldProd?.price} ke Rp${form.price}`);
+      if (oldProd?.stock !== form.stock) changes.push(`stok dari ${oldProd?.stock} ke ${form.stock}`);
+      const changeStr = changes.length > 0 ? ` (${changes.join(', ')})` : '';
+      if (recordActivity) recordActivity('Edit Produk', `Mengubah data produk "${form.name}"${changeStr}`);
       showToast('Produk diperbarui', 'success');
     } else {
       setProducts([{ ...form, id: Date.now(), promo: {active: false, type: 'percent', value: 0, endDate: ''}, wholesale: {minQty: 0, price: 0} }, ...products]);
+      if (recordActivity) recordActivity('Tambah Produk', `Menambahkan produk baru "${form.name}" (Stok: ${form.stock})`);
       showToast('Produk ditambahkan', 'success');
     }
     setIsModalOpen(false);
@@ -126,6 +136,7 @@ export default function ProductManager({ products, setProducts, categories, unit
     if (pwd !== user.password) { playSound('pop', isSoundOn); showToast('Password admin salah!', 'error'); return; }
     playSound('success', isSoundOn);
     setProducts([]);
+    if (recordActivity) recordActivity('Hapus Semua Produk', 'Mengosongkan semua data produk di sistem');
     setIsDeleteAllOpen(false);
     showToast('Semua data produk dihapus', 'success');
   };
@@ -242,7 +253,7 @@ export default function ProductManager({ products, setProducts, categories, unit
     <>
        <button onClick={() => { playSound('pop', isSoundOn); exportToExcel(); }} className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg border ${colors.border} flex items-center gap-1.5 ${colors.textMuted} hover:${colors.text} hover:border-[#D4AF37] transition-all whitespace-nowrap`}><DownloadCloud size={16}/> Template Excel</button>
        <button onClick={() => { playSound('pop', isSoundOn); importRef.current?.click(); }} className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg border ${colors.border} flex items-center gap-1.5 ${colors.textMuted} hover:${colors.text} hover:border-blue-500 transition-all whitespace-nowrap`}><UploadCloud size={16}/> Impor Excel</button>
-       {user.role === 'admin' && (
+       {canDelete && (
          <button onClick={() => { playSound('pop', isSoundOn); setIsDeleteAllOpen(true); }} className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 transition-all flex items-center gap-1.5 whitespace-nowrap`}><Trash2 size={16}/> Kosongkan</button>
        )}
        <input type="file" accept=".xls,.csv,.txt" className="hidden" ref={importRef} onChange={handleImport} />
@@ -253,7 +264,7 @@ export default function ProductManager({ products, setProducts, categories, unit
     <div className="h-full flex flex-col relative -m-4 md:-m-6 print:m-0 bg-gray-50 dark:bg-[#121212]">
       <div className="flex-1 overflow-hidden print:hidden p-2 sm:p-4">
         <DataTable 
-          title={null} 
+          title="Kelola Produk" 
           headerRight={customHeaderRight}
           posLayout={true}
           columns={columns} 
@@ -261,9 +272,9 @@ export default function ProductManager({ products, setProducts, categories, unit
           defaultSort={{ key: 'popularity', direction: 'desc' }}
           noSortKey="popularity"
           colors={colors} 
-          onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }} 
-          actions={[ { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-stone-300', onClick: handleEdit } ]}
-          onDelete={(prod) => { playSound('pop', isSoundOn); setDeleteProdId(prod.id); }}
+          onAdd={canCreate ? () => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); } : undefined} 
+          actions={canEdit ? [ { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-stone-300', onClick: handleEdit } ] : []}
+          onDelete={canDelete ? (prod) => { playSound('pop', isSoundOn); setDeleteProdId(prod.id); } : undefined}
         />
       </div>
       
@@ -272,7 +283,14 @@ export default function ProductManager({ products, setProducts, categories, unit
            title="Hapus Produk?" 
            desc="Yakin ingin menghapus produk ini dari database?" 
            btnText="Hapus"
-           onConfirm={() => { setProducts(products.filter(p => p.id !== deleteProdId)); setDeleteProdId(null); showToast('Produk dihapus', 'success'); playSound('pop', isSoundOn); }} 
+           onConfirm={() => { 
+              const pName = products.find(p => p.id === deleteProdId)?.name;
+              if (recordActivity) recordActivity('Hapus Produk', `Menghapus produk "${pName}"`);
+              setProducts(products.filter(p => p.id !== deleteProdId)); 
+              setDeleteProdId(null); 
+              showToast('Produk dihapus', 'success'); 
+              playSound('pop', isSoundOn); 
+           }} 
            onCancel={() => setDeleteProdId(null)} 
            colors={colors} isSoundOn={isSoundOn} 
         />

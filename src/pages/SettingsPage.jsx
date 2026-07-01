@@ -234,11 +234,24 @@ export default function SettingsPage({
   const [isUserModal, setIsUserModal] = useState(false);
   const [uForm, setUForm] = useState({ id: '', username: '', email: '', name: '', role: 'kasir', permissions: [], password: '', avatar: null });
   
-  const handlePermissionToggle = (module) => {
+  const handlePermissionToggle = (module, action = 'view') => {
      setUForm(prev => {
         let perms = [...(prev.permissions || [])];
-        if(perms.includes(module)) perms = perms.filter(p => p !== module);
-        else perms.push(module);
+        const permKey = action === 'view' ? module : `${module}_${action}`;
+        
+        if (perms.includes(permKey)) {
+            perms = perms.filter(p => p !== permKey);
+            // If viewing is unchecked, uncheck all sub-actions for that module
+            if (action === 'view') {
+               perms = perms.filter(p => !p.startsWith(`${module}_`));
+            }
+        } else {
+            perms.push(permKey);
+            // If a sub-action is checked, ensure 'view' is also checked
+            if (action !== 'view' && !perms.includes(module)) {
+               perms.push(module);
+            }
+        }
         return {...prev, permissions: perms};
      });
   };
@@ -1176,11 +1189,48 @@ export default function SettingsPage({
                 </div>
                 {uForm.role === 'kasir' && (
                   <div className="pt-2 border-t border-dashed border-gray-300 dark:border-gray-700">
-                     <label className={`block text-xs font-bold mb-2 ${colors.textMuted}`}>Hak Akses Menu</label>
-                     <div className="grid grid-cols-2 gap-2">
-                        {[{ id: 'dashboard', label: 'Dashboard' }, { id: 'pos', label: 'Kasir POS' }, { id: 'produk', label: 'Stok' }, { id: 'riwayat', label: 'Riwayat' }, { id: 'kontak', label: 'Kontak' }, { id: 'laporan', label: 'Laporan' }].map(mod => (
-                           <label key={mod.id} className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={(uForm.permissions || []).includes(mod.id)} onChange={() => handlePermissionToggle(mod.id)} className="rounded text-[#D4AF37] focus:ring-[#D4AF37]" /><span className={colors.text}>{mod.label}</span></label>
-                        ))}
+                     <label className={`block text-xs font-bold mb-2 ${colors.textMuted}`}>Hak Akses Matriks</label>
+                     <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-xs text-left mb-2">
+                           <thead>
+                              <tr className={`border-b ${colors.border}`}>
+                                 <th className="py-2">Modul</th>
+                                 <th className="py-2 text-center">Buka</th>
+                                 <th className="py-2 text-center">Tambah</th>
+                                 <th className="py-2 text-center">Edit</th>
+                                 <th className="py-2 text-center">Hapus</th>
+                              </tr>
+                           </thead>
+                           <tbody>
+                              {[
+                                 { id: 'dashboard', label: 'Dashboard', actions: ['view'] },
+                                 { id: 'pos', label: 'Kasir POS', actions: ['view', 'edit'] },
+                                 { id: 'riwayat', label: 'Riwayat', actions: ['view', 'edit', 'delete'] },
+                                 { id: 'produk', label: 'Produk', actions: ['view', 'create', 'edit', 'delete'] },
+                                 { id: 'kontak', label: 'Kontak', actions: ['view', 'create', 'edit', 'delete'] },
+                                 { id: 'laporan', label: 'Laporan', actions: ['view'] },
+                                 { id: 'aktivitas', label: 'Log Aktivitas', actions: ['view'] }
+                              ].map(mod => (
+                                 <tr key={mod.id} className={`border-b border-dashed ${colors.border} hover:bg-black/5 dark:hover:bg-white/5`}>
+                                    <td className={`py-2 font-semibold ${colors.text}`}>{mod.label}</td>
+                                    {['view', 'create', 'edit', 'delete'].map(act => (
+                                       <td key={act} className="py-2 text-center">
+                                          {mod.actions.includes(act) ? (
+                                             <input 
+                                                type="checkbox" 
+                                                checked={(uForm.permissions || []).includes(act === 'view' ? mod.id : `${mod.id}_${act}`)} 
+                                                onChange={() => handlePermissionToggle(mod.id, act)} 
+                                                className="rounded text-[#D4AF37] focus:ring-[#D4AF37] w-4 h-4 cursor-pointer" 
+                                             />
+                                          ) : (
+                                             <span className="text-gray-300 dark:text-gray-700">-</span>
+                                          )}
+                                       </td>
+                                    ))}
+                                 </tr>
+                              ))}
+                           </tbody>
+                        </table>
                      </div>
                   </div>
                 )}

@@ -11,8 +11,10 @@ import TransactionEditModal from '../components/modals/TransactionEditModal';
 export default function POSHistory({ 
   sales, setSales, purchases, setPurchases, colors, showToast, 
   isSoundOn, products, setProducts, storeInfo, accounting, setAccounting, 
-  customers, setCustomers, suppliers, financialAccounts, globalMode, setGlobalMode, editIntent, user
+  customers, setCustomers, suppliers, financialAccounts, globalMode, setGlobalMode, editIntent, user, recordActivity
 }) {
+  const canEdit = user?.role === 'admin' || (user?.permissions || []).includes('riwayat_edit');
+  const canDelete = user?.role === 'admin' || (user?.permissions || []).includes('riwayat_delete');
   const tab = globalMode;
   const setTab = setGlobalMode;
   const [selectedDoc, setSelectedDoc] = useState(null);
@@ -76,6 +78,10 @@ export default function POSHistory({
        }
        if(isSale) setSales(sales.filter(s => s.id !== deleteConfirmId));
        else setPurchases(purchases.filter(s => s.id !== deleteConfirmId));
+
+       if (recordActivity) {
+          recordActivity('Hapus Transaksi', `Menghapus permanen (Void) nota ${doc.nota} bernilai Rp${formatIDR(doc.total)}`);
+       }
     }
     setDeleteConfirmId(null); 
     showToast('Transaksi dihapus permanen.', 'success');
@@ -116,6 +122,9 @@ export default function POSHistory({
             const origAccId = (doc.paymentHistory || [])[0]?.accountId || null;
             setAccounting([...accounting, { id: Date.now(), type: 'kas', accountId: origAccId, name: `Retur ${doc.nota}`, amount: isSale ? -refundAmount : refundAmount, date: new Date().toISOString() }]);
         }
+    }
+    if (recordActivity) {
+        recordActivity('Retur Transaksi', `Memproses retur senilai Rp${formatIDR(totalAmount)} pada nota ${doc.nota}`);
     }
     setReturnDoc(null); 
     showToast(`Retur terekam presisi.`, 'success');
@@ -161,18 +170,18 @@ export default function POSHistory({
           setSelectedDoc({ ...r, autoAction: 'wa' }); 
       } 
     },
-    ...(user?.role === 'admin' ? [{ 
+    ...(canEdit ? [{ 
         icon: Edit, 
         label: 'Edit Transaksi', 
         colorClass: `${colors.active} hover:opacity-80 transition-opacity`, 
         onClick: (r) => { playSound('pop', isSoundOn); setEditDoc(r); } 
       }] : []),
-    { 
+    ...(canEdit ? [{ 
       icon: RotateCcw, 
       label: 'Retur Barang', 
       colorClass: 'bg-orange-100 text-orange-600 hover:bg-orange-200', 
       onClick: (r) => { playSound('pop', isSoundOn); setReturnDoc(r); } 
-    }
+    }] : [])
   ];
 
   return (
@@ -188,7 +197,7 @@ export default function POSHistory({
             columns={columns} data={activeData} colors={colors} 
             searchPlaceholder="Cari"
             posLayout={true}
-            onDelete={(r) => { playSound('pop', isSoundOn); setDeleteConfirmId(r.id); }} 
+            onDelete={canDelete ? (r) => { playSound('pop', isSoundOn); setDeleteConfirmId(r.id); } : undefined} 
             actions={actions} 
             defaultSort={{key: 'date', direction: 'desc'}}
          />
@@ -200,7 +209,7 @@ export default function POSHistory({
       
       {returnDoc && <DocumentReturnModal doc={returnDoc} onClose={() => setReturnDoc(null)} onSaveReturn={handleProcessReturn} colors={colors} isSoundOn={isSoundOn} />}
       
-      {editDoc && <TransactionEditModal doc={editDoc} onClose={() => setEditDoc(null)} tab={tab} sales={sales} setSales={setSales} purchases={purchases} setPurchases={setPurchases} products={products} setProducts={setProducts} accounting={accounting} setAccounting={setAccounting} customers={customers} setCustomers={setCustomers} suppliers={suppliers} financialAccounts={financialAccounts} colors={colors} isSoundOn={isSoundOn} showToast={showToast} />} 
+      {editDoc && <TransactionEditModal doc={editDoc} onClose={() => setEditDoc(null)} tab={tab} sales={sales} setSales={setSales} purchases={purchases} setPurchases={setPurchases} products={products} setProducts={setProducts} accounting={accounting} setAccounting={setAccounting} customers={customers} setCustomers={setCustomers} suppliers={suppliers} financialAccounts={financialAccounts} colors={colors} isSoundOn={isSoundOn} showToast={showToast} recordActivity={recordActivity} />} 
     </div>
   );
 }

@@ -7,7 +7,7 @@ import SearchableSelect from '../ui/SearchableSelect';
 export default function TransactionEditModal({ 
   doc, onClose, tab, sales, setSales, purchases, setPurchases, 
   products, setProducts, accounting, setAccounting, customers, 
-  suppliers, financialAccounts, colors, isSoundOn, showToast 
+  setCustomers, suppliers, financialAccounts, colors, isSoundOn, showToast, recordActivity 
 }) {
   const [editedDoc, setEditedDoc] = useState(() => {
      const parsed = JSON.parse(JSON.stringify(doc));
@@ -121,6 +121,10 @@ export default function TransactionEditModal({
 
      if(isSale) setSales(sales.map(s => s.id === doc.id ? finalDoc : s));
      else setPurchases(purchases.map(p => p.id === doc.id ? finalDoc : p));
+
+     if (recordActivity) {
+         recordActivity('Edit Transaksi', `Mengedit isi/cicilan nota ${doc.nota}`);
+     }
 
      playSound('success', isSoundOn); showToast('Perubahan berhasil disimpan', 'success'); onClose();
   };

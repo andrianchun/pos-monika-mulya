@@ -27,10 +27,11 @@ const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children,
    );
 };
 
-export default function Header({ colors,  
-  user, setUser, users, setUsers, theme, setTheme, isSoundOn, storeInfo, showToast, 
-  isSidebarOpen, setIsSidebarOpen, products = [], sales = [], purchases = [], suppliers = [], syncCount = 0, onNavigateAndEdit,
-  activeShift, setShowShiftCloseModal, setShowShiftOpenModal, shiftHistory = []
+export default function Header({ 
+  activeMenu, user, setUser, isSidebarOpen, setIsSidebarOpen, theme, setTheme, 
+  colors, isSoundOn, storeInfo, onNavigateAndEdit, 
+  products, sales, purchases, suppliers, syncCount,
+  users, setUsers, showToast, activeShift, setShowShiftOpenModal, setShowShiftCloseModal, shiftHistory, recordActivity
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -153,6 +154,9 @@ export default function Header({ colors,
         return;
     }
     playSound('pop', isSoundOn);
+    if (recordActivity) {
+        recordActivity('Logout Sistem', 'Akun telah keluar dari sistem (Logout)');
+    }
     localStorage.removeItem('mmpos_user');
     localStorage.removeItem('mmpos_last_active');
     setUser(null);

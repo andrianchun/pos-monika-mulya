@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, ShoppingCart, Package, FileText, Users, Settings, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, FileText, Users, Settings, X, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 
 export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handleMenuClick, user, storeInfo }) {
   const fullMenuItems = [
@@ -9,6 +9,7 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
     { id: 'kontak', icon: Users, label: 'Kontak', module: 'kontak' },
     { id: 'produk', icon: Package, label: 'Produk', module: 'produk' },
     { id: 'laporan', icon: FileText, label: 'Laporan', module: 'laporan' },
+    { id: 'aktivitas', icon: Activity, label: 'Log Aktivitas', module: 'aktivitas' },
     { id: 'pengaturan', icon: Settings, label: 'Pengaturan', module: 'pengaturan' }
   ];
 

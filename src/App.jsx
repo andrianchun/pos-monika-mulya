@@ -12,6 +12,7 @@ const ContactManager = lazy(() => import('./pages/ContactManager'));
 const Reports = lazy(() => import('./pages/Reports'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const POSHistory = lazy(() => import('./pages/POSHistory'));
+const ActivityLogPage = lazy(() => import('./pages/ActivityLogPage'));
 import ShiftCloseModal from './components/modals/ShiftCloseModal';
 import ShiftOpenModal from './components/modals/ShiftOpenModal';
 
@@ -76,6 +77,24 @@ export default function App() {
   });
 
   const [shiftHistory, setShiftHistory] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]);
+
+  const recordActivity = async (action, details, overrideUser = null) => {
+      try {
+          const id = Date.now().toString();
+          const targetUser = overrideUser || user;
+          await setDoc(doc(db, "activityLogs", id), {
+              id,
+              action,
+              details,
+              user: targetUser?.name || targetUser?.username || 'Unknown',
+              role: targetUser?.role || 'Unknown',
+              timestamp: new Date().toISOString()
+          });
+      } catch (e) {
+          console.error("Failed to record activity", e);
+      }
+  };
 
   const [showShiftCloseModal, setShowShiftCloseModal] = useState(false);
   const [showShiftOpenModal, setShowShiftOpenModal] = useState(false);
@@ -219,6 +238,7 @@ export default function App() {
       unsubs.push(setupRealtime("financialAccounts", setFinancialAccounts));
       unsubs.push(setupRealtime("users", setUsers));
       unsubs.push(setupRealtime("shiftHistory", setShiftHistory, true));
+      unsubs.push(setupRealtime("activityLogs", setActivityLogs, true));
 
       unsubs.push(onSnapshot(collection(db, "settings"), (snap) => {
          if (!snap.empty) {
@@ -508,9 +528,17 @@ export default function App() {
     };
   }, [theme, globalMode]);
 
-  const handleLogin = (loggedInUser) => {
+  const handleLogin = async (loggedInUser) => {
     setUser(loggedInUser);
     setActiveMenu(loggedInUser.role === 'kasir' ? 'pos' : 'dashboard');
+    try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        const location = `${data.city || 'Unknown City'}, ${data.country_name || 'Unknown Country'} (IP: ${data.ip || 'Unknown'})`;
+        recordActivity('Login Sistem', `Akun diakses dari ${location}`, loggedInUser);
+    } catch (e) {
+        recordActivity('Login Sistem', `Akun diakses (Gagal melacak lokasi/IP)`, loggedInUser);
+    }
   };
 
   useEffect(() => {
@@ -598,7 +626,7 @@ export default function App() {
             users={users} setUsers={customSetUsers}
             showToast={showToast}
             activeShift={activeShift} setShowShiftOpenModal={setShowShiftOpenModal} setShowShiftCloseModal={setShowShiftCloseModal}
-            shiftHistory={shiftHistory}
+            shiftHistory={shiftHistory} recordActivity={recordActivity}
          />
          
          <main className="flex-1 overflow-auto p-4 pb-0 md:p-6 md:pb-0 custom-scrollbar relative">
@@ -608,10 +636,11 @@ export default function App() {
              
              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white"></div></div>}>
                  {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={setActiveMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
-             {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} sales={sales} colors={baseThemeColors} user={user} isSoundOn={true} showToast={showToast} editIntent={editIntent} />}
-             {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} editIntent={editIntent} user={user} />}
+             {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} sales={sales} colors={baseThemeColors} user={user} isSoundOn={true} showToast={showToast} editIntent={editIntent} recordActivity={recordActivity} />}
+             {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} editIntent={editIntent} user={user} recordActivity={recordActivity} />}
                {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} handleNavigateAndEdit={handleNavigateAndEdit} />}
              {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} shiftHistory={shiftHistory} />}
+             {activeMenu === 'aktivitas' && <ActivityLogPage activityLogs={activityLogs} colors={themeColors} />}
              
              {activeMenu === 'pengaturan' && (
                 <SettingsPage 
