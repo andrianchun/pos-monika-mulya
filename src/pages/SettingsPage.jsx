@@ -456,9 +456,9 @@ export default function SettingsPage({
            <div className={`flex items-center rounded-lg p-1 ${colors.creamBg} border ${colors.border} w-fit h-fit shrink-0`}>
            {[
              { id: 'toko', label: 'Profil Toko' }, 
-             { id: 'harga', label: 'Harga & Promo' }, 
+             { id: 'harga', label: 'Harga & Poin' }, 
              { id: 'akun', label: 'Akun & Akses' }, 
-             { id: 'kategori', label: 'Kategori' }, 
+             { id: 'kategori', label: 'Kategori & Satuan' }, 
              { id: 'database', label: 'Database' }
            ].map(t => (
              <button 
