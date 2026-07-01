@@ -569,10 +569,12 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                       </div>
                    )}
                 </div>
-                <div className="w-[120px]">
+                {user?.role === 'admin' && (
+                  <div className="w-[120px]">
                      <label className={`text-[10px] sm:text-xs font-semibold mb-1 block ${colors.textMuted}`}>Waktu & Tanggal</label>
                      <DateInput type="datetime-local" className={`w-full p-[9px] rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none text-xs [color-scheme:light] dark:[color-scheme:dark]`} value={transactionDate} onChange={e => setTransactionDate(e.target.value)} />
-                </div>
+                  </div>
+                )}
                 <button onClick={clearCart} className={`p-2.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors h-[42px]`}><Trash2 size={18} /></button>
               </div>
             </div>

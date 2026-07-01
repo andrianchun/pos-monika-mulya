@@ -11,7 +11,7 @@ import TransactionEditModal from '../components/modals/TransactionEditModal';
 export default function POSHistory({ 
   sales, setSales, purchases, setPurchases, colors, showToast, 
   isSoundOn, products, setProducts, storeInfo, accounting, setAccounting, 
-  customers, setCustomers, suppliers, financialAccounts, globalMode, setGlobalMode, editIntent
+  customers, setCustomers, suppliers, financialAccounts, globalMode, setGlobalMode, editIntent, user
 }) {
   const tab = globalMode;
   const setTab = setGlobalMode;
@@ -152,12 +152,12 @@ export default function POSHistory({
           setSelectedDoc({ ...r, autoAction: 'wa' }); 
       } 
     },
-    { 
-      icon: Edit, 
-      label: 'Edit Transaksi', 
-      colorClass: `${colors.active} hover:opacity-80 transition-opacity`, 
-      onClick: (r) => { playSound('pop', isSoundOn); setEditDoc(r); } 
-    },
+    ...(user?.role === 'admin' ? [{ 
+        icon: Edit, 
+        label: 'Edit Transaksi', 
+        colorClass: `${colors.active} hover:opacity-80 transition-opacity`, 
+        onClick: (r) => { playSound('pop', isSoundOn); setEditDoc(r); } 
+      }] : []),
     { 
       icon: RotateCcw, 
       label: 'Retur Barang', 
