@@ -478,7 +478,8 @@ export default function POS({ products, setProducts, customers, setCustomers, su
               </div>
               <div className="relative flex-1">
                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
-                 <input type="text" placeholder="Cari nama atau Barcode..." className={`w-full pl-10 pr-4 py-3 sm:py-1.5 h-[44px] rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} value={posSearch} onChange={e => setPosSearch(e.target.value)} onKeyDown={handleSearchKeyDown} />
+                 <input type="text" placeholder="Cari nama atau Barcode..." className={`w-full pl-10 pr-10 py-3 sm:py-1.5 h-[44px] rounded-xl border ${colors.border} ${colors.creamBg} ${colors.text} focus:outline-none focus:ring-2 ${colors.goldRing}`} value={posSearch} onChange={e => setPosSearch(e.target.value)} onKeyDown={handleSearchKeyDown} />
+                 {posSearch && <button onClick={() => setPosSearch('')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X size={18}/></button>}
               </div>
               <button onClick={() => { 
                  if(activeShift) setShowKasEkstraModal(true); 
