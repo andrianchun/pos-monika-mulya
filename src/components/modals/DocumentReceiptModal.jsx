@@ -224,7 +224,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
 
               {isRendering && (
                    <div className="absolute inset-0 bg-white/80 dark:bg-black/80 z-[100] flex flex-col items-center justify-center backdrop-blur-md">
-                      <div className="bg-white dark:bg-[#1e1e1e] p-6 rounded-2xl shadow-2xl flex flex-col items-center text-center max-w-[80%] border-2 border-[#D4AF37]">
+                      <div className="bg-white dark:bg-[#1e1e1e] p-4 sm:p-6 rounded-2xl shadow-2xl flex flex-col items-center text-center max-w-[80%] border-2 border-[#D4AF37]">
                          <Loader2 className="animate-spin text-[#D4AF37] mb-4" size={48} />
                          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Memproses Gambar...</h3>
                          <p className="text-xs text-gray-500 dark:text-gray-400">Sistem sedang merangkai gambar nota.<br/>(Animasi mungkin membeku sesaat, ini normal)</p>

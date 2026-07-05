@@ -123,7 +123,11 @@ export default function TransactionEditModal({
      else setPurchases(purchases.map(p => p.id === doc.id ? finalDoc : p));
 
      if (recordActivity) {
-         recordActivity('Edit Transaksi', `Mengedit isi/cicilan nota ${doc.nota}`);
+         let changeLog = [];
+         if (doc.date !== finalDoc.date) changeLog.push(`Tanggal (${new Date(doc.date).toLocaleString('id-ID')} -> ${new Date(finalDoc.date).toLocaleString('id-ID')})`);
+         if (doc.total !== finalDoc.total) changeLog.push(`Total (Rp${formatIDR(doc.total)} -> Rp${formatIDR(finalDoc.total)})`);
+         const changeStr = changeLog.length > 0 ? ` Perubahan: ${changeLog.join(', ')}` : '';
+         recordActivity('Edit Transaksi', `Mengedit isi/cicilan nota ${doc.nota}.${changeStr}`);
      }
 
      playSound('success', isSoundOn); showToast('Perubahan berhasil disimpan', 'success'); onClose();
@@ -181,7 +185,7 @@ export default function TransactionEditModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-       <div className={`w-full max-w-4xl p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} flex flex-col max-h-[95vh]`}>
+       <div className={`w-full max-w-4xl p-4 sm:p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} flex flex-col max-h-[95vh]`}>
           <div className="flex justify-between items-center mb-4 shrink-0">
              <div>
                 <h3 className={`text-xl font-bold ${colors.text}`}>Edit {editedDoc.nota}</h3>

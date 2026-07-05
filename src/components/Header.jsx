@@ -31,7 +31,7 @@ export default function Header({
   activeMenu, user, setUser, isSidebarOpen, setIsSidebarOpen, theme, setTheme, 
   colors, isSoundOn, storeInfo, onNavigateAndEdit, 
   products, sales, purchases, suppliers, syncCount,
-  users, setUsers, showToast, activeShift, setShowShiftOpenModal, setShowShiftCloseModal, shiftHistory, recordActivity
+  users, setUsers, showToast, activeShift, setShowShiftOpenModal, setShowShiftCloseModal, shiftHistory, recordActivity, installPrompt
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -144,7 +144,11 @@ export default function Header({
     return products.filter(p => p.expiryDate && new Date(p.expiryDate) <= thirtyDaysFromNow);
   }, [products]);
 
-  const totalNotifCount = lowStockItems.length + incomingDebts.length + incomingReceivables.length + expiringItems.length;
+  const hppChangedItems = useMemo(() => {
+    return products.filter(p => p.hppChanged === true);
+  }, [products]);
+
+  const totalNotifCount = lowStockItems.length + incomingDebts.length + incomingReceivables.length + expiringItems.length + hppChangedItems.length;
 
   const handleLogout = () => {
     if (activeShift && activeShift.status === 'OPEN') {
@@ -174,13 +178,31 @@ export default function Header({
              {storeInfo.logo ? <img src={storeInfo.logo} alt="Logo" className="w-8 h-8 rounded-md object-cover" /> : <div className={`w-8 h-8 rounded-md ${colors.goldBg} flex items-center justify-center text-[#18181B] font-bold`}>{storeInfo.name?.charAt(0) || 'M'}</div>}
              <div>
                <h1 className={`font-bold text-sm leading-tight ${colors.text}`}>{storeInfo.name}</h1>
-               <p className={`text-[10px] ${colors.textMuted}`}>{storeInfo.tagline}</p>
+               <p className={`text-[10px] sm:text-xs font-semibold ${colors.textMuted} tracking-wider`}>Point of Sale System</p>
              </div>
            </div>
+           
+           {installPrompt && (
+             <button onClick={async () => { 
+                playSound('pop', isSoundOn); 
+                installPrompt.prompt(); 
+                const { outcome } = await installPrompt.userChoice; 
+                if(outcome === 'accepted') { showToast('Terima kasih telah menginstal!', 'success'); } 
+             }} className={`hidden sm:flex ml-4 px-3 py-1.5 rounded-lg text-[10px] font-bold text-[#18181B] bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:opacity-90 shadow-sm animate-pulse items-center gap-1`}>
+                <Send size={12} className="rotate-45 -mt-0.5" /> Install App
+             </button>
+           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          
+        <div className="flex items-center gap-1 sm:gap-3">
+          {installPrompt && (
+             <button onClick={async () => { 
+                playSound('pop', isSoundOn); 
+                installPrompt.prompt(); 
+             }} className={`sm:hidden p-1.5 rounded-md text-[#18181B] bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:opacity-90 shadow-sm mr-1`} title="Install App">
+                <Send size={14} className="rotate-45 -mt-0.5 -ml-0.5" />
+             </button>
+           )}
           {syncCount > 0 ? (
               <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-600 border border-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.4)]`}>
                  <Loader2 size={12} className="animate-spin text-white" />
@@ -307,19 +329,30 @@ export default function Header({
                            {/* 4. KELOMPOK KEDALUWARSA */}
                            <CollapsibleNotifGroup title="Kedaluwarsa" count={expiringItems.length} icon={AlertTriangle} colorClass="text-red-500" colors={colors}>
                               {expiringItems.map(item => {
-                                 const daysLeft = Math.ceil((new Date(item.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
-                                 const isExpired = daysLeft <= 0;
-                                   return (
+                                  const isExpired = new Date(item.expiryDate) <= new Date();
+                                  return (
                                       <div key={`exp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className={`p-3 rounded-xl ${isExpired ? 'bg-red-500/5 border-red-500/20' : 'bg-orange-500/5 border-orange-500/20'} border flex flex-col gap-1 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity`}>
-                                         <div className="flex justify-between items-center min-w-0">
-                                          <p className={`text-xs font-bold ${colors.text} truncate`}>{item.name}</p>
-                                          <p className={`text-[10px] font-black uppercase ${isExpired ? 'text-red-500' : colors.gold}`}>
-                                             {isExpired ? 'TELAH KEDALUWARSA!' : `KEDALUWARSA DALAM ${daysLeft} HARI`}
-                                          </p>
-                                       </div>
-                                    </div>
-                                 );
+                                          <div className="flex justify-between items-start gap-2">
+                                              <span className={`font-bold text-[11px] truncate ${colors.text}`}>{item.name}</span>
+                                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isExpired ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'} whitespace-nowrap`}>{isExpired ? 'EXPIRED' : 'Segera Habis'}</span>
+                                          </div>
+                                          <span className="text-[10px] text-gray-500">Exp: {formatDate(item.expiryDate)}</span>
+                                      </div>
+                                  );
                               })}
+                           </CollapsibleNotifGroup>
+
+                           <CollapsibleNotifGroup title="HPP Naik/Turun" count={hppChangedItems.length} icon={AlertTriangle} colorClass="text-blue-500" colors={colors} defaultOpen={true}>
+                              {hppChangedItems.map(item => (
+                                  <div key={`hpp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className={`p-3 rounded-xl bg-blue-500/5 border-blue-500/20 border flex flex-col gap-1 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity`}>
+                                      <div className="flex justify-between items-start gap-2">
+                                          <span className={`font-bold text-[11px] truncate ${colors.text}`}>{item.name}</span>
+                                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 whitespace-nowrap`}>HPP Berubah</span>
+                                      </div>
+                                      <span className="text-[10px] text-gray-500">Dari: Rp{formatIDR(item.lastHpp || 0)} → Rp{formatIDR(item.basePrice || 0)}</span>
+                                      <span className="text-[9px] text-blue-600 dark:text-blue-400 font-semibold mt-1">Klik untuk sesuaikan Harga Jual</span>
+                                  </div>
+                              ))}
                            </CollapsibleNotifGroup>
                          </>
                       )}

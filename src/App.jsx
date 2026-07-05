@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import LoginScreen from './pages/LoginScreen';
 import POS from './pages/POS';
+import { generateDynamicManifest } from './utils/pwaHelper';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ProductManager = lazy(() => import('./pages/ProductManager'));
@@ -38,6 +39,23 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [installPrompt, setInstallPrompt] = useState(null);
+
+  useEffect(() => {
+    // Generate dynamic manifest with user's logo on load
+    generateDynamicManifest();
+
+    // Catch PWA install prompt
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
   
   const [editIntent, setEditIntent] = useState(null);
   const handleNavigateAndEdit = (menu, id, mode = null) => {
@@ -98,6 +116,34 @@ export default function App() {
 
   const [showShiftCloseModal, setShowShiftCloseModal] = useState(false);
   const [showShiftOpenModal, setShowShiftOpenModal] = useState(false);
+
+  // Auto Logout 5 Jam
+  useEffect(() => {
+    if (!user) return;
+    
+    let timeoutId;
+    const FIVE_HOURS = 5 * 60 * 60 * 1000;
+    
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+         recordActivity('Logout Sistem', 'Sistem Logout Otomatis (Timeout/Idle)', user);
+         localStorage.removeItem('mmpos_user');
+         setUser(null);
+         showToast('Sesi Anda telah berakhir karena tidak ada aktivitas.', 'error');
+      }, FIVE_HOURS);
+    };
+
+    resetTimer();
+    
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(name => window.addEventListener(name, resetTimer, true));
+    
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(name => window.removeEventListener(name, resetTimer, true));
+    };
+  }, [user]);
 
 
   useEffect(() => {
@@ -610,7 +656,7 @@ export default function App() {
          </div>
       )}
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} activeMenu={activeMenu} handleMenuClick={(menu) => { setActiveMenu(menu); if (menu === 'laporan') setGlobalMode('neraca'); }} colors={themeColors} user={user} storeInfo={storeInfo} />
-      <div className="flex-1 flex flex-col min-w-0 z-10 relative">
+      <div className="flex-1 flex flex-col min-w-0 relative">
          <Header activeMenu={activeMenu} user={user} setUser={setUser} 
             isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}
             theme={theme} setTheme={setTheme} colors={themeColors} isSoundOn={true} 
@@ -621,6 +667,7 @@ export default function App() {
             showToast={showToast}
             activeShift={activeShift} setShowShiftOpenModal={setShowShiftOpenModal} setShowShiftCloseModal={setShowShiftCloseModal}
             shiftHistory={shiftHistory} recordActivity={recordActivity}
+            installPrompt={installPrompt}
          />
          
          <main className="flex-1 overflow-auto p-4 pb-0 md:p-6 md:pb-0 custom-scrollbar relative">
@@ -632,8 +679,8 @@ export default function App() {
                  {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={setActiveMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
              {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} sales={sales} colors={baseThemeColors} user={user} isSoundOn={true} showToast={showToast} editIntent={editIntent} recordActivity={recordActivity} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} />}
              {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} editIntent={editIntent} user={user} recordActivity={recordActivity} />}
-               {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} handleNavigateAndEdit={handleNavigateAndEdit} />}
-             {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
+               {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} handleNavigateAndEdit={handleNavigateAndEdit} user={user} />}
+             {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} user={user} />}
              {activeMenu === 'aktivitas' && <ActivityLogPage activityLogs={activityLogs} shiftHistory={shiftHistory} colors={themeColors} />}
              
              {activeMenu === 'pengaturan' && (

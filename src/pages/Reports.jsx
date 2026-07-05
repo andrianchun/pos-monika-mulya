@@ -29,8 +29,16 @@ const MiniPieChart = ({ data }) => {
    );
 };
 
-export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, customers, colors, baseColors, isSoundOn, theme, storeInfo, showToast, globalMode, setGlobalMode, globalChartMode, setGlobalChartMode }) {
-  const [activeReport, setActiveReport] = useState(globalMode === 'penjualan' || globalMode === 'pembelian' || globalMode === 'produk' ? globalMode : 'neraca');
+export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, customers, colors, baseColors, isSoundOn, theme, storeInfo, showToast, globalMode, setGlobalMode, globalChartMode, setGlobalChartMode, user }) {
+  const canViewKeuangan = user?.role === 'admin' || (user?.permissions || []).includes('laporan_keuangan');
+  const canViewBarang = user?.role === 'admin' || (user?.permissions || []).includes('laporan_barang');
+  
+  const [activeReport, setActiveReport] = useState(
+    (globalMode === 'penjualan' && canViewKeuangan) ? 'penjualan' :
+    (globalMode === 'pembelian' && canViewBarang) ? 'pembelian' :
+    (globalMode === 'produk' && canViewBarang) ? 'produk' :
+    canViewKeuangan ? 'neraca' : 'produk'
+  );
   
   useEffect(() => {
      if (globalMode === 'penjualan' || globalMode === 'pembelian' || globalMode === 'produk' || globalMode === 'neraca') {
@@ -335,10 +343,18 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
     <div className="h-full flex flex-col relative overflow-hidden -m-4 md:-m-6 bg-gray-50 dark:bg-[#121212]">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#18181B] px-4 pt-4 shadow-sm z-10 gap-4 shrink-0 overflow-x-auto custom-scrollbar select-none">
           <div className="flex w-full sm:w-auto overflow-x-auto custom-scrollbar">
-             <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('neraca'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'neraca' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Neraca</button>
-             <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('penjualan'); setGlobalMode('penjualan'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'penjualan' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Penjualan</button>
-             <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('pembelian'); setGlobalMode('pembelian'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'pembelian' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Pembelian</button>
-             <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('produk'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'produk' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Produk</button>
+             {canViewKeuangan && (
+                <>
+                   <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('neraca'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'neraca' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Neraca</button>
+                   <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('penjualan'); setGlobalMode('penjualan'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'penjualan' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Penjualan</button>
+                </>
+             )}
+             {canViewBarang && (
+                <>
+                   <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('pembelian'); setGlobalMode('pembelian'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'pembelian' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Pembelian</button>
+                   <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('produk'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'produk' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Produk</button>
+                </>
+             )}
           </div>
           {(activeReport === 'penjualan' || activeReport === 'pembelian' || activeReport === 'neraca') && (
               <div className="flex items-center gap-2 mb-3 flex-wrap sm:flex-nowrap justify-end shrink-0">

@@ -8,11 +8,13 @@ import CheckoutModal from '../components/modals/CheckoutModal';
 import DocumentReceiptModal from '../components/modals/DocumentReceiptModal';
 import KasEkstraModal from '../components/modals/KasEkstraModal';
 
-function ModeToggle({ mode, setMode, colors, isSoundOn }) {
+function ModeToggle({ mode, setMode, colors, isSoundOn, canViewPembelian }) {
   return (
      <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
         <button onClick={() => { playSound('pop', isSoundOn); setMode('penjualan') }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${mode === 'penjualan' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
-        <button onClick={() => { playSound('pop', isSoundOn); setMode('pembelian') }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${mode === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
+        {canViewPembelian && (
+           <button onClick={() => { playSound('pop', isSoundOn); setMode('pembelian') }} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${mode === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
+        )}
      </div>
   );
 }
@@ -20,6 +22,9 @@ function ModeToggle({ mode, setMode, colors, isSoundOn }) {
 export default function POS({ products, setProducts, customers, setCustomers, suppliers, sales, setSales, purchases, setPurchases, colors, showToast, user, isSoundOn, theme, storeInfo, setStoreInfo, accounting, setAccounting, financialAccounts, globalMode, setGlobalMode, activeShift, setActiveShift, setShowShiftOpenModal }) {
   const posMode = globalMode;
   const setPosMode = setGlobalMode;
+
+  const canViewPembelian = user?.role === 'admin' || (user?.permissions || []).includes('pos_pembelian');
+  const canViewKalender = user?.role === 'admin' || (user?.permissions || []).includes('pos_kalender');
 
   const [salesCart, setSalesCart] = useState([]);
   const [purchaseCart, setPurchaseCart] = useState([]);
@@ -410,7 +415,36 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                   }
                   return sum + (Number(cItem.qty) * conversion);
               }, 0);
-              return { ...p, stock: posMode === 'penjualan' ? p.stock - totalQtyImpact : p.stock + totalQtyImpact };
+              let newBasePrice = p.basePrice || 0;
+              let hppChanged = p.hppChanged;
+              let lastHpp = p.lastHpp;
+
+              if (posMode === 'pembelian') {
+                  cartItemsForProduct.forEach(cItem => {
+                      let conversion = 1;
+                      if (cItem.selectedMultiUnitId && cItem.multiUnits) {
+                          const mu = cItem.multiUnits.find(u => String(u.id) === String(cItem.selectedMultiUnitId));
+                          if (mu) conversion = Number(mu.conversion) || 1;
+                      }
+                      const purchasedBasePrice = Number(cItem.unitPrice) / conversion;
+                      if (purchasedBasePrice !== p.basePrice && purchasedBasePrice > 0) {
+                          lastHpp = p.basePrice;
+                          newBasePrice = purchasedBasePrice;
+                          hppChanged = true;
+                          if (recordActivity) {
+                              recordActivity('Update HPP Otomatis', `HPP "${p.name}" diperbarui dari Rp${formatIDR(lastHpp || 0)} ke Rp${formatIDR(newBasePrice)} dari transaksi Pembelian.`);
+                          }
+                      }
+                  });
+              }
+
+              return { 
+                 ...p, 
+                 stock: posMode === 'penjualan' ? p.stock - totalQtyImpact : p.stock + totalQtyImpact,
+                 basePrice: newBasePrice,
+                 hppChanged: hppChanged,
+                 lastHpp: lastHpp
+              };
           }
           return p;
         }));
@@ -474,7 +508,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
           <div className={`flex-1 flex-col p-2 sm:p-4 border-b lg:border-b-0 lg:border-r ${colors.border} ${colors.panel} h-full lg:h-auto overflow-hidden ${showMobileCart ? 'hidden lg:flex' : 'flex'}`}>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4 shrink-0">
               <div className="shrink-0">
-                 <ModeToggle mode={posMode} setMode={handleModeChange} colors={colors} isSoundOn={isSoundOn} />
+                 <ModeToggle mode={posMode} setMode={handleModeChange} colors={colors} isSoundOn={isSoundOn} canViewPembelian={canViewPembelian} />
               </div>
               <div className="relative flex-1">
                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
@@ -569,7 +603,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                       </div>
                    )}
                 </div>
-                {user?.role === 'admin' && (
+                {canViewKalender && (
                   <div className="w-[120px]">
                      <label className={`text-[10px] sm:text-xs font-semibold mb-1 block ${colors.textMuted}`}>Waktu & Tanggal</label>
                      <DateInput type="datetime-local" className={`w-full p-[9px] rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none text-xs [color-scheme:light] dark:[color-scheme:dark]`} value={transactionDate} onChange={e => setTransactionDate(e.target.value)} />
@@ -615,19 +649,19 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                     </div>
                     
                     <div className="flex flex-col items-end justify-between shrink-0 ml-1">
-                      <button onClick={() => removeFromCart(item.cartId || item.id)} className="text-red-500 p-1 hover:bg-red-50 rounded"><X size={16} /></button>
-                      <div className="flex items-center gap-1 border rounded-lg bg-[#F8FAFC] dark:bg-[#27272A] mt-1 overflow-hidden shrink-0">
-                        <button type="button" onClick={() => adjustQtyStep(item.cartId || item.id, -1)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 bg-[#F8FAFC] dark:bg-[#27272A] transition-colors font-bold">-</button>
+                      <button onClick={() => removeFromCart(item.cartId || item.id)} className="text-red-500 p-2 sm:p-1 hover:bg-red-50 rounded active:scale-95"><X size={16} /></button>
+                      <div className="flex items-center gap-0.5 sm:gap-1 border rounded-lg bg-[#F8FAFC] dark:bg-[#27272A] mt-1 overflow-hidden shrink-0">
+                        <button type="button" onClick={() => adjustQtyStep(item.cartId || item.id, -1)} className="w-8 sm:w-6 h-8 sm:h-7 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 bg-[#F8FAFC] dark:bg-[#27272A] transition-colors font-bold active:bg-gray-300">-</button>
                         <input 
                            type="text" 
                            inputMode="decimal"
-                           className={`w-12 sm:w-14 text-center bg-transparent text-xs sm:text-sm font-semibold outline-none ${colors.text}`} 
+                           className={`w-12 sm:w-14 text-center bg-transparent text-xs sm:text-sm font-semibold outline-none ${colors.text} h-8 sm:h-7`} 
                            value={item.qtyString !== undefined ? item.qtyString : String(item.qty).replace('.', ',')} 
                            onChange={(e) => updateCartQtyString(item.cartId || item.id, e.target.value)}
                            onBlur={(e) => { if(!e.target.value || parseFloat(e.target.value.replace(',','.')) <= 0) removeFromCart(item.cartId || item.id); }}
                            onFocus={(e) => e.target.select()}
                         />
-                        <button type="button" onClick={() => adjustQtyStep(item.cartId || item.id, 1)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 bg-[#F8FAFC] dark:bg-[#27272A] transition-colors font-bold">+</button>
+                        <button type="button" onClick={() => adjustQtyStep(item.cartId || item.id, 1)} className="w-8 sm:w-6 h-8 sm:h-7 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 bg-[#F8FAFC] dark:bg-[#27272A] transition-colors font-bold active:bg-gray-300">+</button>
                       </div>
                     </div>
                   </div>
@@ -637,13 +671,13 @@ export default function POS({ products, setProducts, customers, setCustomers, su
             <div className={`p-3 sm:p-4 border-t ${colors.border} bg-transparent shrink-0 relative z-10`}>
               <div className="space-y-1 sm:space-y-2 mb-3 sm:mb-4 text-[11px] sm:text-sm">
                 <div className="flex justify-between"><span className={colors.textMuted}>Subtotal</span><span className={`font-semibold ${colors.text}`}>Rp {formatIDR(subTotal)}</span></div>
-                <div className="flex justify-between items-center"><span className={colors.textMuted}>Diskon (%, Rp)</span><input type="text" className={`w-32 sm:w-40 text-right p-1 sm:p-1.5 rounded border ${colors.border} bg-white/10 dark:bg-[#1e1e1e]/10 outline-none placeholder-gray-400/50 dark:placeholder-gray-500/40`} placeholder="Cth: 10% atau 5000" value={posDiscountStr} onChange={e => { let v = e.target.value; if(v.includes('%')) { let c = v.replace(/[^0-9,.%]/g, ''); if(c.endsWith('.')) c = c.slice(0,-1)+','; setPosDiscountStr(c); } else { setPosDiscountStr(smartFormatInput(v)); } }} /></div>
+                <div className="flex justify-between items-center"><span className={colors.textMuted}>Diskon (%, Rp)</span><input type="text" className={`w-32 sm:w-40 text-right p-2 sm:p-1.5 rounded border ${colors.border} bg-white/10 dark:bg-[#1e1e1e]/10 outline-none placeholder-gray-400/50 dark:placeholder-gray-500/40`} placeholder="Cth: 10% atau 5000" value={posDiscountStr} onChange={e => { let v = e.target.value; if(v.includes('%')) { let c = v.replace(/[^0-9,.%]/g, ''); if(c.endsWith('.')) c = c.slice(0,-1)+','; setPosDiscountStr(c); } else { setPosDiscountStr(smartFormatInput(v)); } }} /></div>
                 {actualDiscount > 0 && <div className="flex justify-between text-[10px] text-red-500"><span>Potongan:</span><span>- Rp {formatIDR(actualDiscount)}</span></div>}
                 <div className="flex justify-between items-center mt-1">
                   <span className={colors.textMuted}>Ongkir/Lain (Rp){(selectedCustomer !== 1 && posMode === 'penjualan') && (<label className="flex items-center gap-1 mt-0.5 cursor-pointer text-[10px] text-green-500"><input type="checkbox" checked={useAutoOngkir} onChange={(e) => setUseAutoOngkir(e.target.checked)} className="rounded w-3 h-3 text-green-500 focus:ring-green-500 border-green-500" />Auto ({customers.find(c=>String(c.id)===String(selectedCustomer))?.distance}km)</label>)}</span>
-                  <input type="text" className={`w-32 sm:w-40 text-right p-1 sm:p-1.5 rounded border ${colors.border} bg-white/10 dark:bg-[#1e1e1e]/10 outline-none placeholder-gray-400/50 dark:placeholder-gray-500/40`} placeholder="0" value={posOngkirStr} onChange={e => { setUseAutoOngkir(false); setPosOngkirStr(smartFormatInput(e.target.value)); }} />
+                  <input type="text" className={`w-32 sm:w-40 text-right p-2 sm:p-1.5 rounded border ${colors.border} bg-white/10 dark:bg-[#1e1e1e]/10 outline-none placeholder-gray-400/50 dark:placeholder-gray-500/40`} placeholder="0" value={posOngkirStr} onChange={e => { setUseAutoOngkir(false); setPosOngkirStr(smartFormatInput(e.target.value)); }} />
                 </div>
-                <div className="flex justify-between text-base sm:text-lg font-bold pt-2 border-t border-dashed border-gray-300 dark:border-gray-600"><span className={colors.text}>TOTAL</span><span className={posMode === 'penjualan' ? colors.gold : 'text-blue-600'}>Rp {formatIDR(total)}</span></div>
+                <div className="flex justify-between text-base sm:text-lg font-bold pt-2 sm:pt-3 border-t border-dashed border-gray-300 dark:border-gray-600 mt-2"><span className={colors.text}>TOTAL</span><span className={posMode === 'penjualan' ? colors.gold : 'text-blue-600'}>Rp {formatIDR(total)}</span></div>
               </div>
               <button onClick={() => { 
                   if (posMode === 'penjualan' && !activeShift) {

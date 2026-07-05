@@ -5,7 +5,7 @@ import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import ContactProfileModal from '../components/modals/ContactProfileModal';
 
-export default function ContactManager({ customers, setCustomers, suppliers, setSuppliers, sales, setSales, purchases, setPurchases, products, setProducts, colors, showToast, isSoundOn, globalMode, setGlobalMode, handleNavigateAndEdit }) {
+export default function ContactManager({ customers, setCustomers, suppliers, setSuppliers, sales, setSales, purchases, setPurchases, products, setProducts, colors, showToast, isSoundOn, globalMode, setGlobalMode, handleNavigateAndEdit, user }) {
   const tab = globalMode === 'penjualan' ? 'customer' : 'supplier';
   const setTab = (val) => setGlobalMode(val === 'customer' ? 'penjualan' : 'pembelian');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -14,6 +14,11 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
   const [activeProfile, setActiveProfile] = useState(null);
   const defaultForm = { name: '', phone: '', address: '', points: 0, distance: 0 };
   const [form, setForm] = useState(defaultForm);
+
+  const canViewSupplier = user?.role === 'admin' || (user?.permissions || []).includes('kontak_supplier');
+  const canCreate = user?.role === 'admin' || (user?.permissions || []).includes(tab === 'customer' ? 'kontak_customer_create' : 'kontak_supplier_create');
+  const canEdit = user?.role === 'admin' || (user?.permissions || []).includes(tab === 'customer' ? 'kontak_customer_edit' : 'kontak_supplier_edit');
+  const canDelete = user?.role === 'admin' || (user?.permissions || []).includes(tab === 'customer' ? 'kontak_customer_delete' : 'kontak_supplier_delete');
 
   const handleTopUpDeposit = (contact, amount) => {
     playSound('cash', isSoundOn);
@@ -48,7 +53,7 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
   };
 
   const columnsCustomer = [
-    { key: 'name', label: 'Nama', render: r => <button onClick={(e) => { e.stopPropagation(); playSound('pop', isSoundOn); setActiveProfile(r); }} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left text-wrap">{r.name} {r.id === 1 ? <span className="text-[10px] text-gray-500 font-normal ml-1">(Default)</span> : ''}</button> },
+    { key: 'name', label: 'Nama', render: r => <button onClick={(e) => { e.stopPropagation(); playSound('pop', isSoundOn); setActiveProfile(r); }} className="font-semibold text-[#D4AF37] hover:underline text-left text-wrap">{r.name} {r.id === 1 ? <span className="text-[10px] text-gray-500 font-normal ml-1">(Default)</span> : ''}</button> },
     { key: 'phone', label: 'Telepon', render: r => r.phone !== '-' && r.phone ? <button onClick={(e) => { e.stopPropagation(); playSound('pop', isSoundOn); handleWA(r.phone); }} className="text-green-600 hover:underline flex items-center gap-1 font-semibold"><Phone size={14}/> {r.phone}</button> : '-' },
     { key: 'points', label: 'Poin' },
     { key: 'distance', label: 'Jarak (Km)' }
@@ -85,7 +90,9 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
            title={
              <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
                <button onClick={() => setTab('customer')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'customer' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Customer</button>
-               <button onClick={() => setTab('supplier')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'supplier' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Supplier</button>
+               {canViewSupplier && (
+                 <button onClick={() => setTab('supplier')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'supplier' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Supplier</button>
+               )}
              </div>
            }
            posLayout={true}
@@ -93,11 +100,11 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
            data={tab === 'customer' ? customers.filter(c => c.id !== 1) : suppliers} 
            searchPlaceholder="Cari"
            colors={colors} 
-           onAdd={() => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); }}
-           actions={[
+           onAdd={canCreate ? () => { playSound('pop', isSoundOn); setEditingId(null); setForm(defaultForm); setIsModalOpen(true); } : undefined}
+           actions={canEdit ? [
              { icon: Edit, label: 'Edit', colorClass: 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:bg-stone-300', onClick: handleEdit }
-           ]}
-           onDelete={(row) => { if(tab === 'customer' && row.id === 1) showToast('Kontak default tidak bisa dihapus', 'error'); else { playSound('pop', isSoundOn); setDeleteContact(row); } }} 
+           ] : []}
+           onDelete={canDelete ? (row) => { if(tab === 'customer' && row.id === 1) showToast('Kontak default tidak bisa dihapus', 'error'); else { playSound('pop', isSoundOn); setDeleteContact(row); } } : undefined} 
         />
        </div>
 

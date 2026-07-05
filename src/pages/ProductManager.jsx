@@ -101,10 +101,11 @@ export default function ProductManager({ products, setProducts, categories, unit
 
     playSound('success', isSoundOn);
     if (editingId) {
-      setProducts(products.map(p => p.id === editingId ? { ...p, ...form } : p));
+      setProducts(products.map(p => p.id === editingId ? { ...p, ...form, hppChanged: false } : p));
       const oldProd = products.find(p => p.id === editingId);
       const changes = [];
-      if (oldProd?.price !== form.price) changes.push(`harga jual dari Rp${oldProd?.price} ke Rp${form.price}`);
+      if (oldProd?.price !== form.price) changes.push(`harga jual dari Rp${formatIDR(oldProd?.price || 0)} ke Rp${formatIDR(form.price)}`);
+      if (oldProd?.basePrice !== form.basePrice) changes.push(`HPP dari Rp${formatIDR(oldProd?.basePrice || 0)} ke Rp${formatIDR(form.basePrice)}`);
       if (oldProd?.stock !== form.stock) changes.push(`stok dari ${oldProd?.stock} ke ${form.stock}`);
       const changeStr = changes.length > 0 ? ` (${changes.join(', ')})` : '';
       if (recordActivity) recordActivity('Edit Produk', `Mengubah data produk "${form.name}"${changeStr}`);

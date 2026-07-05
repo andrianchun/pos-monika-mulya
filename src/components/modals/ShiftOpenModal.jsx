@@ -41,7 +41,7 @@ export default function ShiftOpenModal({ colors,  onClose, setActiveShift, user,
                )}
             </div>
             
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                <div className="text-center mb-6">
                   <div className={`w-16 h-16 ${colors.goldBg}/20 rounded-full flex items-center justify-center mx-auto mb-3`}>
                      <DollarSign size={32} className={colors.gold} />

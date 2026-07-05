@@ -9,7 +9,7 @@ export default function ActivityLogPage({ activityLogs, shiftHistory = [], color
   const columns = [
     { key: 'timestamp', label: 'Waktu', render: (r) => new Date(r.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) },
     { key: 'user', label: 'Pengguna', render: (r) => <span className="font-bold">{r.user}</span> },
-    { key: 'role', label: 'Role', filterOptions: ['admin', 'kasir'], render: (r) => <span className={`px-2 py-1 rounded text-xs font-bold ${r.role === 'admin' ? colors.goldBg + ' text-[#18181B]' : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200'}`}>{r.role?.toUpperCase()}</span> },
+    { key: 'role', label: 'Role', filterOptions: ['admin', 'kasir'], render: (r) => <span className={`px-2 py-1 rounded text-xs font-bold ${r.role === 'admin' ? colors.goldBg + ' text-[#18181B]' : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200'}`}>{r.role === 'admin' ? 'ADMIN' : 'STAFF'}</span> },
     { key: 'action', label: 'Tindakan', filterOptions: Array.from(new Set(activityLogs.map(l => l.action))).filter(Boolean).sort() },
     { key: 'details', label: 'Keterangan' }
   ];

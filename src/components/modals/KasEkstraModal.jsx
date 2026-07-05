@@ -67,7 +67,7 @@ export default function KasEkstraModal({ colors, activeShift, setActiveShift, on
                     </button>
                 </div>
 
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                             <label className={`border rounded-xl p-3 cursor-pointer text-center flex flex-col gap-1 transition-all ${type === 'in' ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'border-gray-200 dark:border-[#27272A] text-gray-500'}`}>

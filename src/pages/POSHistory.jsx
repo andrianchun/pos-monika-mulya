@@ -13,10 +13,12 @@ export default function POSHistory({
   isSoundOn, products, setProducts, storeInfo, accounting, setAccounting, 
   customers, setCustomers, suppliers, financialAccounts, globalMode, setGlobalMode, editIntent, user, recordActivity
 }) {
-  const canEdit = user?.role === 'admin' || (user?.permissions || []).includes('riwayat_edit');
-  const canDelete = user?.role === 'admin' || (user?.permissions || []).includes('riwayat_delete');
   const tab = globalMode;
   const setTab = setGlobalMode;
+
+  const canEdit = user?.role === 'admin' || (user?.permissions || []).includes(tab === 'penjualan' ? 'riwayat_penjualan_edit' : 'riwayat_pembelian_edit');
+  const canDelete = user?.role === 'admin' || (user?.permissions || []).includes(tab === 'penjualan' ? 'riwayat_penjualan_delete' : 'riwayat_pembelian_delete');
+  const canViewPembelian = user?.role === 'admin' || (user?.permissions || []).includes('riwayat_pembelian');
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [returnDoc, setReturnDoc] = useState(null); 
   const [editDoc, setEditDoc] = useState(null);
@@ -196,7 +198,9 @@ export default function POSHistory({
             title={
               <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
                 <button onClick={() => setTab('penjualan')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'penjualan' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
-                <button onClick={() => setTab('pembelian')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
+                {canViewPembelian && (
+                   <button onClick={() => setTab('pembelian')} className={`w-[110px] sm:w-[130px] py-1.5 text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
+                )}
               </div>
             }
             columns={columns} data={activeData} colors={colors} 

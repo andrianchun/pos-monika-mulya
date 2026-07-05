@@ -5,7 +5,7 @@ import { playSound } from '../../utils/helpers';
 export default function DeleteConfirmModal({ onConfirm, onCancel, colors, isSoundOn, title = "Yakin Hapus Data?", desc = "Tindakan ini tidak dapat dibatalkan.", btnText = "Hapus Data" }) {
   return (
      <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-        <div className={`w-full max-w-sm p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} text-center`}>
+        <div className={`w-full max-w-sm p-4 sm:p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} text-center`}>
            <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
            <h3 className={`text-xl font-bold mb-2 ${colors.text}`}>{title}</h3>
            <p className={`text-sm mb-6 whitespace-pre-wrap ${colors.textMuted}`}>{desc}</p>

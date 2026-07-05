@@ -3,17 +3,17 @@ import { LayoutDashboard, ShoppingCart, Package, FileText, Users, Settings, X, C
 
 export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handleMenuClick, user, storeInfo }) {
   const fullMenuItems = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', module: 'dashboard' },
-    { id: 'pos', icon: ShoppingCart, label: 'Kasir / POS', module: 'pos' },
-    { id: 'riwayat', icon: FileText, label: 'Riwayat', module: 'riwayat' },
-    { id: 'kontak', icon: Users, label: 'Kontak', module: 'kontak' },
-    { id: 'produk', icon: Package, label: 'Produk', module: 'produk' },
-    { id: 'laporan', icon: FileText, label: 'Laporan', module: 'laporan' },
-    { id: 'aktivitas', icon: Activity, label: 'Log Aktivitas', module: 'aktivitas' },
-    { id: 'pengaturan', icon: Settings, label: 'Pengaturan', module: 'pengaturan' }
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', modules: ['dashboard'] },
+    { id: 'pos', icon: ShoppingCart, label: 'Kasir / POS', modules: ['pos'] },
+    { id: 'riwayat', icon: FileText, label: 'Riwayat', modules: ['riwayat_penjualan', 'riwayat_pembelian'] },
+    { id: 'kontak', icon: Users, label: 'Kontak', modules: ['kontak_customer', 'kontak_supplier'] },
+    { id: 'produk', icon: Package, label: 'Produk', modules: ['produk'] },
+    { id: 'laporan', icon: FileText, label: 'Laporan', modules: ['laporan_keuangan', 'laporan_barang'] },
+    { id: 'aktivitas', icon: Activity, label: 'Log Aktivitas', modules: ['aktivitas'] },
+    { id: 'pengaturan', icon: Settings, label: 'Pengaturan', modules: ['pengaturan'] }
   ];
 
-  const permittedMenu = user.role === 'admin' ? fullMenuItems : fullMenuItems.filter(m => user.permissions?.includes(m.module));
+  const permittedMenu = user.role === 'admin' ? fullMenuItems : fullMenuItems.filter(m => m.modules.some(mod => user.permissions?.includes(mod)));
 
   return (
     <>
@@ -24,10 +24,6 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
       
       <div className={`fixed lg:relative top-0 left-0 h-full z-[70] flex flex-col ${colors.panel} border-r ${colors.border} transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'} shrink-0 print:hidden`}>
         
-        {/* Tombol Silang khusus untuk menutup di HP */}
-        <button onClick={() => setIsOpen(false)} className="absolute top-4 right-4 p-1.5 bg-red-100 text-red-500 rounded-lg lg:hidden">
-          <X size={20} />
-        </button>
 
         {/* ======================================================== */}
         {/* 🔥 LOGO HXPOS BRANDING (BISA DIKLIK BUAT BUKA/TUTUP!) 🔥  */}

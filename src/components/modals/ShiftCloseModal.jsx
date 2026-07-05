@@ -172,7 +172,7 @@ export default function ShiftCloseModal({ colors,
                  )}
             </div>
             
-            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+            <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1">
                 {!activeShift && !summary ? (
                     <div className="text-center py-8">
                         <Calculator size={48} className="mx-auto text-gray-300 mb-4" />

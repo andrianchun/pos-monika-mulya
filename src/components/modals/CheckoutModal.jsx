@@ -35,7 +35,7 @@ export default function CheckoutModal({ posMode, total, financialAccounts, payme
 
   return (
     <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-      <div className={`w-full max-w-md p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] overflow-y-auto custom-scrollbar`}>
+      <div className={`w-full max-w-md p-4 sm:p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] overflow-y-auto custom-scrollbar`}>
         <div className="flex justify-between items-center mb-6">
           <h2 className={`text-xl font-bold ${colors.text}`}>Pembayaran {posMode === 'penjualan' ? 'Penjualan' : 'Pembelian'}</h2>
           <button onClick={() => { playSound('pop', isSoundOn); setCheckoutModal(false); }} className="text-red-500 hover:scale-110"><X size={24}/></button>

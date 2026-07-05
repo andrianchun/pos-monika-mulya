@@ -32,7 +32,7 @@ export default function ProfileModal({ user, setUser, users, setUsers, colors, i
 
   return (
     <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-      <div className={`w-full max-w-md p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
+      <div className={`w-full max-w-md p-4 sm:p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
         <div className="flex justify-between items-center mb-6">
           <h2 className={`text-xl font-bold ${colors.text}`}>Pengaturan Akun</h2>
           <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="text-red-500 hover:scale-110"><X size={24}/></button>

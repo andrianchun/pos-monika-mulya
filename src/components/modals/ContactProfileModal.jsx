@@ -22,7 +22,7 @@ export default function ContactProfileModal({ contact, type, sales, purchases, o
 
   return (
     <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-      <div className={`w-full max-w-4xl p-6 rounded-3xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] flex flex-col`}>
+      <div className={`w-full max-w-4xl p-4 sm:p-6 rounded-3xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] flex flex-col`}>
         {/* Header */}
         <div className="flex justify-between items-start mb-6 shrink-0">
           <div className="flex gap-4 items-center">

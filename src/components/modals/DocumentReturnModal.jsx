@@ -21,7 +21,7 @@ export default function DocumentReturnModal({ doc, onClose, onSaveReturn, colors
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className={`w-full max-w-2xl p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
+      <div className={`w-full max-w-2xl p-4 sm:p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
         <div className="flex justify-between items-center mb-4">
            <h3 className={`text-xl font-bold ${colors.text}`}>Retur Barang - {doc.nota}</h3>
            <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="text-red-500 hover:scale-110"><X size={24}/></button>

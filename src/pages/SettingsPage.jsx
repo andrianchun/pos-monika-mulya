@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Lock, Store, Plus, Edit, Trash2, X, DownloadCloud, UploadCloud, Tags, Gift, Ticket, Camera, CheckSquare, Square, Image } from 'lucide-react';
+import { Lock, Store, Plus, Edit, Trash2, X, DownloadCloud, UploadCloud, Tags, Gift, Ticket, Camera, CheckSquare, Square, Image, Link2, Send, RefreshCw, Check, AlertCircle, Zap, Shield } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload, formatWhatsAppNumber } from '../utils/helpers';
 import DateInput from '../components/DateInput';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
@@ -52,6 +52,53 @@ export default function SettingsPage({
 
   const [deleteUsr, setDeleteUsr] = useState(null);
   const [deleteFin, setDeleteFin] = useState(null);
+
+  // --- STATE INTEGRASI (harus top-level, Rules of Hooks) ---
+  const _integrations = storeInfo.integrations || {};
+  const [webhookUrl, setWebhookUrl] = useState(_integrations.financeWebhookUrl || '');
+  const [webhookKey, setWebhookKey] = useState(_integrations.financeWebhookKey || '');
+  const [autoSend, setAutoSend] = useState(_integrations.financeAutoSend || false);
+  const [sendStatus, setSendStatus] = useState(null);
+  const [lastSentIntegrasi, setLastSentIntegrasi] = useState(_integrations.financeLastSent || null);
+  const [errorMsgIntegrasi, setErrorMsgIntegrasi] = useState('');
+
+  // --- HELPERS INTEGRASI (top-level, bukan di dalam JSX) ---
+  const _saveIntegrationSettings = () => {
+     playSound('success', isSoundOn);
+     setStoreInfo({ ...storeInfo, integrations: { ...(storeInfo.integrations || {}), financeWebhookUrl: webhookUrl.trim(), financeWebhookKey: webhookKey.trim(), financeAutoSend: autoSend } });
+     showToast('Pengaturan integrasi disimpan!', 'success');
+  };
+
+  const _buildPayload = (mode = 'bulan-ini') => {
+     const now = new Date();
+     let filtered = sales;
+     if (mode === 'bulan-ini') filtered = sales.filter(s => { const d = new Date(s.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+     else if (mode === 'hari-ini') filtered = sales.filter(s => new Date(s.date).toDateString() === now.toDateString());
+     const omset = filtered.reduce((sum, s) => sum + s.total, 0);
+     const hpp   = filtered.reduce((sum, s) => sum + s.items.reduce((a, i) => a + ((i.cost || 0) * i.qty), 0), 0);
+     const laba  = omset - hpp;
+     const pengeluaran = (accounting || []).filter(a => a.amount < 0 && new Date(a.date).getMonth() === now.getMonth() && new Date(a.date).getFullYear() === now.getFullYear()).reduce((sum, a) => sum + Math.abs(a.amount), 0);
+     return { source: 'pos-monika-mulya', toko: storeInfo.name || 'Toko', periode: mode, bulan: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`, omset, hpp, laba, pengeluaran, labaSetelahBeban: laba - pengeluaran, jumlahTransaksi: filtered.length, timestamp: new Date().toISOString() };
+  };
+
+  const _handleKirim = async (mode = 'bulan-ini') => {
+     if (!webhookUrl.trim()) { showToast('URL Finance Tracker belum diisi!', 'error'); playSound('pop', isSoundOn); return; }
+     setSendStatus('loading'); setErrorMsgIntegrasi('');
+     try {
+        const payload = _buildPayload(mode);
+        const headers = { 'Content-Type': 'application/json' };
+        if (webhookKey.trim()) headers['x-api-key'] = webhookKey.trim();
+        const res = await fetch(webhookUrl.trim(), { method: 'POST', headers, body: JSON.stringify(payload) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        const sentAt = new Date().toISOString();
+        setSendStatus('ok'); setLastSentIntegrasi(sentAt);
+        setStoreInfo({ ...storeInfo, integrations: { ...(storeInfo.integrations || {}), financeLastSent: sentAt, financeWebhookUrl: webhookUrl, financeWebhookKey: webhookKey } });
+        playSound('success', isSoundOn); showToast('Data berhasil dikirim ke Finance Tracker! ✅', 'success');
+     } catch (err) {
+        setSendStatus('error'); setErrorMsgIntegrasi(err.message);
+        playSound('pop', isSoundOn); showToast('Gagal kirim data. Cek URL / koneksi.', 'error');
+     }
+  };
 
   const isTokoChanged = 
      sName !== (storeInfo.name || 'MONIKA MULYA') ||
@@ -469,7 +516,8 @@ export default function SettingsPage({
             { id: 'harga', label: 'Harga & Poin' }, 
             { id: 'akun', label: 'Akun & Akses' }, 
             { id: 'kategori', label: 'Kategori & Satuan' }, 
-            { id: 'database', label: 'Database' }
+            { id: 'database', label: 'Database' },
+            { id: 'integrasi', label: 'Integrasi' }
           ].map(t => (
             <button 
               key={t.id} 
@@ -559,16 +607,17 @@ export default function SettingsPage({
          {activeTab === 'harga' && (
             <div className="space-y-6 w-full">
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
-               <div className="flex justify-between items-center mb-6">
+               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                   <h3 className={`font-bold text-lg flex items-center gap-2 ${colors.text}`}><Tags className={colors.gold}/> Harga Grosir</h3>
-                  <button onClick={() => { playSound('pop', isSoundOn); setWForm({productId:'', tiers: [{ id: '', minQty: '', wholesalePrice: '' }]}); setIsGrosirModal(true); }} className={`px-4 py-2 rounded-xl text-[#18181B] text-sm font-bold ${colors.goldBg} hover:opacity-90 flex items-center gap-1 shadow-sm`}><Plus size={16}/> Tambah Aturan</button>
+                  <button onClick={() => { playSound('pop', isSoundOn); setWForm({productId:'', tiers: [{ id: '', minQty: '', wholesalePrice: '' }]}); setIsGrosirModal(true); }} className={`w-full sm:w-auto px-4 py-2 rounded-xl text-[#18181B] text-sm font-bold ${colors.goldBg} hover:opacity-90 flex items-center justify-center gap-1 shadow-sm`}><Plus size={16}/> Tambah Aturan</button>
                </div>
                
                <div className="space-y-3">
                   {wholesales.length === 0 ? (
                      <p className="text-sm text-gray-500 italic text-center py-6">Belum ada aturan grosir aktif.</p>
                   ) : (
-                     <table className={`w-full text-sm text-left ${colors.text}`}>
+                     <div className="overflow-x-auto custom-scrollbar w-full">
+                        <table className={`w-full min-w-max text-sm text-left ${colors.text}`}>
                         <thead className={`text-xs uppercase ${colors.creamBg} border-b ${colors.border}`}>
                            <tr>
                               <th className="py-3 px-4">Nama Produk</th>
@@ -610,21 +659,23 @@ export default function SettingsPage({
                            })}
                         </tbody>
                      </table>
+                     </div>
                   )}
                </div>
             </div>
          {/* 3. TAB PROMO DISKON OTOMATIS */}
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
-               <div className="flex justify-between items-center mb-6">
+               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                   <h3 className={`font-bold text-lg flex items-center gap-2 ${colors.text}`}><Ticket className={colors.gold}/> Promo & Diskon</h3>
-                  <button onClick={() => { playSound('pop', isSoundOn); setPForm({id:'', name:'', targetType:'semua', targetItems:[], targetCustomerType:'semua', targetCustomers:[], startDate:'', endDate:'', discType:'%', discValue:''}); setPromoSimProductId(''); setIsPromoModal(true); }} className={`px-4 py-2 rounded-xl text-[#18181B] text-sm font-bold ${colors.goldBg} hover:opacity-90 flex items-center gap-1 shadow-sm`}><Plus size={16}/> Tambah Promo</button>
+                  <button onClick={() => { playSound('pop', isSoundOn); setPForm({id:'', name:'', targetType:'semua', targetItems:[], targetCustomerType:'semua', targetCustomers:[], startDate:'', endDate:'', discType:'%', discValue:''}); setPromoSimProductId(''); setIsPromoModal(true); }} className={`w-full sm:w-auto px-4 py-2 rounded-xl text-[#18181B] text-sm font-bold ${colors.goldBg} hover:opacity-90 flex items-center justify-center gap-1 shadow-sm`}><Plus size={16}/> Tambah Promo</button>
                </div>
                
                <div className="space-y-3">
                   {promos.length === 0 ? (
                      <p className="text-sm text-gray-500 italic text-center py-6">Belum ada promo diskon otomatis aktif.</p>
                   ) : (
-                     <table className={`w-full text-sm text-left ${colors.text}`}>
+                     <div className="overflow-x-auto custom-scrollbar w-full">
+                        <table className={`w-full min-w-max text-sm text-left ${colors.text}`}>
                         <thead className={`text-xs uppercase ${colors.creamBg} border-b ${colors.border}`}>
                            <tr>
                               <th className="py-3 px-4">Nama Event</th>
@@ -658,6 +709,7 @@ export default function SettingsPage({
                            })}
                         </tbody>
                      </table>
+                     </div>
                   )}
                </div>
             </div>
@@ -711,11 +763,12 @@ export default function SettingsPage({
          {activeTab === 'akun' && (
             <div className="space-y-6 w-full">
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm`}>
-               <div className="flex justify-between items-center mb-4">
+               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                   <h3 className={`font-bold text-lg ${colors.text}`}>Hak Akses & Manajemen User</h3>
-                  <button onClick={() => { playSound('pop', isSoundOn); setUForm({ id: '', username: '', email: '', name: '', role: 'kasir', permissions: ['dashboard', 'pos'], password: '', avatar: null }); setIsUserModal(true); }} className={`px-4 py-2 rounded-lg text-[#18181B] text-sm font-bold flex items-center gap-2 ${colors.goldBg} hover:opacity-90`}><Plus size={16}/> Akun Baru</button>
+                  <button onClick={() => { playSound('pop', isSoundOn); setUForm({ id: '', username: '', email: '', name: '', role: 'kasir', permissions: ['dashboard', 'pos'], password: '', avatar: null }); setIsUserModal(true); }} className={`w-full sm:w-auto px-4 py-2 rounded-lg text-[#18181B] text-sm font-bold flex items-center justify-center gap-2 ${colors.goldBg} hover:opacity-90`}><Plus size={16}/> Akun Baru</button>
                </div>
-               <table className={`w-full text-sm text-left ${colors.text}`}>
+               <div className="overflow-x-auto custom-scrollbar w-full">
+                  <table className={`w-full min-w-max text-sm text-left ${colors.text}`}>
                  <thead className={`text-xs uppercase ${colors.creamBg} border-b ${colors.border}`}><tr><th className="py-3 px-4">Nama Lengkap</th><th className="py-3 px-4">Role</th><th className="py-3 px-4">Username Login</th><th className="py-3 px-4 text-center">Aksi</th></tr></thead>
                  <tbody>
                    {(users || []).map((u, i) => (
@@ -740,20 +793,21 @@ export default function SettingsPage({
                       </tr>
                    ))}
                  </tbody>
-               </table>
+                 </table>
+               </div>
             </div>
          {/* 6. TAB AKUN KEUANGAN (SAFE GUARDED) */}
             <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm w-full`}>
                <h3 className={`font-bold text-lg mb-2 ${colors.text}`}>Kelola Akun Keuangan</h3>
-               <div className="flex gap-3 mb-6">
-                  <div className="flex-1 flex gap-2">
-                     <input type="text" className={`flex-1 p-2.5 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} placeholder="Ketik Nama Akun Baru..." value={newAccName} onChange={e=>setNewAccName(e.target.value)} />
-                     <select className={`w-1/3 p-2.5 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} value={newAccType} onChange={e=>setNewAccType(e.target.value)}>
+               <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                  <div className="flex-1 flex gap-2 w-full">
+                     <input type="text" className={`flex-1 min-w-0 p-2.5 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} placeholder="Ketik Nama Akun Baru..." value={newAccName} onChange={e=>setNewAccName(e.target.value)} />
+                     <select className={`w-[110px] sm:w-32 shrink-0 p-2.5 rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none`} value={newAccType} onChange={e=>setNewAccType(e.target.value)}>
                          <option value="tunai">Tunai</option>
                          <option value="non-tunai">Non-Tunai</option>
                      </select>
                   </div>
-                  <button onClick={addFinAccount} className={`px-5 py-2.5 font-bold text-[#18181B] rounded-lg ${colors.goldBg} flex gap-1 items-center shadow-sm shrink-0`}><Plus size={16}/> Tambah</button>
+                  <button onClick={addFinAccount} className={`w-full sm:w-auto px-5 py-2.5 font-bold text-[#18181B] rounded-lg ${colors.goldBg} flex gap-1 justify-center items-center shadow-sm shrink-0`}><Plus size={16}/> Tambah</button>
                </div>
                <div className="space-y-3">
                   {(financialAccounts || []).map(fa => (
@@ -874,6 +928,143 @@ export default function SettingsPage({
                   </div>
                </div>
             </div>
+         )}
+
+         {/* 9. TAB INTEGRASI — FINANCE TRACKER WEBHOOK */}
+         {activeTab === 'integrasi' && (
+            <div className="space-y-6 w-full">
+                  {/* Card Konfigurasi */}
+                  <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm`}>
+                     <div className="flex items-center gap-3 mb-5">
+                        <div>
+                           <h3 className={`font-bold text-lg ${colors.text}`}>Tautkan ke Finance Tracker</h3>
+                           <p className={`text-xs ${colors.textMuted}`}>Kirim ringkasan keuangan toko ke aplikasi finance pribadimu secara otomatis</p>
+                        </div>
+                     </div>
+
+                     <div className="space-y-4">
+                        <div>
+                           <label className={`block text-xs font-bold mb-1.5 ${colors.text}`}>URL Webhook Finance Tracker *</label>
+                           <input
+                              type="url"
+                              className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-2 focus:ring-[#D4AF37] font-mono text-sm`}
+                              value={webhookUrl}
+                              onChange={e => setWebhookUrl(e.target.value)}
+                              placeholder="https://your-finance-app.com/api/webhook/pos"
+                           />
+                           <p className={`text-[10px] mt-1 ${colors.textMuted}`}>Endpoint di finance tracker yang menerima data POST dari POS ini</p>
+                        </div>
+
+                        <div>
+                           <label className={`block text-xs font-bold mb-1.5 ${colors.text}`}>API Key / Secret (Opsional)</label>
+                           <input
+                              type="password"
+                              className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} outline-none focus:ring-2 focus:ring-[#D4AF37] font-mono text-sm`}
+                              value={webhookKey}
+                              onChange={e => setWebhookKey(e.target.value)}
+                              placeholder="Kunci rahasia untuk verifikasi sumber data"
+                           />
+                           <p className={`text-[10px] mt-1 ${colors.textMuted}`}>Akan dikirim sebagai header <code className="bg-gray-100 dark:bg-[#27272A] px-1 rounded">x-api-key</code></p>
+                        </div>
+
+                        <div className={`flex items-center justify-between p-3 rounded-xl border ${colors.border} bg-gray-50 dark:bg-[#27272A]/40`}>
+                           <div>
+                              <p className={`text-sm font-bold ${colors.text}`}>Kirim Otomatis Setiap Hari</p>
+                              <p className={`text-[10px] ${colors.textMuted}`}>Data dikirim saat kamu buka tab Integrasi (sekali per hari)</p>
+                           </div>
+                           <button
+                              type="button"
+                              onClick={() => setAutoSend(!autoSend)}
+                              className={`relative w-12 h-6 rounded-full transition-colors ${autoSend ? 'bg-[#D4AF37]' : 'bg-gray-300 dark:bg-gray-600'}`}
+                           >
+                              <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${autoSend ? 'translate-x-6' : 'translate-x-0'}`} />
+                           </button>
+                        </div>
+
+                        <button
+                           type="button"
+                           onClick={_saveIntegrationSettings}
+                           className={`w-full py-3 rounded-xl font-bold text-[#18181B] ${colors.goldBg} hover:opacity-90 shadow-sm`}
+                        >
+                           Simpan Pengaturan Integrasi
+                        </button>
+                     </div>
+                  </div>
+
+                  {/* Card Kirim Data */}
+                  <div className={`p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm`}>
+                     <h4 className={`font-bold text-base mb-4 flex items-center gap-2 ${colors.text}`}>
+                        Kirim Data Sekarang
+                     </h4>
+
+                     {lastSentIntegrasi && (
+                        <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 mb-4 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                           <Check size={14}/>
+                           Terakhir dikirim: {new Date(lastSentIntegrasi).toLocaleString('id-ID')}
+                        </div>
+                     )}
+
+                     {sendStatus === 'error' && (
+                        <div className="flex items-start gap-2 text-xs text-red-600 dark:text-red-400 mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                           <AlertCircle size={14} className="mt-0.5 shrink-0"/>
+                           <span>Gagal: {errorMsgIntegrasi}</span>
+                        </div>
+                     )}
+
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        <button
+                           type="button"
+                           onClick={() => _handleKirim('hari-ini')}
+                           disabled={sendStatus === 'loading' || !webhookUrl}
+                           className={`py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2 border-[#D4AF37] text-[#D4AF37] hover:bg-yellow-50 dark:hover:bg-[#D4AF37]/10 disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                           {sendStatus === 'loading' && <RefreshCw size={16} className="animate-spin"/>}
+                           Kirim Ringkasan Hari Ini
+                        </button>
+                        <button
+                           type="button"
+                           onClick={() => _handleKirim('bulan-ini')}
+                           disabled={sendStatus === 'loading' || !webhookUrl}
+                           className={`py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all bg-[#D4AF37] text-[#18181B] hover:opacity-90 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                           {sendStatus === 'loading' && <RefreshCw size={16} className="animate-spin"/>}
+                           Kirim Ringkasan Bulan Ini
+                        </button>
+                     </div>
+
+                     {/* Preview payload */}
+                     <div>
+                        <p className={`text-[11px] font-bold mb-2 ${colors.textMuted}`}>PREVIEW DATA YANG AKAN DIKIRIM (Bulan Ini)</p>
+                        <div className={`rounded-xl border ${colors.border} bg-gray-900 dark:bg-black p-4 overflow-x-auto`}>
+                           <pre className="text-[11px] text-green-400 leading-relaxed whitespace-pre-wrap font-mono">{JSON.stringify(_buildPayload('bulan-ini'), null, 2)}</pre>
+                        </div>
+                        <p className={`text-[10px] mt-2 ${colors.textMuted}`}>
+                           Data dikirim via <code className="bg-gray-100 dark:bg-[#27272A] px-1 rounded">POST</code> ke URL webhook dalam format JSON di atas.
+                           Finance tracker kamu cukup buat endpoint yang terima POST ini.
+                        </p>
+                     </div>
+                  </div>
+
+                  {/* Panduan singkat */}
+                  <div className={`p-6 rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/10`}>
+                     <h4 className="font-bold text-sm text-blue-700 dark:text-blue-300 mb-3">Cara Setup di Finance Tracker App-mu</h4>
+                     <ol className="space-y-2 text-xs text-blue-700 dark:text-blue-300">
+                        <li className="flex gap-2"><span className="font-black shrink-0">1.</span> Buat endpoint di finance app: <code className="bg-blue-100 dark:bg-blue-900/40 px-1 rounded font-mono">POST /api/webhook/pos</code></li>
+                        <li className="flex gap-2"><span className="font-black shrink-0">2.</span> Endpoint itu terima JSON di atas, simpan ke database finance-mu</li>
+                        <li className="flex gap-2"><span className="font-black shrink-0">3.</span> Tempel URL endpoint itu di kolom URL Webhook di atas</li>
+                        <li className="flex gap-2"><span className="font-black shrink-0">4.</span> Set API Key yang sama di kedua sisi (opsional tapi recommended)</li>
+                        <li className="flex gap-2"><span className="font-black shrink-0">5.</span> Klik "Kirim Ringkasan" — data langsung masuk ke finance app-mu!</li>
+                     </ol>
+                     <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                        <p className="text-[10px] font-bold text-blue-600 dark:text-blue-300 mb-1">Tidak punya backend? Pakai layanan gratis ini sebagai perantara:</p>
+                        <div className="flex flex-wrap gap-2">
+                           {['Pipedream.com', 'Make.com', 'n8n.io', 'Zapier'].map(s => (
+                              <span key={s} className="text-[10px] px-2 py-1 bg-white dark:bg-[#18181B] rounded-lg font-mono font-bold border border-blue-200 dark:border-blue-800">{s}</span>
+                           ))}
+                        </div>
+                     </div>
+                  </div>
+               </div>
          )}
       </div>
 
@@ -1161,76 +1352,109 @@ export default function SettingsPage({
       {/* MODAL USER / HAK AKSES */}
       {isUserModal && (
          <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4">
-            <div className={`w-full max-w-md p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] overflow-y-auto custom-scrollbar`}>
-              <h3 className={`text-xl font-bold mb-4 ${colors.text}`}>Manajemen Akun User</h3>
-              <form onSubmit={saveUser} className="space-y-4">
-                <div className="flex flex-col items-center mb-2">
-                   <label className={`relative w-20 h-20 rounded-full ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
-                      {uForm.avatar ? <img src={uForm.avatar} className="w-full h-full object-cover" alt="Ava" /> : <Camera size={24} />}
-                      <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, (res) => setUForm({...uForm, avatar: res}), showToast)} />
-                   </label>
-                   <span className="text-[10px] mt-1 text-gray-400">Foto Profil</span>
-                </div>
-                <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Nama Lengkap</label><input required type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.name} onChange={e=>setUForm({...uForm, name: e.target.value})} /></div>
-                <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Username Login</label><input required type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none font-mono lowercase`} value={uForm.username} onChange={e=>setUForm({...uForm, username: e.target.value})} disabled={uForm.id === 1} /></div>
-                <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Email (Opsional)</label><input type="email" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.email} onChange={e=>setUForm({...uForm, email: e.target.value})} /></div>
-                <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Password</label><input type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.password} onChange={e=>setUForm({...uForm, password: e.target.value})} placeholder={uForm.id ? "Kosongkan jika tidak diganti" : "Ketik Password..."} required={!uForm.id} /></div>
-                <div>
-                   <label className={`block text-xs mb-1 ${colors.textMuted}`}>Tipe Akun Dasar</label>
-                   <select className={`w-full p-2 border rounded-lg bg-white dark:bg-[#1e1e1e] ${colors.text} ${colors.border} outline-none`} value={uForm.role} onChange={e=>setUForm({...uForm, role: e.target.value})} disabled={uForm.id === 1}>
-                        <option value="kasir">STAFF (Bisa Kustom Akses)</option><option value="admin">ADMIN (Full Akses)</option>
-                   </select>
-                </div>
-                {uForm.role === 'kasir' && (
-                  <div className="pt-2 border-t border-dashed border-gray-300 dark:border-gray-700">
-                     <label className={`block text-xs font-bold mb-2 ${colors.textMuted}`}>Hak Akses Matriks</label>
-                     <div className="overflow-x-auto custom-scrollbar">
-                        <table className="w-full text-xs text-left mb-2">
-                           <thead>
-                              <tr className={`border-b ${colors.border}`}>
-                                 <th className="py-2">Modul</th>
-                                 <th className="py-2 text-center">Buka</th>
-                                 <th className="py-2 text-center">Tambah</th>
-                                 <th className="py-2 text-center">Edit</th>
-                                 <th className="py-2 text-center">Hapus</th>
-                              </tr>
-                           </thead>
-                           <tbody>
-                              {[
-                                 { id: 'dashboard', label: 'Dashboard', actions: ['view'] },
-                                 { id: 'pos', label: 'Kasir POS', actions: ['view', 'edit'] },
-                                 { id: 'riwayat', label: 'Riwayat', actions: ['view', 'edit', 'delete'] },
-                                 { id: 'produk', label: 'Produk', actions: ['view', 'create', 'edit', 'delete'] },
-                                 { id: 'kontak', label: 'Kontak', actions: ['view', 'create', 'edit', 'delete'] },
-                                 { id: 'laporan', label: 'Laporan', actions: ['view'] },
-                                 { id: 'aktivitas', label: 'Log Aktivitas', actions: ['view'] }
-                              ].map(mod => (
-                                 <tr key={mod.id} className={`border-b border-dashed ${colors.border} hover:bg-black/5 dark:hover:bg-white/5`}>
-                                    <td className={`py-2 font-semibold ${colors.text}`}>{mod.label}</td>
-                                    {['view', 'create', 'edit', 'delete'].map(act => (
-                                       <td key={act} className="py-2 text-center">
-                                          {mod.actions.includes(act) ? (
-                                             <input 
-                                                type="checkbox" 
-                                                checked={(uForm.permissions || []).includes(act === 'view' ? mod.id : `${mod.id}_${act}`)} 
-                                                onChange={() => handlePermissionToggle(mod.id, act)} 
-                                                className="rounded text-[#D4AF37] focus:ring-[#D4AF37] w-4 h-4 cursor-pointer" 
-                                             />
-                                          ) : (
-                                             <span className="text-gray-300 dark:text-gray-700">-</span>
-                                          )}
-                                       </td>
-                                    ))}
-                                 </tr>
-                              ))}
-                           </tbody>
-                        </table>
+            <div className={`w-full max-w-4xl p-4 sm:p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[95vh] flex flex-col`}>
+              <h3 className={`text-xl font-bold mb-4 shrink-0 ${colors.text}`}>Manajemen Akun User</h3>
+              <form onSubmit={saveUser} className="flex-1 flex flex-col min-h-0">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 flex-1 overflow-y-auto custom-scrollbar pr-1 sm:pr-2 min-h-0 pb-2">
+                   {/* Kolom Kiri: Profil & Kredensial */}
+                   <div className="space-y-4">
+                     <div className="flex flex-col items-center mb-4">
+                        <label className={`relative w-20 h-20 rounded-full ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
+                           {uForm.avatar ? <img src={uForm.avatar} className="w-full h-full object-cover" alt="Ava" /> : <Camera size={24} />}
+                           <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, (res) => setUForm({...uForm, avatar: res}), showToast)} />
+                        </label>
+                        <span className="text-[10px] mt-1 text-gray-400">Foto Profil</span>
                      </div>
-                  </div>
-                )}
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => { playSound('pop', isSoundOn); setIsUserModal(false); }} className={`flex-1 py-3 border rounded-xl font-bold ${colors.text} ${colors.border}`}>Batal</button>
-                  <button type="submit" className={`flex-1 py-3 rounded-xl font-bold text-[#18181B] shadow-md ${colors.goldBg}`}>Simpan User</button>
+                     
+                     <div className="grid grid-cols-2 gap-3">
+                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Nama Lengkap</label><input required type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.name} onChange={e=>setUForm({...uForm, name: e.target.value})} /></div>
+                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Username Login</label><input required type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none font-mono lowercase`} value={uForm.username} onChange={e=>setUForm({...uForm, username: e.target.value})} disabled={uForm.id === 1} /></div>
+                     </div>
+                     
+                     <div className="grid grid-cols-2 gap-3">
+                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Email (Opsional)</label><input type="email" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.email} onChange={e=>setUForm({...uForm, email: e.target.value})} /></div>
+                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Password</label><input type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.password} onChange={e=>setUForm({...uForm, password: e.target.value})} placeholder={uForm.id ? "Kosongkan jika tidak diganti" : "Ketik Password..."} required={!uForm.id} /></div>
+                     </div>
+                     
+                     <div>
+                        <label className={`block text-xs mb-1 ${colors.textMuted}`}>Tipe Akun Dasar</label>
+                        <select className={`w-full p-2 border rounded-lg bg-white dark:bg-[#1e1e1e] ${colors.text} ${colors.border} outline-none`} value={uForm.role} onChange={e=>setUForm({...uForm, role: e.target.value})} disabled={uForm.id === 1}>
+                             <option value="kasir">STAFF (Bisa Kustom Akses)</option><option value="admin">ADMIN (Full Akses)</option>
+                        </select>
+                     </div>
+                   </div>
+
+                   {/* Kolom Kanan: Hak Akses */}
+                   <div>
+                     {uForm.role === 'kasir' ? (
+                       <div className={`h-full flex flex-col border border-dashed ${colors.border} rounded-xl p-3 sm:p-4`}>
+                          <label className={`block text-sm font-bold mb-2 sm:mb-3 ${colors.textMuted}`}>Hak Akses Matriks</label>
+                          <div className="overflow-x-auto custom-scrollbar flex-1 -mx-2 sm:mx-0 px-2 sm:px-0">
+                             <table className="w-full min-w-max text-[10px] sm:text-xs text-left mb-2">
+                                <thead>
+                                   <tr className={`border-b ${colors.border}`}>
+                                      <th className="py-1.5 sm:py-2 pr-2">Modul</th>
+                                      <th className="py-1.5 sm:py-2 px-1.5 sm:px-2 text-center">Buka</th>
+                                      <th className="py-1.5 sm:py-2 px-1.5 sm:px-2 text-center">Tambah</th>
+                                      <th className="py-1.5 sm:py-2 px-1.5 sm:px-2 text-center">Edit</th>
+                                      <th className="py-1.5 sm:py-2 px-1.5 sm:px-2 text-center">Hapus</th>
+                                   </tr>
+                                </thead>
+                                <tbody>
+                                   {[
+                                      { id: 'dashboard', label: 'Dashboard', actions: ['view'] },
+                                      { id: 'pos', label: 'Kasir POS (Utama)', actions: ['view', 'edit'] },
+                                      { id: 'pos_kalender', label: '└ POS: Kalender', actions: ['view'] },
+                                      { id: 'pos_pembelian', label: '└ POS: Pembelian', actions: ['view', 'edit'] },
+                                      { id: 'riwayat_penjualan', label: 'Riwayat Penjualan', actions: ['view', 'edit', 'delete'] },
+                                      { id: 'riwayat_pembelian', label: '└ Riwayat Pembelian', actions: ['view', 'edit', 'delete'] },
+                                      { id: 'produk', label: 'Produk', actions: ['view', 'create', 'edit', 'delete'] },
+                                      { id: 'kontak_customer', label: 'Kontak Customer', actions: ['view', 'create', 'edit', 'delete'] },
+                                      { id: 'kontak_supplier', label: '└ Kontak Supplier', actions: ['view', 'create', 'edit', 'delete'] },
+                                      { id: 'laporan_keuangan', label: 'Laporan Keuangan & Penjualan', actions: ['view'] },
+                                      { id: 'laporan_barang', label: '└ Laporan Barang & Pembelian', actions: ['view'] },
+                                      { id: 'aktivitas', label: 'Log Aktivitas', actions: ['view'] }
+                                   ].map(mod => (
+                                      <tr key={mod.id} className={`border-b border-dashed ${colors.border} hover:bg-black/5 dark:hover:bg-white/5`}>
+                                         <td className={`py-1.5 sm:py-2 pr-2 font-semibold ${colors.text}`}>{mod.label}</td>
+                                         {['view', 'create', 'edit', 'delete'].map(act => (
+                                            <td key={act} className="py-1.5 sm:py-2 px-1.5 sm:px-2 text-center align-middle">
+                                               {mod.actions.includes(act) ? (
+                                                  <div className="flex justify-center">
+                                                     <input 
+                                                        type="checkbox" 
+                                                        checked={(uForm.permissions || []).includes(act === 'view' ? mod.id : `${mod.id}_${act}`)} 
+                                                        onChange={() => handlePermissionToggle(mod.id, act)} 
+                                                        className="rounded text-[#D4AF37] focus:ring-[#D4AF37] w-4 h-4 cursor-pointer m-0 block" 
+                                                     />
+                                                  </div>
+                                               ) : (
+                                                  <span className="text-gray-300 dark:text-gray-700 block text-center">-</span>
+                                               )}
+                                            </td>
+                                         ))}
+                                      </tr>
+                                   ))}
+                                </tbody>
+                             </table>
+                          </div>
+                       </div>
+                     ) : (
+                       <div className={`h-full flex flex-col items-center justify-center border border-dashed ${colors.border} rounded-xl p-6 text-center`}>
+                          <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-3">
+                             <Shield size={32} className="text-blue-500" />
+                          </div>
+                          <p className={`font-bold text-sm ${colors.text}`}>Akses Penuh Admin</p>
+                          <p className={`text-xs mt-1 ${colors.textMuted}`}>Akun dengan tipe ADMIN otomatis memiliki hak akses ke seluruh fitur dan pengaturan aplikasi.</p>
+                       </div>
+                     )}
+                   </div>
+                </div>
+
+                <div className={`flex gap-3 pt-4 border-t border-dashed ${colors.border} shrink-0 mt-2 sm:mt-4`}>
+                  <button type="button" onClick={() => { playSound('pop', isSoundOn); setIsUserModal(false); }} className={`flex-1 py-3 border rounded-xl font-bold ${colors.text} ${colors.border} hover:bg-black/5 dark:hover:bg-white/5`}>Batal</button>
+                  <button type="submit" className={`flex-1 py-3 rounded-xl font-bold text-[#18181B] shadow-md ${colors.goldBg} hover:opacity-90`}>Simpan User</button>
                 </div>
               </form>
             </div>

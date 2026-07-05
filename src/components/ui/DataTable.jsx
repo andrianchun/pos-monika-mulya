@@ -109,7 +109,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
       {posLayout ? (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4 shrink-0">
           {title && (
-            <div className="shrink-0">
+            <div className="shrink-0 w-full sm:w-auto overflow-x-auto custom-scrollbar pb-1 sm:pb-0">
               {typeof title === 'string' ? <h2 className={`text-lg sm:text-xl font-bold ${colors.text}`}>{title}</h2> : title}
             </div>
           )}
@@ -134,11 +134,11 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
           )}
         </div>
       ) : (
-        <div className={`flex flex-col md:flex-row justify-between items-center mb-4 gap-4 p-4 rounded-xl ${colors.panel} border ${colors.border}`}>
+        <div className={`flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4 p-4 rounded-xl ${colors.panel} border ${colors.border}`}>
           {typeof title === 'string' ? (
             <h2 className={`text-lg sm:text-xl font-bold ${colors.text} shrink-0`}>{title}</h2>
           ) : (
-            <div className="shrink-0">{title}</div>
+            <div className="shrink-0 w-full md:w-auto overflow-x-auto custom-scrollbar pb-1 md:pb-0">{title}</div>
           )}
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
             <div className="relative w-full md:w-64">
@@ -152,7 +152,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
       )}
       <div className={`flex-1 overflow-hidden rounded-xl border ${colors.border} ${colors.panel} flex flex-col shadow-sm`}>
         <div className="flex-1 overflow-auto custom-scrollbar" onWheel={handleTableWheel}>
-          <table className={`w-full text-sm text-left ${colors.text}`}>
+          <table className={`w-full min-w-max text-sm text-left ${colors.text}`}>
             <thead className={`text-xs uppercase sticky top-0 bg-white dark:bg-[#1e1e1e] border-b ${colors.border} shadow-sm z-10`}>
               <tr>
                 <th onClick={() => noSortKey && handleSort(noSortKey)} className={`px-2 sm:px-4 py-2 sm:py-2.5 text-center w-8 sm:w-12 ${noSortKey ? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group' : ''}`}>
