@@ -41,6 +41,7 @@ export default function SettingsPage({
   
   const [sPrefSales, setSPrefSales] = useState(storeInfo.prefixSales || 'INV');
   const [sPrefPurch, setSPrefPurch] = useState(storeInfo.prefixPurchase || 'PO');
+  const [sHistoryLimit, setSHistoryLimit] = useState(localStorage.getItem('mmpos_historyLimitMonths') || '6');
   const [sPointMult, setSPointMult] = useState(storeInfo.pointMultiplier || 10000);
   const [sPointMultStr, setSPointMultStr] = useState(formatIDR(storeInfo.pointMultiplier || 10000));
   const [sPointRew, setSPointRew] = useState(storeInfo.pointReward || 1);
@@ -109,7 +110,8 @@ export default function SettingsPage({
      sLogoNota !== (storeInfo.logoNota || null) ||
      sBanner !== (storeInfo.banner || null) ||
      sPrefSales !== (storeInfo.prefixSales || 'INV') ||
-     sPrefPurch !== (storeInfo.prefixPurchase || 'PO');
+     sPrefPurch !== (storeInfo.prefixPurchase || 'PO') ||
+     sHistoryLimit !== (localStorage.getItem('mmpos_historyLimitMonths') || '6');
 
   const isHargaChanged = 
      Number(sPointMult) !== (storeInfo.pointMultiplier || 10000) ||
@@ -128,6 +130,7 @@ export default function SettingsPage({
      setSBanner(storeInfo.banner || null);
      setSPrefSales(storeInfo.prefixSales || 'INV');
      setSPrefPurch(storeInfo.prefixPurchase || 'PO');
+     setSHistoryLimit(localStorage.getItem('mmpos_historyLimitMonths') || '6');
   };
 
   const resetHargaState = () => {
@@ -176,7 +179,16 @@ export default function SettingsPage({
        ...storeInfo, name: sName, tagline: sTagline, address: sAddress, phone: sPhone, logo: sLogo, logoNota: sLogoNota, banner: sBanner,
        ongkirPerKm: Number(sOngkir) || 0, prefixSales: sPrefSales, prefixPurchase: sPrefPurch
      });
-     showToast('Pengaturan profil & kode nota berhasil diperbarui.', 'success');
+     
+     const limitChanged = sHistoryLimit !== (localStorage.getItem('mmpos_historyLimitMonths') || '6');
+     localStorage.setItem('mmpos_historyLimitMonths', sHistoryLimit);
+     
+     if (limitChanged) {
+        showToast('Menyinkronkan data histori baru. Harap tunggu...', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+     } else {
+        showToast('Pengaturan profil & kode nota berhasil diperbarui.', 'success');
+     }
   };
 
   // --- LOGIKA HARGA GROSIR ---
@@ -595,6 +607,18 @@ export default function SettingsPage({
                              </div>
                           </div>
                           <p className="text-[11px] text-gray-500 mt-3 italic">Profil toko akan ditampilkan pada aplikasi dan nota.</p>
+                       </div>
+
+                       <div className="border-t border-dashed border-gray-300 dark:border-gray-700 pt-6 mt-4">
+                          <h4 className="text-sm font-extrabold mb-4 text-[#D4AF37] flex items-center gap-2"><Zap size={16} /> Optimasi Performa & Sinkronisasi</h4>
+                          <div>
+                             <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Batas Tarikan Data Histori (Bulan)</label>
+                             <div className="flex items-center gap-3">
+                               <input type="number" min="1" max="120" className={`w-32 p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} font-mono outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sHistoryLimit} onChange={e => setSHistoryLimit(e.target.value)} />
+                               <span className={`text-xs ${colors.textMuted}`}>bulan terakhir</span>
+                             </div>
+                             <p className="text-[11px] text-gray-500 mt-2">Membatasi penarikan transaksi dan log lama agar PC/HP kentang tidak berat. Disarankan 3-6 bulan. Jika Anda ubah nilainya, halaman akan otomatis <i>reload</i> untuk menarik data.</p>
+                          </div>
                        </div>
                     </div>
                  </div>

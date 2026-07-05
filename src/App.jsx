@@ -18,7 +18,7 @@ import ShiftCloseModal from './components/modals/ShiftCloseModal';
 import ShiftOpenModal from './components/modals/ShiftOpenModal';
 
 import { db, auth } from './firebase';
-import { collection, doc, setDoc, getDocs, writeBatch, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, writeBatch, onSnapshot, query, where } from 'firebase/firestore';
 import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 
 const defaultStoreInfo = { name: 'MONIKA MULYA', tagline: 'Bismillah', address: 'Jl. Raya Blitar No. 1', phone: '081234567890', logo: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
@@ -243,9 +243,23 @@ export default function App() {
         }
       } catch (e) {}
 
-      const setupRealtime = (colName, setter, sortDesc = false) => {
-         return onSnapshot(collection(db, colName), (snap) => {
-            let data = snap.docs.map(d => {
+      const setupRealtime = (colName, setter, sortDesc = false, limitDate = false) => {
+         let q = collection(db, colName);
+         if (limitDate) {
+             const historyLimitMonths = parseInt(localStorage.getItem('mmpos_historyLimitMonths') || '6', 10);
+             const limitDateObj = new Date();
+             limitDateObj.setMonth(limitDateObj.getMonth() - historyLimitMonths);
+             const cutoffISO = limitDateObj.toISOString();
+             
+             let dateField = 'date';
+             if (colName === 'activityLogs') dateField = 'timestamp';
+             else if (colName === 'shiftHistory') dateField = 'startTime';
+             
+             q = query(q, where(dateField, '>=', cutoffISO));
+         }
+
+         return onSnapshot(q, (snap) => {
+             let data = snap.docs.map(d => {
                let obj = d.data();
                if (obj.name === 'Umum (Tanpa Data)') obj.name = '(anonim)';
                if (obj.customer === 'Umum (Tanpa Data)') obj.customer = '(anonim)';
@@ -272,13 +286,13 @@ export default function App() {
       unsubs.push(setupRealtime("products", setProducts));
       unsubs.push(setupRealtime("customers", setCustomers));
       unsubs.push(setupRealtime("suppliers", setSuppliers));
-      unsubs.push(setupRealtime("sales", setSales, true)); 
-      unsubs.push(setupRealtime("purchases", setPurchases, true));
-      unsubs.push(setupRealtime("accounting", setAccounting));
+      unsubs.push(setupRealtime("sales", setSales, true, true)); 
+      unsubs.push(setupRealtime("purchases", setPurchases, true, true));
+      unsubs.push(setupRealtime("accounting", setAccounting, false, true));
       unsubs.push(setupRealtime("financialAccounts", setFinancialAccounts));
       unsubs.push(setupRealtime("users", setUsers));
-      unsubs.push(setupRealtime("shiftHistory", setShiftHistory, true));
-      unsubs.push(setupRealtime("activityLogs", setActivityLogs, true));
+      unsubs.push(setupRealtime("shiftHistory", setShiftHistory, true, true));
+      unsubs.push(setupRealtime("activityLogs", setActivityLogs, true, true));
 
       unsubs.push(onSnapshot(collection(db, "settings"), (snap) => {
          if (!snap.empty) {
