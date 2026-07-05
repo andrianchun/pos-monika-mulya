@@ -178,7 +178,7 @@ export default function Header({
              {storeInfo.logo ? <img src={storeInfo.logo} alt="Logo" className="w-8 h-8 rounded-md object-cover" /> : <div className={`w-8 h-8 rounded-md ${colors.goldBg} flex items-center justify-center text-[#18181B] font-bold`}>{storeInfo.name?.charAt(0) || 'M'}</div>}
              <div>
                <h1 className={`font-bold text-sm leading-tight ${colors.text}`}>{storeInfo.name}</h1>
-               <p className={`text-[10px] sm:text-xs font-semibold ${colors.textMuted} tracking-wider`}>Point of Sale System</p>
+               <p className={`text-[10px] sm:text-xs font-semibold ${colors.textMuted} tracking-wider`}>{storeInfo.tagline || 'Point of Sale System'}</p>
              </div>
            </div>
            
