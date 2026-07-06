@@ -121,6 +121,13 @@ export default function App() {
     if (profile) {
       setUser(profile);
       setActiveMenu(profile.role === 'kasir' ? 'pos' : 'dashboard');
+      // Kalau user baru saja memverifikasi ganti ke email asli (lewat menu
+      // profil) lalu login lagi, email di Firestore masih yang lama —
+      // sinkronkan supaya resolveLoginEmail & tampilan profil ikut update.
+      if (auth.currentUser?.email && auth.currentUser.email !== profile.email) {
+        const newEmail = auth.currentUser.email;
+        customSetUsers(prev => prev.map(u => String(u.id) === String(authUid) ? { ...u, email: newEmail } : u));
+      }
       if (justLoggedInRef.current) {
         justLoggedInRef.current = false;
         (async () => {

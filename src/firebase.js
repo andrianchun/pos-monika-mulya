@@ -36,3 +36,7 @@ const functions = getFunctions(app);
 export const createStaffAccountFn = httpsCallable(functions, 'createStaffAccount');
 export const resetStaffPasswordFn = httpsCallable(functions, 'resetStaffPassword');
 export const deleteStaffAccountFn = httpsCallable(functions, 'deleteStaffAccount');
+// Dipanggil dari layar Login (sebelum user login) untuk mencari tahu email
+// mana yang harus dipakai sign-in — bisa jadi masih sintetis, atau sudah
+// email asli kalau user pernah menggantinya lewat menu profil.
+export const resolveLoginEmailFn = httpsCallable(functions, 'resolveLoginEmail');
