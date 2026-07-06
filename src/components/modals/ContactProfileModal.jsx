@@ -1,9 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, PackageCheck, ShoppingBag, Clock, CheckCircle, Wallet, Plus, Edit } from 'lucide-react';
 import { formatIDR } from '../../utils/helpers';
 
-export default function ContactProfileModal({ contact, type, sales, purchases, onClose, onTopUpDeposit, colors, handleNavigateAndEdit }) {
+export default function ContactProfileModal({ contact, type, sales, purchases, onClose, onTopUpDeposit, financialAccounts = [], colors, handleNavigateAndEdit }) {
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState('');
+  const [topUpAccountId, setTopUpAccountId] = useState(financialAccounts[0]?.id || '');
   if (!contact) return null;
+
+  const submitTopUp = () => {
+     const num = parseInt(String(topUpAmount).replace(/\D/g, ''), 10) || 0;
+     if (num <= 0) return;
+     onTopUpDeposit(num, topUpAccountId || financialAccounts[0]?.id);
+     setTopUpAmount('');
+     setShowTopUp(false);
+  };
 
   // Calculate statistics
   let history = [];
@@ -58,15 +69,22 @@ export default function ContactProfileModal({ contact, type, sales, purchases, o
                       <div className="text-xs font-bold mb-1 text-blue-700 dark:text-blue-300 flex items-center gap-1"><Wallet size={12}/> Saldo Deposit</div>
                       <div className="text-xl font-black text-blue-800 dark:text-blue-400">Rp {formatIDR(contact.deposit || 0)}</div>
                    </div>
-                   <button onClick={() => {
-                      const val = prompt('Masukkan nominal Top-Up Saldo untuk ' + contact.name + ':');
-                      if (val) {
-                         const num = parseInt(val.replace(/\D/g, ''), 10);
-                         if (num > 0) onTopUpDeposit(contact, num);
-                      }
-                   }} className="mt-2 w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 shadow-sm transition-colors">
-                      <Plus size={14}/> Top-Up
-                   </button>
+                   {!showTopUp ? (
+                      <button onClick={() => setShowTopUp(true)} className="mt-2 w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 shadow-sm transition-colors">
+                         <Plus size={14}/> Top-Up
+                      </button>
+                   ) : (
+                      <div className="mt-2 space-y-1.5">
+                         <input type="text" inputMode="numeric" autoFocus placeholder="Nominal (Rp)" className="w-full p-1.5 rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-[#1e1e1e] text-xs font-bold outline-none text-blue-800 dark:text-blue-300" value={topUpAmount ? formatIDR(topUpAmount) : ''} onChange={e => setTopUpAmount(e.target.value.replace(/\D/g, ''))} onKeyDown={e => { if (e.key === 'Enter') submitTopUp(); }} />
+                         <select className="w-full p-1.5 rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-[#1e1e1e] text-xs font-semibold outline-none text-blue-800 dark:text-blue-300" value={topUpAccountId} onChange={e => setTopUpAccountId(e.target.value)}>
+                            {financialAccounts.map(a => <option key={a.id} value={a.id}>Masuk ke: {a.name}</option>)}
+                         </select>
+                         <div className="flex gap-1.5">
+                            <button onClick={() => { setShowTopUp(false); setTopUpAmount(''); }} className="flex-1 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 text-xs font-bold text-blue-700 dark:text-blue-300">Batal</button>
+                            <button onClick={submitTopUp} className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm">Simpan</button>
+                         </div>
+                      </div>
+                   )}
                 </div>
                 <div className={`p-4 rounded-2xl ${colors.goldBg} text-[#18181B] shadow-sm flex flex-col justify-between`}>
                    <div>

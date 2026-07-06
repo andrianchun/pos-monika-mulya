@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Edit, DownloadCloud, UploadCloud, Trash2, X, Plus } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload } from '../utils/helpers';
+import { auth } from '../firebase';
+import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import PasswordConfirmModal from '../components/modals/PasswordConfirmModal';
@@ -68,8 +70,9 @@ export default function ProductManager({ products, setProducts, categories, unit
     const popMap = {};
     if (sales && sales.length > 0) {
       sales.forEach(s => {
-        if (s.cart) {
-           s.cart.forEach(item => {
+        const list = s.items || s.cart;
+        if (list) {
+           list.forEach(item => {
               popMap[item.id] = (popMap[item.id] || 0) + Number(item.qty || 0);
            });
         }
@@ -133,8 +136,14 @@ export default function ProductManager({ products, setProducts, categories, unit
     setIsModalOpen(true);
   };
 
-  const handleDeleteAll = (pwd) => {
-    if (pwd !== user.password) { playSound('pop', isSoundOn); showToast('Password admin salah!', 'error'); return; }
+  const handleDeleteAll = async (pwd) => {
+    try {
+      // Verifikasi password admin via Firebase Auth (bukan lagi dari database)
+      const cred = EmailAuthProvider.credential(auth.currentUser.email, pwd);
+      await reauthenticateWithCredential(auth.currentUser, cred);
+    } catch (err) {
+      playSound('pop', isSoundOn); showToast('Password admin salah!', 'error'); return;
+    }
     playSound('success', isSoundOn);
     setProducts([]);
     if (recordActivity) recordActivity('Hapus Semua Produk', 'Mengosongkan semua data produk di sistem');

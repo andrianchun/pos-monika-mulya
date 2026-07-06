@@ -19,7 +19,7 @@ function ModeToggle({ mode, setMode, colors, isSoundOn, canViewPembelian }) {
   );
 }
 
-export default function POS({ products, setProducts, customers, setCustomers, suppliers, sales, setSales, purchases, setPurchases, colors, showToast, user, isSoundOn, theme, storeInfo, setStoreInfo, accounting, setAccounting, financialAccounts, globalMode, setGlobalMode, activeShift, setActiveShift, setShowShiftOpenModal }) {
+export default function POS({ products, setProducts, customers, setCustomers, suppliers, sales, setSales, purchases, setPurchases, colors, showToast, user, isSoundOn, theme, storeInfo, setStoreInfo, accounting, setAccounting, financialAccounts, globalMode, setGlobalMode, activeShift, setActiveShift, setShowShiftOpenModal, recordActivity }) {
   const posMode = globalMode;
   const setPosMode = setGlobalMode;
 
@@ -134,7 +134,15 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   };
 
   const calcItemPricing = (product, newQty) => {
-    if (posMode !== 'penjualan') return { unitPrice: product.cost, isWholesale: false, basePrice: product.cost, appliedPromo: null };
+    if (posMode !== 'penjualan') {
+       // Mode pembelian: harga beli per satuan yang dipilih (kalikan konversi multi-satuan)
+       let unitCost = product.cost;
+       if (product.selectedMultiUnitId && product.hasMultiUnit && product.multiUnits) {
+          const mu = product.multiUnits.find(u => String(u.id) === String(product.selectedMultiUnitId));
+          if (mu) unitCost = product.cost * (Number(mu.conversion) || 1);
+       }
+       return { unitPrice: unitCost, isWholesale: false, basePrice: unitCost, appliedPromo: null };
+    }
     
     let isWholesale = false;
     let basePrice = product.price;
@@ -401,8 +409,8 @@ export default function POS({ products, setProducts, customers, setCustomers, su
       }
 
       try {
-        if(posMode === 'penjualan') setStoreInfo({...storeInfo, nextSeqSales: (storeInfo?.nextSeqSales || 1) + 1});
-        else setStoreInfo({...storeInfo, nextSeqPurchase: (storeInfo?.nextSeqPurchase || 1) + 1});
+        if(posMode === 'penjualan') setStoreInfo(prev => ({...prev, nextSeqSales: (prev?.nextSeqSales || 1) + 1}));
+        else setStoreInfo(prev => ({...prev, nextSeqPurchase: (prev?.nextSeqPurchase || 1) + 1}));
 
         setProducts(prevProducts => prevProducts.map(p => {
           const cartItemsForProduct = cart.filter(c => c.id === p.id);

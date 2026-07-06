@@ -1,0 +1,78 @@
+rules_version = '2';
+
+// ============================================================================
+// SECURITY RULES — POS MONIKA MULYA
+// Tempel isi file ini di: Firebase Console → Firestore Database → Rules → Publish
+//
+// Prinsip:
+// - Tanpa login Firebase Auth: TIDAK ADA akses sama sekali.
+// - Kasir (role selain admin): boleh operasional harian, tapi TIDAK bisa
+//   mengubah pengaturan toko, akun user, atau menghapus jejak aktivitas.
+// - Admin: akses penuh.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // --- Profil user: password TIDAK disimpan di sini (ada di Firebase Auth) ---
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create, delete: if isAdmin();
+      // User boleh update profilnya sendiri (nama/foto), tapi TIDAK boleh
+      // menaikkan role/permission-nya sendiri.
+      allow update: if isAdmin() || (
+        signedIn() && request.auth.uid == uid &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.permissions == resource.data.permissions
+      );
+    }
+
+    // --- Pengaturan toko: hanya admin. Kasir hanya boleh menaikkan nomor
+    //     urut nota saat checkout (field nextSeqSales / nextSeqPurchase). ---
+    match /settings/storeInfo {
+      allow read: if signedIn();
+      allow update: if isAdmin() || (
+        signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['nextSeqSales', 'nextSeqPurchase'])
+      );
+      allow create, delete: if isAdmin();
+    }
+
+    // Kategori & satuan boleh ditulis semua user login (auto-merge dari produk).
+    match /settings/categories {
+      allow read, write: if signedIn();
+    }
+    match /settings/units {
+      allow read, write: if signedIn();
+    }
+
+    // --- Log aktivitas: bisa ditambah siapa pun yang login,
+    //     tapi TIDAK bisa diedit/dihapus kecuali admin (anti penghapusan jejak). ---
+    match /activityLogs/{docId} {
+      allow read, create: if signedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // --- Data operasional: semua user login boleh baca-tulis.
+    //     CATATAN: pakai whitelist eksplisit — di Firestore Rules, jika salah
+    //     satu blok match mengizinkan maka akses lolos, jadi catch-all bebas
+    //     akan membocorkan izin tulis ke users/settings/activityLogs. ---
+    match /{collection}/{docId} {
+      allow read: if signedIn();
+      allow write: if signedIn() && collection in [
+        'products', 'sales', 'purchases', 'customers', 'suppliers',
+        'accounting', 'financialAccounts', 'shiftHistory'
+      ];
+    }
+  }
+}

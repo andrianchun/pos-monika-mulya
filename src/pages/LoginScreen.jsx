@@ -1,28 +1,45 @@
 import React, { useState } from 'react';
 import { ShoppingCart, AlertCircle, User, Lock, Moon, Sun, ShieldAlert } from 'lucide-react';
 import { playSound } from '../utils/helpers';
+import { auth, usernameToEmail } from '../firebase';
+import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 
 export default function LoginScreen({ onLogin, users, colors, theme, setTheme, isSoundOn, showToast, storeInfo }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [remember, setRemember] = useState(false);
-  
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   const [showForgotModal, setShowForgotModal] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    const matchedUser = users.find(u => u.username === username);
-    if (!matchedUser) { playSound('pop', isSoundOn); setError('Username tidak ditemukan'); return; }
-    if (matchedUser.password !== password) { playSound('pop', isSoundOn); setError('Password Anda Salah'); return; }
-
-    playSound('success', isSoundOn); 
-    if(remember) {
-        localStorage.setItem('mmpos_user', JSON.stringify(matchedUser));
-        localStorage.setItem('mmpos_last_active', Date.now().toString());
+    setIsLoggingIn(true);
+    try {
+      // "Ingat Saya" → sesi bertahan setelah browser ditutup; jika tidak,
+      // sesi hanya berlaku selama tab terbuka.
+      await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+      await signInWithEmailAndPassword(auth, usernameToEmail(username), password);
+      playSound('success', isSoundOn);
+      localStorage.setItem('mmpos_last_active', Date.now().toString());
+      if (onLogin) onLogin(); // profil dimuat oleh App dari koleksi users berdasarkan UID
+    } catch (err) {
+      playSound('pop', isSoundOn);
+      const code = err?.code || '';
+      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+        setError('Username atau password salah');
+      } else if (code === 'auth/too-many-requests') {
+        setError('Terlalu banyak percobaan gagal. Tunggu beberapa menit lalu coba lagi.');
+      } else if (code === 'auth/network-request-failed') {
+        setError('Tidak ada koneksi internet. Login butuh koneksi.');
+      } else {
+        setError('Gagal login: ' + (err?.message || 'Error tidak dikenal'));
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
-    onLogin(matchedUser);
   };
 
   return (
@@ -70,7 +87,7 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
             </label>
             <button type="button" onClick={() => { playSound('pop', isSoundOn); setShowForgotModal(true); }} className={`${colors.gold} hover:underline`}>Lupa Password?</button>
           </div>
-          <button type="submit" className={`w-full py-3 rounded-xl font-bold text-[#18181B] transition-transform active:scale-95 ${colors.goldBg} hover:opacity-90 shadow-md`}>Masuk</button>
+          <button type="submit" disabled={isLoggingIn} className={`w-full py-3 rounded-xl font-bold text-[#18181B] transition-transform active:scale-95 ${colors.goldBg} hover:opacity-90 shadow-md ${isLoggingIn ? 'opacity-60 cursor-wait' : ''}`}>{isLoggingIn ? 'Memeriksa...' : 'Masuk'}</button>
         </form>
       </div>
 
@@ -83,10 +100,10 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
              </div>
              
              <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl mb-6">
-                <p className="text-sm text-orange-800 dark:text-orange-200 font-semibold mb-2">Panduan Reset Tanpa Server Berbayar:</p>
+                <p className="text-sm text-orange-800 dark:text-orange-200 font-semibold mb-2">Panduan Reset Password:</p>
                 <ul className="text-xs text-orange-700 dark:text-orange-300 space-y-2 list-disc pl-4">
-                  <li><strong>Jika Kasir Lupa:</strong> Hubungi Admin (Pemilik) untuk mengubah password dari menu Pengaturan Akun.</li>
-                  <li><strong>Jika Admin Lupa:</strong> Login ke <em>Firebase Console</em> &rarr; <em>Firestore Database</em> &rarr; Buka koleksi <code>users</code>. Anda bisa melihat & mengubah password secara langsung di sana!</li>
+                  <li><strong>Jika Kasir Lupa:</strong> Hubungi Admin (Pemilik) untuk me-reset password dari Firebase Console.</li>
+                  <li><strong>Jika Admin Lupa:</strong> Login ke <em>Firebase Console</em> &rarr; <em>Authentication</em> &rarr; <em>Users</em> &rarr; klik titik tiga di akun Anda &rarr; <em>Reset password</em>. Password tidak lagi tersimpan di database demi keamanan.</li>
                 </ul>
              </div>
              <button type="button" onClick={() => { playSound('pop', isSoundOn); setShowForgotModal(false); }} className={`w-full py-2.5 rounded-xl font-bold text-[#18181B] shadow-md ${colors.goldBg} hover:opacity-90`}>Saya Mengerti</button>

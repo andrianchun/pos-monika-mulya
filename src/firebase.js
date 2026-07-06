@@ -21,3 +21,20 @@ export const db = initializeFirestore(app, {
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
+
+// Domain email sintetis: staf login pakai username, di belakang layar
+// diubah menjadi email untuk Firebase Auth.
+export const AUTH_EMAIL_DOMAIN = 'monikamulya.com';
+export const usernameToEmail = (username) => `${String(username || '').trim().toLowerCase()}@${AUTH_EMAIL_DOMAIN}`;
+
+// App sekunder: dipakai admin untuk MEMBUAT akun staf baru tanpa
+// menendang sesi login admin (createUserWithEmailAndPassword otomatis
+// sign-in sebagai user baru — makanya dijalankan di instance terpisah).
+let secondaryAuthInstance = null;
+export const getSecondaryAuth = () => {
+  if (!secondaryAuthInstance) {
+    const secondaryApp = initializeApp(firebaseConfig, 'secondary');
+    secondaryAuthInstance = getAuth(secondaryApp);
+  }
+  return secondaryAuthInstance;
+};

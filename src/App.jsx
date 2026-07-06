@@ -18,8 +18,8 @@ import ShiftCloseModal from './components/modals/ShiftCloseModal';
 import ShiftOpenModal from './components/modals/ShiftOpenModal';
 
 import { db, auth } from './firebase';
-import { collection, doc, setDoc, getDocs, writeBatch, onSnapshot, query, where } from 'firebase/firestore';
-import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
+import { collection, doc, setDoc, getDocsFromServer, writeBatch, onSnapshot, query, where, limit } from 'firebase/firestore';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 const defaultStoreInfo = { name: 'MONIKA MULYA', tagline: 'Bismillah', address: 'Jl. Raya Blitar No. 1', phone: '081234567890', logo: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
 const getInitialStoreInfo = () => {
@@ -32,6 +32,8 @@ const getInitialStoreInfo = () => {
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [authUid, setAuthUid] = useState(null); // UID Firebase Auth yang sedang login
+  const justLoggedInRef = useRef(false); // true hanya saat login manual dari LoginScreen
   const [theme, setTheme] = useState('dark');
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [globalMode, setGlobalMode] = useState('penjualan');
@@ -84,10 +86,36 @@ export default function App() {
       const updatedUser = users.find(u => String(u.id) === String(user.id));
       if (updatedUser && JSON.stringify(updatedUser) !== JSON.stringify(user)) {
         setUser(updatedUser);
-        localStorage.setItem('mmpos_user', JSON.stringify(updatedUser));
       }
     }
   }, [users, user]);
+
+  // Resolusi profil: setelah Firebase Auth berhasil, profil dicari di koleksi
+  // users dengan ID dokumen = UID Auth (hasil migrasi migrate-auth.cjs).
+  useEffect(() => {
+    if (!authUid || user || !users || users.length === 0) return;
+    const profile = users.find(u => String(u.id) === String(authUid));
+    if (profile) {
+      setUser(profile);
+      setActiveMenu(profile.role === 'kasir' ? 'pos' : 'dashboard');
+      if (justLoggedInRef.current) {
+        justLoggedInRef.current = false;
+        (async () => {
+          try {
+            const res = await fetch('https://ipapi.co/json/');
+            const data = await res.json();
+            const location = `${data.city || 'Unknown City'}, ${data.country_name || 'Unknown Country'} (IP: ${data.ip || 'Unknown'})`;
+            recordActivity('Login Sistem', `Akun diakses dari ${location}`, profile);
+          } catch (e) {
+            recordActivity('Login Sistem', `Akun diakses (Gagal melacak lokasi/IP)`, profile);
+          }
+        })();
+      }
+    } else {
+      showToast('Profil akun tidak ditemukan di database. Hubungi admin.', 'error');
+      signOut(auth).catch(() => {});
+    }
+  }, [authUid, users, user]);
 
   const [activeShift, setActiveShift] = useState(() => {
     try { const cached = localStorage.getItem('mmpos_activeShift'); if (cached) return JSON.parse(cached); } catch(e) {}
@@ -130,6 +158,7 @@ export default function App() {
          recordActivity('Logout Sistem', 'Sistem Logout Otomatis (Timeout/Idle)', user);
          localStorage.removeItem('mmpos_user');
          setUser(null);
+         signOut(auth).catch(() => {});
          showToast('Sesi Anda telah berakhir karena tidak ada aktivitas.', 'error');
       }, FIVE_HOURS);
     };
@@ -152,6 +181,11 @@ export default function App() {
   }, [activeShift]);
 
   // shiftHistory is now synced to Firebase
+
+  // Penanda bahwa storeInfo sudah benar-benar termuat dari cloud.
+  // Sebelum ini true, penulisan storeInfo ke cloud diblokir agar setelan
+  // default tidak menimpa pengaturan asli (mis. checkout di perangkat baru).
+  const storeInfoLoadedRef = useRef(false);
 
   const stateRef = useRef({ products, customers, suppliers, sales, purchases, accounting, financialAccounts, users, storeInfo, categories, units, shiftHistory });
   
@@ -221,8 +255,14 @@ export default function App() {
 
     const initializeAndListen = async () => {
       try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        if (usersSnap.empty) {
+        // PENTING: cek WAJIB langsung ke server (bukan cache lokal).
+        // getDocs biasa menjawab dari cache saat offline — di perangkat baru cache
+        // masih kosong, aplikasi mengira database baru, lalu menimpa pengaturan &
+        // akun dengan setelan pabrik begitu koneksi kembali. getDocsFromServer
+        // melempar error saat offline sehingga seeding otomatis dibatalkan.
+        const usersSnap = await getDocsFromServer(query(collection(db, "users"), limit(1)));
+        const settingsSnap = await getDocsFromServer(query(collection(db, "settings"), limit(1)));
+        if (usersSnap.empty && settingsSnap.empty) {
             const seed = async (colName, dataArr) => {
                if(!dataArr || dataArr.length === 0) return;
                let batch = writeBatch(db);
@@ -234,14 +274,34 @@ export default function App() {
             await seed("suppliers", initialSuppliers);
             await seed("accounting", initialAccounting);
             await seed("financialAccounts", initialFinancialAccounts);
-            await seed("users", initialUsers);
-            
+            // CATATAN: users TIDAK di-seed lagi — akun dibuat via Firebase
+            // Authentication (script migrate-auth.cjs / menu Pengaturan Akun),
+            // password tidak pernah disimpan di Firestore.
+
             const defInfo = { name: 'MONIKA MULYA', tagline: 'Bismillah', address: 'Jl. Raya Blitar No. 1', phone: '081234567890', logo: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
             await setDoc(doc(db, "settings", "storeInfo"), defInfo);
             await setDoc(doc(db, "settings", "categories"), { values: ['Sembako', 'Makanan', 'Minuman'] });
             await setDoc(doc(db, "settings", "units"), { values: ['Pcs', 'Kg', 'Sak'] });
         }
       } catch (e) {}
+
+      const normalizeObj = (colName, obj) => {
+         if (obj.name === 'Umum (Tanpa Data)') obj.name = '(anonim)';
+         if (obj.customer === 'Umum (Tanpa Data)') obj.customer = '(anonim)';
+         if (obj.supplier === 'Umum (Tanpa Data)') obj.supplier = '(anonim)';
+         if (colName === 'products') {
+            if (obj.unit && typeof obj.unit === 'string') obj.unit = obj.unit.toLowerCase().trim();
+            else obj.unit = 'pcs';
+            if (obj.category && typeof obj.category === 'string') obj.category = obj.category.toUpperCase().trim();
+            else obj.category = 'LAINNYA';
+         }
+         return obj;
+      };
+
+      const sortDescById = (data) => data.sort((a, b) => {
+         if (typeof a.id === 'string' && typeof b.id === 'string') return b.id.localeCompare(a.id);
+         return b.id - a.id;
+      });
 
       const setupRealtime = (colName, setter, sortDesc = false, limitDate = false) => {
          let q = collection(db, colName);
@@ -250,45 +310,62 @@ export default function App() {
              const limitDateObj = new Date();
              limitDateObj.setMonth(limitDateObj.getMonth() - historyLimitMonths);
              const cutoffISO = limitDateObj.toISOString();
-             
+
              let dateField = 'date';
              if (colName === 'activityLogs') dateField = 'timestamp';
              else if (colName === 'shiftHistory') dateField = 'startTime';
-             
+
              q = query(q, where(dateField, '>=', cutoffISO));
          }
 
          return onSnapshot(q, (snap) => {
-             let data = snap.docs.map(d => {
-               let obj = d.data();
-               if (obj.name === 'Umum (Tanpa Data)') obj.name = '(anonim)';
-               if (obj.customer === 'Umum (Tanpa Data)') obj.customer = '(anonim)';
-               if (obj.supplier === 'Umum (Tanpa Data)') obj.supplier = '(anonim)';
-               
-               if (colName === 'products') {
-                  if (obj.unit && typeof obj.unit === 'string') obj.unit = obj.unit.toLowerCase().trim();
-                  else obj.unit = 'pcs';
-                  if (obj.category && typeof obj.category === 'string') obj.category = obj.category.toUpperCase().trim();
-                  else obj.category = 'LAINNYA';
-               }
-               
-               return obj;
-            });
-            if (sortDesc) data.sort((a, b) => {
-               if (typeof a.id === 'string' && typeof b.id === 'string') return b.id.localeCompare(a.id);
-               return b.id - a.id;
-            });
+             let data = snap.docs.map(d => normalizeObj(colName, d.data()));
+            if (sortDesc) sortDescById(data);
             setter(data);
             checkLoaded();
          }, (error) => { clearTimeout(safetyTimer); setLoading(false); });
       };
 
+      // Untuk sales & purchases: gabungkan 2 query —
+      // (1) transaksi terbaru sesuai limit riwayat, DAN
+      // (2) SEMUA nota berstatus Tempo berapapun umurnya.
+      // Dengan ini piutang/utang lama tidak pernah hilang dari Neraca,
+      // riwayat, dan profil kontak meski melewati limit riwayat.
+      const setupTransactionRealtime = (colName, setter) => {
+         const historyLimitMonths = parseInt(localStorage.getItem('mmpos_historyLimitMonths') || '6', 10);
+         const limitDateObj = new Date();
+         limitDateObj.setMonth(limitDateObj.getMonth() - historyLimitMonths);
+         const cutoffISO = limitDateObj.toISOString();
+
+         let recentMap = null;
+         let tempoMap = null;
+         const publish = () => {
+            if (recentMap === null && tempoMap === null) return;
+            const merged = new Map([...(tempoMap || new Map()), ...(recentMap || new Map())]);
+            const data = sortDescById(Array.from(merged.values()));
+            setter(data);
+         };
+
+         unsubs.push(onSnapshot(query(collection(db, colName), where('date', '>=', cutoffISO)), (snap) => {
+            recentMap = new Map(snap.docs.map(d => [d.id, normalizeObj(colName, d.data())]));
+            publish();
+            checkLoaded();
+         }, (error) => { clearTimeout(safetyTimer); setLoading(false); }));
+
+         unsubs.push(onSnapshot(query(collection(db, colName), where('status', '==', 'Tempo')), (snap) => {
+            tempoMap = new Map(snap.docs.map(d => [d.id, normalizeObj(colName, d.data())]));
+            publish();
+         }, (error) => {}));
+      };
+
       unsubs.push(setupRealtime("products", setProducts));
       unsubs.push(setupRealtime("customers", setCustomers));
       unsubs.push(setupRealtime("suppliers", setSuppliers));
-      unsubs.push(setupRealtime("sales", setSales, true, true)); 
-      unsubs.push(setupRealtime("purchases", setPurchases, true, true));
-      unsubs.push(setupRealtime("accounting", setAccounting, false, true));
+      setupTransactionRealtime("sales", setSales);
+      setupTransactionRealtime("purchases", setPurchases);
+      // Jurnal accounting TANPA limit tanggal: ini sumber kebenaran saldo
+      // kas/bank di Neraca — kalau dipotong, saldonya jadi salah.
+      unsubs.push(setupRealtime("accounting", setAccounting));
       unsubs.push(setupRealtime("financialAccounts", setFinancialAccounts));
       unsubs.push(setupRealtime("users", setUsers));
       unsubs.push(setupRealtime("shiftHistory", setShiftHistory, true, true));
@@ -299,6 +376,7 @@ export default function App() {
             snap.docs.forEach(d => {
                if(d.id === 'storeInfo') {
                   const dData = d.data();
+                  storeInfoLoadedRef.current = true;
                   setStoreInfo(prev => {
                      const n = {...prev, ...dData};
                      localStorage.setItem('mmpos_storeInfo', JSON.stringify(n));
@@ -320,15 +398,22 @@ export default function App() {
       }));
     };
     
-    // Trik "Akun Satpam"
+    // Auth per pengguna: listener data hanya jalan setelah user login sungguhan.
+    // (Akun bersama "satpam" sudah dihapus — kredensial tidak lagi ada di kode.)
+    let hasInitialized = false; // cegah init/seeding-check ganda saat auth refresh
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        await initializeAndListen();
+        setAuthUid(firebaseUser.uid);
+        if (!hasInitialized) {
+          hasInitialized = true;
+          setLoading(true);
+          await initializeAndListen();
+        }
+      } else {
+        setAuthUid(null);
+        setUser(null);
+        setLoading(false); // tidak ada sesi tersimpan → langsung tampilkan layar login
       }
-    });
-    
-    signInWithEmailAndPassword(auth, 'satpam@monikamulya.com', 'satpam12345').catch(err => {
-      console.error("Gagal login pintu satpam:", err);
     });
 
     return () => {
@@ -338,23 +423,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const checkAuth = () => {
-      const storedUser = localStorage.getItem('mmpos_user');
-      const lastActive = localStorage.getItem('mmpos_last_active');
-      if (storedUser && lastActive) {
-        const now = Date.now();
-        if (now - parseInt(lastActive, 10) > 5 * 60 * 60 * 1000) {
-          localStorage.removeItem('mmpos_user'); localStorage.removeItem('mmpos_last_active'); setUser(null);
-        } else {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser); 
-          setActiveMenu(parsedUser.role === 'kasir' ? 'pos' : 'dashboard');
-          localStorage.setItem('mmpos_last_active', now.toString());
-        }
-      }
-    };
-    checkAuth();
-    const updateActivity = () => { if (localStorage.getItem('mmpos_user')) localStorage.setItem('mmpos_last_active', Date.now().toString()); };
+    // Sesi login sekarang dikelola Firebase Auth (persistence). Di sini hanya
+    // cek idle: kalau terakhir aktif > 5 jam lalu, paksa keluar dari sesi tersimpan.
+    const lastActive = localStorage.getItem('mmpos_last_active');
+    if (lastActive && Date.now() - parseInt(lastActive, 10) > 5 * 60 * 60 * 1000) {
+      localStorage.removeItem('mmpos_user');
+      localStorage.removeItem('mmpos_last_active');
+      signOut(auth).catch(() => {});
+    } else {
+      localStorage.setItem('mmpos_last_active', Date.now().toString());
+    }
+    const updateActivity = () => { localStorage.setItem('mmpos_last_active', Date.now().toString()); };
     window.addEventListener('mousemove', updateActivity); window.addEventListener('keydown', updateActivity);
     window.addEventListener('click', () => { if(window.audioCtx && window.audioCtx.state === 'suspended') window.audioCtx.resume(); });
     return () => { window.removeEventListener('mousemove', updateActivity); window.removeEventListener('keydown', updateActivity); };
@@ -445,11 +524,15 @@ export default function App() {
   const customSetUsers = (next) => { const cur = stateRef.current.users; const res = typeof next === 'function' ? next(cur) : next; setUsers(res); syncCollection("users", res, cur); };
   const customSetShiftHistory = (next) => { const cur = stateRef.current.shiftHistory; const res = typeof next === 'function' ? next(cur) : next; setShiftHistory(res); syncCollection("shiftHistory", res, cur); };
 
-  const customSetStoreInfo = (next) => { 
-     const res = typeof next === 'function' ? next(stateRef.current.storeInfo) : next; 
+  const customSetStoreInfo = (next) => {
+     const res = typeof next === 'function' ? next(stateRef.current.storeInfo) : next;
      setStoreInfo(res);
      try { localStorage.setItem('mmpos_storeInfo', JSON.stringify(res)); } catch (e) {}
-     setSyncCount(p=>p+1); 
+     if (!storeInfoLoadedRef.current) {
+        console.warn("☠️ BLOKIR KEAMANAN: Penulisan storeInfo ke cloud diblokir karena pengaturan asli belum termuat dari server.");
+        return Promise.resolve();
+     }
+     setSyncCount(p=>p+1);
      return setDoc(doc(db, "settings", "storeInfo"), JSON.parse(JSON.stringify(res)))
        .catch(e => { console.error(e); throw e; })
        .finally(() => setSyncCount(p=>Math.max(0,p-1))); 
@@ -478,6 +561,8 @@ export default function App() {
   const handleRestoreDatabase = (parsedData) => {
     showToast("Memulihkan data ke layar. Upload berjalan di latar belakang...", "success");
     try {
+      // Backup lama bisa berisi password plaintext — jangan pernah tulis balik ke cloud
+      if (parsedData.users) parsedData.users = parsedData.users.map(({ password, ...rest }) => rest);
       // 1. UPDATE LAYAR INSTAN (Tampil 0 detik)
       if (parsedData.products) setProducts(parsedData.products);
       if (parsedData.customers) setCustomers(parsedData.customers);
@@ -582,17 +667,11 @@ export default function App() {
     };
   }, [theme, globalMode]);
 
-  const handleLogin = async (loggedInUser) => {
-    setUser(loggedInUser);
-    setActiveMenu(loggedInUser.role === 'kasir' ? 'pos' : 'dashboard');
-    try {
-        const res = await fetch('https://ipapi.co/json/');
-        const data = await res.json();
-        const location = `${data.city || 'Unknown City'}, ${data.country_name || 'Unknown Country'} (IP: ${data.ip || 'Unknown'})`;
-        recordActivity('Login Sistem', `Akun diakses dari ${location}`, loggedInUser);
-    } catch (e) {
-        recordActivity('Login Sistem', `Akun diakses (Gagal melacak lokasi/IP)`, loggedInUser);
-    }
+  const handleLogin = () => {
+    // Firebase Auth sudah berhasil di LoginScreen. Profil user akan
+    // ter-resolve otomatis dari koleksi users (lihat effect di atas);
+    // flag ini memastikan aktivitas login tercatat sekali.
+    justLoggedInRef.current = true;
   };
 
   useEffect(() => {
@@ -686,14 +765,14 @@ export default function App() {
          
          <main className="flex-1 overflow-auto p-4 pb-0 md:p-6 md:pb-0 custom-scrollbar relative">
              <div className={activeMenu === 'pos' ? 'block h-full' : 'hidden'}>
-                <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} activeShift={activeShift} setActiveShift={setActiveShift} setShowShiftOpenModal={setShowShiftOpenModal} />
+                <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} activeShift={activeShift} setActiveShift={setActiveShift} setShowShiftOpenModal={setShowShiftOpenModal} recordActivity={recordActivity} />
              </div>
              
              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white"></div></div>}>
                  {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={setActiveMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
              {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} sales={sales} colors={baseThemeColors} user={user} isSoundOn={true} showToast={showToast} editIntent={editIntent} recordActivity={recordActivity} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} />}
              {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} editIntent={editIntent} user={user} recordActivity={recordActivity} />}
-               {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} handleNavigateAndEdit={handleNavigateAndEdit} user={user} />}
+               {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} handleNavigateAndEdit={handleNavigateAndEdit} user={user} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} />}
              {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} user={user} />}
              {activeMenu === 'aktivitas' && <ActivityLogPage activityLogs={activityLogs} shiftHistory={shiftHistory} colors={themeColors} />}
              

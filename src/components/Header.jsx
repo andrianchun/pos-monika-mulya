@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Sun, Moon, LogOut, Settings, Menu, Bell, AlertTriangle, Package, Calendar, Send, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import ProfileModal from './modals/ProfileModal';
 import { playSound, formatIDR, formatDate } from '../utils/helpers';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
 
 const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children, defaultOpen = false, colors }) => {
    const [open, setOpen] = useState(defaultOpen);
@@ -164,6 +166,7 @@ export default function Header({
     localStorage.removeItem('mmpos_user');
     localStorage.removeItem('mmpos_last_active');
     setUser(null);
+    signOut(auth).catch(() => {});
   };
 
   return (

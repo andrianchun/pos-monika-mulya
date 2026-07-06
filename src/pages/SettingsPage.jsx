@@ -1,6 +1,8 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Lock, Store, Plus, Edit, Trash2, X, DownloadCloud, UploadCloud, Tags, Gift, Ticket, Camera, CheckSquare, Square, Image, Link2, Send, RefreshCw, Check, AlertCircle, Zap, Shield } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload, formatWhatsAppNumber } from '../utils/helpers';
+import { getSecondaryAuth, usernameToEmail } from '../firebase';
+import { createUserWithEmailAndPassword, signOut as fbSignOut } from 'firebase/auth';
 import DateInput from '../components/DateInput';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import SearchableSelect from '../components/ui/SearchableSelect';
@@ -315,14 +317,45 @@ export default function SettingsPage({
      });
   };
 
-  const saveUser = (e) => {
-     e.preventDefault(); 
-     playSound('success', isSoundOn);
-     const finalForm = {...uForm, permissions: uForm.role === 'admin' ? ['all'] : (uForm.permissions || [])};
-     if(finalForm.id) setUsers(users.map(u => u.id === finalForm.id ? finalForm : u));
-     else setUsers([...(users||[]), { ...finalForm, id: Date.now() }]);
-     setIsUserModal(false); 
-     showToast('Akun user berhasil disimpan', 'success');
+  const saveUser = async (e) => {
+     e.preventDefault();
+     const { password, ...profileFields } = uForm;
+     const finalForm = {...profileFields, permissions: uForm.role === 'admin' ? ['all'] : (uForm.permissions || [])};
+
+     if (finalForm.id) {
+        // Edit profil (nama, role, permission). Password TIDAK bisa diubah dari
+        // sini — akun lain hanya bisa di-reset lewat Firebase Console.
+        setUsers(users.map(u => u.id === finalForm.id ? { ...u, ...finalForm } : u));
+        if (password) {
+           showToast('Profil disimpan. Catatan: password user lain hanya bisa di-reset lewat Firebase Console → Authentication.', 'error');
+        } else {
+           showToast('Akun user berhasil disimpan', 'success');
+        }
+        playSound('success', isSoundOn);
+        setIsUserModal(false);
+        return;
+     }
+
+     // Akun baru: buat di Firebase Auth dulu (via instance sekunder supaya
+     // sesi admin tidak ikut ter-logout), lalu simpan profil dengan ID = UID.
+     const username = String(finalForm.username || '').trim().toLowerCase();
+     if (!username) { showToast('Username wajib diisi!', 'error'); return; }
+     if (!password || password.length < 6) { showToast('Password minimal 6 karakter!', 'error'); return; }
+     try {
+        const secAuth = getSecondaryAuth();
+        const cred = await createUserWithEmailAndPassword(secAuth, usernameToEmail(username), password);
+        await fbSignOut(secAuth).catch(() => {});
+        setUsers([...(users||[]), { ...finalForm, username, id: cred.user.uid, email: usernameToEmail(username) }]);
+        playSound('success', isSoundOn);
+        setIsUserModal(false);
+        showToast('Akun user berhasil dibuat', 'success');
+     } catch (err) {
+        playSound('pop', isSoundOn);
+        const code = err?.code || '';
+        if (code === 'auth/email-already-in-use') showToast('Username sudah dipakai akun lain!', 'error');
+        else if (code === 'auth/network-request-failed') showToast('Membuat akun butuh koneksi internet.', 'error');
+        else showToast('Gagal membuat akun: ' + (err?.message || 'Error'), 'error');
+     }
   };
 
   // --- LOGIKA KEUANGAN, KATEGORI, SATUAN (CASCADING & ALPHABETICAL) ---
@@ -1393,12 +1426,12 @@ export default function SettingsPage({
                      
                      <div className="grid grid-cols-2 gap-3">
                         <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Nama Lengkap</label><input required type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.name} onChange={e=>setUForm({...uForm, name: e.target.value})} /></div>
-                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Username Login</label><input required type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none font-mono lowercase`} value={uForm.username} onChange={e=>setUForm({...uForm, username: e.target.value})} disabled={uForm.id === 1} /></div>
+                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Username Login {uForm.id ? '(terkunci)' : ''}</label><input required type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none font-mono lowercase ${uForm.id ? 'opacity-60 cursor-not-allowed' : ''}`} value={uForm.username} onChange={e=>setUForm({...uForm, username: e.target.value})} disabled={!!uForm.id} title={uForm.id ? 'Username adalah identitas login Firebase dan tidak bisa diubah' : ''} /></div>
                      </div>
                      
                      <div className="grid grid-cols-2 gap-3">
                         <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Email (Opsional)</label><input type="email" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.email} onChange={e=>setUForm({...uForm, email: e.target.value})} /></div>
-                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Password</label><input type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.password} onChange={e=>setUForm({...uForm, password: e.target.value})} placeholder={uForm.id ? "Kosongkan jika tidak diganti" : "Ketik Password..."} required={!uForm.id} /></div>
+                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Password {uForm.id ? '(reset via Firebase Console)' : '(min. 6 karakter)'}</label><input type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none ${uForm.id ? 'opacity-60 cursor-not-allowed' : ''}`} value={uForm.password} onChange={e=>setUForm({...uForm, password: e.target.value})} placeholder={uForm.id ? "Reset lewat Firebase Console" : "Ketik Password..."} required={!uForm.id} disabled={!!uForm.id} /></div>
                      </div>
                      
                      <div>
@@ -1513,7 +1546,7 @@ export default function SettingsPage({
          </div>
       )}
 
-      {deleteUsr && <DeleteConfirmModal title="Hapus Akun User?" desc="Yakin hapus akun ini?" btnText="Hapus" onConfirm={() => { setUsers((users||[]).filter(u => u !== deleteUsr)); setDeleteUsr(null); showToast('User dihapus', 'success'); }} onCancel={() => setDeleteUsr(null)} colors={colors} isSoundOn={isSoundOn} />}
+      {deleteUsr && <DeleteConfirmModal title="Hapus Akun User?" desc="Profil user akan dihapus dari aplikasi. PENTING: hapus juga akun loginnya di Firebase Console → Authentication agar tidak bisa masuk lagi." btnText="Hapus" onConfirm={() => { setUsers((users||[]).filter(u => u !== deleteUsr)); setDeleteUsr(null); showToast('Profil dihapus. Jangan lupa hapus akunnya di Firebase Console → Authentication!', 'success'); }} onCancel={() => setDeleteUsr(null)} colors={colors} isSoundOn={isSoundOn} />}
       {deleteFin && <DeleteConfirmModal title="Hapus Akun Keuangan?" desc="Yakin hapus akun ini?" btnText="Hapus" onConfirm={() => { setFinancialAccounts((financialAccounts||[]).filter(f => f.id !== deleteFin)); setDeleteFin(null); showToast('Akun dihapus', 'success'); }} onCancel={() => setDeleteFin(null)} colors={colors} isSoundOn={isSoundOn} />}
 
       {/* Modal Unsaved Changes */}

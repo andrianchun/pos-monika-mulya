@@ -46,9 +46,18 @@ export default function TransactionEditModal({
   }, [editedDoc.items, editedDoc.discount, editedDoc.ongkir, editedDoc.paymentHistory]);
 
   const handleSaveEdit = () => {
+     // Konversi qty ke satuan dasar (multi-satuan) agar stok konsisten dengan checkout
+     const toBaseQty = (i) => {
+        let conversion = 1;
+        if (i.selectedMultiUnitId && i.multiUnits) {
+           const mu = i.multiUnits.find(u => String(u.id) === String(i.selectedMultiUnitId));
+           if (mu) conversion = Number(mu.conversion) || 1;
+        }
+        return Number(i.qty) * conversion;
+     };
      const diffs = {};
-     (doc.items || []).forEach(i => diffs[i.id] = (diffs[i.id] || 0) + (isSale ? i.qty : -i.qty));
-     (editedDoc.items || []).forEach(i => diffs[i.id] = (diffs[i.id] || 0) - (isSale ? i.qty : -i.qty));
+     (doc.items || []).forEach(i => diffs[i.id] = (diffs[i.id] || 0) + (isSale ? toBaseQty(i) : -toBaseQty(i)));
+     (editedDoc.items || []).forEach(i => diffs[i.id] = (diffs[i.id] || 0) - (isSale ? toBaseQty(i) : -toBaseQty(i)));
 
      const updatedProducts = products.map(p => {
          if(diffs[p.id] !== undefined && diffs[p.id] !== 0) return { ...p, stock: Math.max(0, p.stock + diffs[p.id]) };

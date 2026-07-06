@@ -5,7 +5,7 @@ import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import ContactProfileModal from '../components/modals/ContactProfileModal';
 
-export default function ContactManager({ customers, setCustomers, suppliers, setSuppliers, sales, setSales, purchases, setPurchases, products, setProducts, colors, showToast, isSoundOn, globalMode, setGlobalMode, handleNavigateAndEdit, user }) {
+export default function ContactManager({ customers, setCustomers, suppliers, setSuppliers, sales, setSales, purchases, setPurchases, products, setProducts, colors, showToast, isSoundOn, globalMode, setGlobalMode, handleNavigateAndEdit, user, accounting, setAccounting, financialAccounts }) {
   const tab = globalMode === 'penjualan' ? 'customer' : 'supplier';
   const setTab = (val) => setGlobalMode(val === 'customer' ? 'penjualan' : 'pembelian');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,12 +20,16 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
   const canEdit = user?.role === 'admin' || (user?.permissions || []).includes(tab === 'customer' ? 'kontak_customer_edit' : 'kontak_supplier_edit');
   const canDelete = user?.role === 'admin' || (user?.permissions || []).includes(tab === 'customer' ? 'kontak_customer_delete' : 'kontak_supplier_delete');
 
-  const handleTopUpDeposit = (contact, amount) => {
+  const handleTopUpDeposit = (contact, amount, accountId) => {
     playSound('cash', isSoundOn);
     if (tab === 'customer') {
        setCustomers(prev => prev.map(c => c.id === contact.id ? { ...c, deposit: (c.deposit || 0) + amount } : c));
        // Perbarui profil aktif agar saldonya langsung terlihat berubah di modal
        setActiveProfile(prev => ({...prev, deposit: (prev.deposit || 0) + amount}));
+       // Catat uang masuk ke jurnal kas agar Laporan & Neraca sinkron
+       if (setAccounting && accountId) {
+          setAccounting(prev => [...(prev || []), { id: Date.now(), type: 'kas', accountId: Number(accountId), name: `Deposit dari ${contact.name}`, amount: amount, date: new Date().toISOString() }]);
+       }
        showToast(`Berhasil Top-Up Saldo Rp ${amount.toLocaleString('id-ID')} untuk ${contact.name}`, 'success');
     }
   };
@@ -113,8 +117,9 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
            type={tab} 
            sales={sales} 
            purchases={purchases} 
-           onClose={() => setActiveProfile(null)} 
-           onTopUpDeposit={(amount) => handleTopUpDeposit(activeProfile, amount)}
+           onClose={() => setActiveProfile(null)}
+           onTopUpDeposit={(amount, accountId) => handleTopUpDeposit(activeProfile, amount, accountId)}
+           financialAccounts={financialAccounts}
            colors={colors}
            handleNavigateAndEdit={handleNavigateAndEdit}
          />

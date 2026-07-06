@@ -46,8 +46,19 @@ export default function POSHistory({
     
     if(doc) {
        const updatedProducts = products.map(p => {
-         const cartItem = doc.items.find(c => c.id === p.id);
-         if (cartItem) return { ...p, stock: isSale ? p.stock + cartItem.qty : Math.max(0, p.stock - cartItem.qty) };
+         const cartItems = doc.items.filter(c => c.id === p.id);
+         if (cartItems.length > 0) {
+            // Revert stok dengan konversi multi-satuan, sama seperti saat checkout
+            const totalQtyImpact = cartItems.reduce((sum, cItem) => {
+               let conversion = 1;
+               if (cItem.selectedMultiUnitId && cItem.multiUnits) {
+                  const mu = cItem.multiUnits.find(u => String(u.id) === String(cItem.selectedMultiUnitId));
+                  if (mu) conversion = Number(mu.conversion) || 1;
+               }
+               return sum + (Number(cItem.qty) * conversion);
+            }, 0);
+            return { ...p, stock: isSale ? p.stock + totalQtyImpact : Math.max(0, p.stock - totalQtyImpact) };
+         }
          return p;
        });
        setProducts(updatedProducts);
@@ -111,7 +122,15 @@ export default function POSHistory({
 
     const updatedProducts = products.map(p => {
        const retItem = returnedItems.find(r => r.id === p.id);
-       if(retItem) return { ...p, stock: isSale ? p.stock + retItem.returnQty : Math.max(0, p.stock - retItem.returnQty) };
+       if(retItem) {
+          let conversion = 1;
+          if (retItem.selectedMultiUnitId && retItem.multiUnits) {
+             const mu = retItem.multiUnits.find(u => String(u.id) === String(retItem.selectedMultiUnitId));
+             if (mu) conversion = Number(mu.conversion) || 1;
+          }
+          const qtyImpact = Number(retItem.returnQty) * conversion;
+          return { ...p, stock: isSale ? p.stock + qtyImpact : Math.max(0, p.stock - qtyImpact) };
+       }
        return p;
     });
 
