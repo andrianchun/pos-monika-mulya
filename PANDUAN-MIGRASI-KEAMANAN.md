@@ -69,7 +69,7 @@ lalu di tiap perangkat toko: buka aplikasi → refresh (tutup-buka jika PWA).
 | Login staf | Username + password (dicek dari database) | Sama persis, tapi diverifikasi Firebase Auth |
 | Tambah akun staf | Menu Pengaturan → Akun | Sama (butuh koneksi internet saat membuat) |
 | Ganti password sendiri | Menu profil | Sama (butuh koneksi internet) |
-| Reset password user lain | Admin edit di Pengaturan | Firebase Console → Authentication → titik tiga → Reset password |
+| Reset password user lain (lupa) | Admin edit di Pengaturan | Di komputer: `node reset-password.cjs <username> <passwordBaru>` (butuh serviceAccountKey.json — download ulang dari Console jika sudah dihapus) |
 | Hapus akun staf | Menu Pengaturan | Menu Pengaturan **+ hapus juga di Firebase Console → Authentication** |
 | Login pertama di perangkat baru | Bisa offline | Butuh internet (sesudahnya offline jalan seperti biasa) |
 

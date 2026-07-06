@@ -327,7 +327,7 @@ export default function SettingsPage({
         // sini — akun lain hanya bisa di-reset lewat Firebase Console.
         setUsers(users.map(u => u.id === finalForm.id ? { ...u, ...finalForm } : u));
         if (password) {
-           showToast('Profil disimpan. Catatan: password user lain hanya bisa di-reset lewat Firebase Console → Authentication.', 'error');
+           showToast('Profil disimpan. Reset password user lain: jalankan "node reset-password.cjs" di komputer (lihat panduan).', 'error');
         } else {
            showToast('Akun user berhasil disimpan', 'success');
         }
@@ -1431,7 +1431,7 @@ export default function SettingsPage({
                      
                      <div className="grid grid-cols-2 gap-3">
                         <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Email (Opsional)</label><input type="email" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.email} onChange={e=>setUForm({...uForm, email: e.target.value})} /></div>
-                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Password {uForm.id ? '(reset via Firebase Console)' : '(min. 6 karakter)'}</label><input type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none ${uForm.id ? 'opacity-60 cursor-not-allowed' : ''}`} value={uForm.password} onChange={e=>setUForm({...uForm, password: e.target.value})} placeholder={uForm.id ? "Reset lewat Firebase Console" : "Ketik Password..."} required={!uForm.id} disabled={!!uForm.id} /></div>
+                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Password {uForm.id ? '(reset: script di komputer)' : '(min. 6 karakter)'}</label><input type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none ${uForm.id ? 'opacity-60 cursor-not-allowed' : ''}`} value={uForm.password} onChange={e=>setUForm({...uForm, password: e.target.value})} placeholder={uForm.id ? "node reset-password.cjs" : "Ketik Password..."} required={!uForm.id} disabled={!!uForm.id} title={uForm.id ? 'Lupa password? Jalankan: node reset-password.cjs <username> <passwordBaru> di folder aplikasi' : ''} /></div>
                      </div>
                      
                      <div>
