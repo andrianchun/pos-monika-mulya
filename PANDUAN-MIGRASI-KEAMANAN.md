@@ -69,8 +69,9 @@ lalu di tiap perangkat toko: buka aplikasi → refresh (tutup-buka jika PWA).
 | Login staf | Username + password (dicek dari database) | Sama persis, tapi diverifikasi Firebase Auth |
 | Tambah akun staf | Menu Pengaturan → Akun | Sama (butuh koneksi internet saat membuat) |
 | Ganti password sendiri | Menu profil | Sama (butuh koneksi internet) |
-| Reset password user lain (lupa) | Admin edit di Pengaturan | Di komputer: `node reset-password.cjs <username> <passwordBaru>` (butuh serviceAccountKey.json — download ulang dari Console jika sudah dihapus) |
-| Hapus akun staf | Menu Pengaturan | Menu Pengaturan **+ hapus juga di Firebase Console → Authentication** |
+| Reset password user lain (lupa) | Admin edit di Pengaturan | Menu Pengaturan → Hak Akses User → klik ikon 🔑 di baris user, langsung dari aplikasi (butuh project Blaze + Cloud Functions ter-deploy) |
+| Hapus akun staf | Menu Pengaturan | Sama — sekarang otomatis menghapus akun login-nya juga, tidak perlu ke Firebase Console lagi |
+| Tambah akun staf baru | Menu Pengaturan | Sama, sekarang lewat Cloud Function (lebih aman, sesi admin tidak ikut ke-logout) |
 | Login pertama di perangkat baru | Bisa offline | Butuh internet (sesudahnya offline jalan seperti biasa) |
 
 ## Saran lanjutan (opsional, kapan-kapan)
