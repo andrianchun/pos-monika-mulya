@@ -1,18 +1,14 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Edit, DownloadCloud, UploadCloud, Trash2, X, Plus } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload } from '../utils/helpers';
-import { auth } from '../firebase';
-import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import DataTable from '../components/ui/DataTable';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
-import PasswordConfirmModal from '../components/modals/PasswordConfirmModal';
 
 export default function ProductManager({ products, setProducts, categories, units, sales, colors, showToast, user, isSoundOn, editIntent, recordActivity, storeInfo, setStoreInfo }) {
   const canCreate = user?.role === 'admin' || (user?.permissions || []).includes('produk_create');
   const canEdit = user?.role === 'admin' || (user?.permissions || []).includes('produk_edit');
   const canDelete = user?.role === 'admin' || (user?.permissions || []).includes('produk_delete');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [deleteProdId, setDeleteProdId] = useState(null);
   
@@ -136,20 +132,7 @@ export default function ProductManager({ products, setProducts, categories, unit
     setIsModalOpen(true);
   };
 
-  const handleDeleteAll = async (pwd) => {
-    try {
-      // Verifikasi password admin via Firebase Auth (bukan lagi dari database)
-      const cred = EmailAuthProvider.credential(auth.currentUser.email, pwd);
-      await reauthenticateWithCredential(auth.currentUser, cred);
-    } catch (err) {
-      playSound('pop', isSoundOn); showToast('Password admin salah!', 'error'); return;
-    }
-    playSound('success', isSoundOn);
-    setProducts([]);
-    if (recordActivity) recordActivity('Hapus Semua Produk', 'Mengosongkan semua data produk di sistem');
-    setIsDeleteAllOpen(false);
-    showToast('Semua data produk dihapus', 'success');
-  };
+
 
   const exportToExcel = () => {
     playSound('pop', isSoundOn);
@@ -263,9 +246,7 @@ export default function ProductManager({ products, setProducts, categories, unit
     <>
        <button onClick={() => { playSound('pop', isSoundOn); exportToExcel(); }} className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg border ${colors.border} flex items-center gap-1.5 ${colors.textMuted} hover:${colors.text} hover:border-[#D4AF37] transition-all whitespace-nowrap`}><DownloadCloud size={16}/> Template Excel</button>
        <button onClick={() => { playSound('pop', isSoundOn); importRef.current?.click(); }} className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg border ${colors.border} flex items-center gap-1.5 ${colors.textMuted} hover:${colors.text} hover:border-blue-500 transition-all whitespace-nowrap`}><UploadCloud size={16}/> Impor Excel</button>
-       {canDelete && (
-         <button onClick={() => { playSound('pop', isSoundOn); setIsDeleteAllOpen(true); }} className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 transition-all flex items-center gap-1.5 whitespace-nowrap`}><Trash2 size={16}/> Kosongkan</button>
-       )}
+
        <input type="file" accept=".xls,.csv,.txt" className="hidden" ref={importRef} onChange={handleImport} />
     </>
   );
@@ -323,9 +304,7 @@ export default function ProductManager({ products, setProducts, categories, unit
         />
       )}
 
-      {isDeleteAllOpen && (
-        <PasswordConfirmModal title="Hapus Semua Produk?" onConfirm={handleDeleteAll} onCancel={() => setIsDeleteAllOpen(false)} colors={colors} isSoundOn={isSoundOn} />
-      )}
+
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-2 sm:p-4">

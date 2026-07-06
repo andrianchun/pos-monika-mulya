@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, Plus, Trash2, ChevronLeft, ChevronRight, X, Filter, Check } from 'lucide-react';
 import useDebounce from '../../hooks/useDebounce';
 
-export default function DataTable({ columns, data, onDelete, canDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false, headerRight, noSortKey, searchPlaceholder = 'Cari nama atau Barcode...' }) {
+export default function DataTable({ columns, data, onDelete, canDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false, headerRight, noSortKey, searchPlaceholder = 'Cari nama atau Barcode...', searchKeys }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState(defaultSort);
@@ -46,12 +46,15 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
     if (!debouncedSearch) return sortedData;
     const lowerSearch = debouncedSearch.toLowerCase();
     const searchWords = lowerSearch.split(' ').filter(w => w.trim() !== '');
+    
+    // ✅ FIX PERFORMA: Hanya cari di field yang relevan (searchKeys prop) atau kolom yang tampil, bukan Object.values()
+    const keysToSearch = searchKeys || columns.map(c => c.key).filter(Boolean);
 
     return sortedData.filter(item => {
-       const rowText = Object.values(item).map(val => String(val).toLowerCase()).join(' ');
+       const rowText = keysToSearch.map(k => String(item[k] || '')).join(' ').toLowerCase();
        return searchWords.every(word => rowText.includes(word));
     });
-  }, [sortedData, debouncedSearch]);
+  }, [sortedData, debouncedSearch, columns, searchKeys]);
 
   const toggleFilter = (colKey, option) => {
     setFilters(prev => {

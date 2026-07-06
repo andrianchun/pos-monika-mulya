@@ -116,8 +116,27 @@ export default function App() {
   // Resolusi profil: setelah Firebase Auth berhasil, profil dicari di koleksi
   // users dengan ID dokumen = UID Auth (hasil migrasi migrate-auth.cjs).
   useEffect(() => {
-    if (!authUid || user || !users || users.length === 0) return;
-    const profile = users.find(u => String(u.id) === String(authUid));
+    // Tunggu sampai authUid ada, user belum di-set, dan listener Firestore sudah selesai memuat awal (loading = false)
+    if (!authUid || user || loading) return;
+    
+    let profile = (users || []).find(u => String(u.id) === String(authUid));
+
+    // Fallback: Jika pakai UID auth tidak ketemu, cari berdasarkan email (dari legacy data atau belum sinkron UID)
+    if (!profile && auth.currentUser?.email) {
+       profile = (users || []).find(u => u.email === auth.currentUser.email);
+    }
+
+    // Fallback Darurat: Jika tabel users Firestore KOSONG atau profil tetap tak ditemukan,
+    // periksa dari initialUsers lokal (penting untuk instalasi baru).
+    if (!profile && auth.currentUser?.email) {
+       const initialProfile = initialUsers.find(u => u.email === auth.currentUser.email);
+       if (initialProfile) {
+          profile = { ...initialProfile, id: authUid };
+          // Otomatis seed profil ini ke Firestore agar dikenali listener selanjutnya
+          setDoc(doc(db, "users", authUid), profile).catch(console.error);
+       }
+    }
+
     if (profile) {
       setUser(profile);
       setActiveMenu(profile.role === 'kasir' ? 'pos' : 'dashboard');
@@ -145,7 +164,7 @@ export default function App() {
       showToast('Profil akun tidak ditemukan di database. Hubungi admin.', 'error');
       signOut(auth).catch(() => {});
     }
-  }, [authUid, users, user]);
+  }, [authUid, users, user, loading]);
 
   const [activeShift, setActiveShift] = useState(() => {
     try { const cached = localStorage.getItem('mmpos_activeShift'); if (cached) return JSON.parse(cached); } catch(e) {}

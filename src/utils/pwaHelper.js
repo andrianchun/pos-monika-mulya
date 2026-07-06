@@ -91,6 +91,11 @@ export async function generateDynamicManifest() {
   
   const manifestLink = document.getElementById('dynamic-manifest');
   if (manifestLink) {
+    const oldUrl = manifestLink.href;
     manifestLink.href = manifestUrl;
+    // ✅ FIX: Revoke URL lama untuk cegah memory leak
+    if (oldUrl && oldUrl.startsWith('blob:')) {
+       URL.revokeObjectURL(oldUrl);
+    }
   }
 }

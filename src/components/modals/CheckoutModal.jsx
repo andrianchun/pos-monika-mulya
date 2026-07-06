@@ -89,7 +89,7 @@ export default function CheckoutModal({ posMode, total, financialAccounts, payme
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-             <button onClick={() => setPaymentAmount(formatIDR(total))} className={`py-2 border rounded-lg text-sm font-bold ${colors.text} hover:bg-gray-100 dark:hover:bg-[#27272A]`}>Uang Pas</button>
+             <button onClick={() => setPaymentAmount(formatIDR(Math.max(0, remainingTagihan)))} className={`py-2 border rounded-lg text-sm font-bold ${colors.text} hover:bg-gray-100 dark:hover:bg-[#27272A]`}>Uang Pas</button>
              <button onClick={() => setPaymentAmount('')} className={`py-2 border rounded-lg text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}>Reset</button>
           </div>
 

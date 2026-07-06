@@ -26,7 +26,10 @@ service cloud.firestore {
     // --- Profil user: password TIDAK disimpan di sini (ada di Firebase Auth) ---
     match /users/{uid} {
       allow read: if signedIn();
-      allow create, delete: if isAdmin();
+      // User boleh bikin profilnya sendiri saat inisialisasi awal (seeding), 
+      // ATAU admin boleh bikin.
+      allow create: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow delete: if isAdmin();
       // User boleh update profilnya sendiri (nama/foto), tapi TIDAK boleh
       // menaikkan role/permission-nya sendiri.
       allow update: if isAdmin() || (

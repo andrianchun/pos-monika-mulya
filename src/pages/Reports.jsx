@@ -83,12 +83,13 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
      return dataArray.filter(d => { const t = new Date(d.date).getTime(); return t >= start.getTime() && t <= end.getTime(); });
   };
 
-  const filteredSales = getFilteredData(sales); 
-  const filteredPurchases = getFilteredData(purchases);
+  // ✅ FIX PERFORMA: Bungkus dalam useMemo agar tidak recalculate setiap render
+  const filteredSales = useMemo(() => getFilteredData(sales), [sales, filterMode, startDate, endDate, dateRangeInfo]);
+  const filteredPurchases = useMemo(() => getFilteredData(purchases), [purchases, filterMode, startDate, endDate, dateRangeInfo]);
   const activeDataArray = activeReport === 'pembelian' ? filteredPurchases : filteredSales;
   
-  const totalHppAll = activeDataArray.reduce((acc, s) => acc + s.items.reduce((sum, i) => sum + (i.cost * i.qty), 0), 0);
-  const totalNetoAll = activeDataArray.reduce((acc, s) => acc + s.total, 0);
+  const totalHppAll = useMemo(() => activeDataArray.reduce((acc, s) => acc + s.items.reduce((sum, i) => sum + (i.cost * i.qty), 0), 0), [activeDataArray]);
+  const totalNetoAll = useMemo(() => activeDataArray.reduce((acc, s) => acc + s.total, 0), [activeDataArray]);
   const totalLabaAll = activeReport === 'penjualan' ? (totalNetoAll - totalHppAll) : 0;
 
   const chartInfo = useMemo(() => {
@@ -217,12 +218,12 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
      return { labels: validLabels, data };
   }, [activeDataArray, filterMode, startDate, endDate, dateRangeInfo]);
 
-  const calculateLeaderboard = (dataArray) => {
+  // ✅ FIX PERFORMA: Leaderboard dalam useMemo — tidak recalculate setiap render
+  const leaderboardFull = useMemo(() => {
      let map = {};
-     dataArray.forEach(doc => { doc.items.forEach(item => { if(!map[item.id]) map[item.id] = { id: item.id, name: item.name, total: 0 }; map[item.id].total += item.qty; }); });
+     filteredSales.forEach(doc => { doc.items.forEach(item => { if(!map[item.id]) map[item.id] = { id: item.id, name: item.name, total: 0 }; map[item.id].total += item.qty; }); });
      return Object.values(map).sort((a,b) => b.total - a.total);
-  };
-  const leaderboardFull = calculateLeaderboard(filteredSales);
+  }, [filteredSales]);
   const topItems = leaderboardFull.slice(0, 15); 
   const slowestItems = [...leaderboardFull].reverse().slice(0, 15);
 

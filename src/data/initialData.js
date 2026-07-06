@@ -21,8 +21,8 @@ export const initialSuppliers = [
 ];
 
 export const initialUsers = [
-  { id: 1, username: 'admin', email: 'admin@monikamulya.com', name: 'Admin Master', role: 'admin', permissions: ['all'], password: '123', avatar: null },
-  { id: 2, username: 'kasira', email: 'kasir@monikamulya.com', name: 'Kasir A', role: 'kasir', permissions: ['dashboard', 'pos'], password: '123', avatar: null }
+  { id: 1, username: 'admin', email: 'admin@monikamulya.com', name: 'Admin Master', role: 'admin', permissions: ['all'], avatar: null },
+  { id: 2, username: 'kasira', email: 'kasir@monikamulya.com', name: 'Kasir A', role: 'kasir', permissions: ['dashboard', 'pos'], avatar: null }
 ];
 
 export const initialFinancialAccounts = [

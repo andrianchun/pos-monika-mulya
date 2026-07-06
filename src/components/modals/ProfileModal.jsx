@@ -19,10 +19,11 @@ export default function ProfileModal({ user, setUser, users, setUsers, colors, i
     let updatedUser = { ...user, name, avatar };
 
     const wantsEmailChange = newEmail.trim() && newEmail.trim().toLowerCase() !== user.email;
-    const wantsPasswordChange = newPass || confPass || oldPass;
+    const wantsPasswordChange = newPass || confPass; // Hanya ganti pass kalau field baru diisi
 
     if (wantsEmailChange || wantsPasswordChange) {
-       if (!oldPass) { playSound('pop', isSoundOn); showToast('Masukkan Password Lama untuk konfirmasi!', 'error'); return; }
+       // Operasi sensitif di Firebase selalu butuh re-autentikasi pakai password lama
+       if (!oldPass) { playSound('pop', isSoundOn); showToast('Masukkan Password Lama Anda untuk konfirmasi perubahan rahasia!', 'error'); return; }
        if (wantsPasswordChange) {
           if (newPass !== confPass) { playSound('pop', isSoundOn); showToast('Konfirmasi password tidak cocok!', 'error'); return; }
           if (newPass.length < 6) { playSound('pop', isSoundOn); showToast('Password baru minimal 6 karakter!', 'error'); return; }
@@ -82,19 +83,35 @@ export default function ProfileModal({ user, setUser, users, setUsers, colors, i
           </div>
           <div><label className={`block text-xs font-medium mb-1 ${colors.text}`}>Nama Lengkap</label><input type="text" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={name} onChange={e => setName(e.target.value)} required /></div>
 
-          <div>
-             <label className={`block text-xs font-medium mb-1 ${colors.text}`}>{isRealEmail ? 'Email Asli Anda' : 'Email Login (otomatis, belum diganti)'}</label>
-             <div className={`w-full p-2.5 rounded-xl border bg-transparent opacity-70 ${colors.text} ${colors.border} text-sm font-mono`}>{user.email}</div>
-          </div>
-          <div>
-             <label className={`block text-xs font-medium mb-1 ${colors.text} flex items-center gap-1`}><Mail size={12}/> {isRealEmail ? 'Ganti ke Email Lain' : 'Setel Email Asli (untuk reset password mandiri)'}</label>
-             <input type="email" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} placeholder="cth: nama@gmail.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
-             {!isRealEmail && <p className="text-[10px] text-gray-500 mt-1">Setelah disetel &amp; diverifikasi, Anda bisa pakai "Lupa Password?" di layar login seperti biasa.</p>}
+          {/* KOTAK EMAIL RECOVERY */}
+          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl space-y-2">
+             <label className={`block text-xs font-bold ${colors.text} flex items-center gap-1`}><Mail size={12}/> Email Pemulihan (Untuk fitur Lupa Password)</label>
+             <p className="text-[10px] text-blue-700 dark:text-blue-300 leading-tight">Jika disetel, Anda bisa mereset sandi mandiri dari layar Login saat lupa sandi.</p>
+             <input type="email" className={`w-full p-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-400 bg-transparent ${colors.text} ${colors.border}`} placeholder={isRealEmail ? user.email : "cth: nama@gmail.com"} value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+             {newEmail.trim() && <p className="text-[10px] text-orange-500 font-medium">⚠️ Firebase akan mengirim link ke email ini. Email baru terganti SETELAH Anda klik link tersebut di kotak masuk Anda.</p>}
           </div>
 
-          <div><label className={`block text-xs font-medium mb-1 ${colors.text}`}>Password Lama {(newEmail.trim() || newPass) ? '(wajib)' : ''}</label><input type="password" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} placeholder="Kosongkan jika tak ada perubahan" value={oldPass} onChange={e => setOldPass(e.target.value)} /></div>
-          <div><label className={`block text-xs font-medium mb-1 ${colors.text}`}>Password Baru</label><input type="password" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={newPass} onChange={e => setNewPass(e.target.value)} /></div>
-          <div><label className={`block text-xs font-medium mb-1 ${colors.text}`}>Konfirmasi Password Baru</label><input type="password" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={confPass} onChange={e => setConfPass(e.target.value)} /></div>
+          {/* KOTAK GANTI PASSWORD */}
+          <div className="p-3 bg-stone-500/10 border border-stone-500/20 rounded-xl space-y-3">
+             <label className={`block text-xs font-bold ${colors.text} flex items-center gap-1`}><X size={12} className="opacity-0"/> Ganti Password (Langsung berubah, tanpa verifikasi email)</label>
+             <div className="flex gap-2">
+                <div className="flex-1">
+                   <label className={`block text-[10px] font-medium mb-1 ${colors.text}`}>Password Baru (Opsional)</label>
+                   <input type="password" className={`w-full p-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-stone-400 bg-transparent ${colors.text} ${colors.border}`} placeholder="Sandi baru..." value={newPass} onChange={e => setNewPass(e.target.value)} />
+                </div>
+                <div className="flex-1">
+                   <label className={`block text-[10px] font-medium mb-1 ${colors.text}`}>Konfirmasi Sandi Baru</label>
+                   <input type="password" className={`w-full p-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-stone-400 bg-transparent ${colors.text} ${colors.border}`} placeholder="Ulangi..." value={confPass} onChange={e => setConfPass(e.target.value)} />
+                </div>
+             </div>
+          </div>
+
+          {/* PASSWORD LAMA WAJIB */}
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+             <label className={`block text-xs font-bold mb-1 text-red-600 dark:text-red-400`}>Password Lama (Wajib diisi jika ganti email/password)</label>
+             <input type="password" className={`w-full p-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-red-400 bg-transparent ${colors.text} ${colors.border}`} placeholder="Ketik sandi saat ini untuk konfirmasi..." value={oldPass} onChange={e => setOldPass(e.target.value)} />
+          </div>
+
           <div className="flex gap-3 pt-4 border-t border-dashed border-gray-300 dark:border-gray-700">
              <button type="button" onClick={() => { playSound('pop', isSoundOn); onClose(); }} className={`flex-1 py-2.5 border rounded-xl font-bold ${colors.text} ${colors.border}`}>Batal</button>
              <button type="submit" disabled={isSaving} className={`flex-1 py-2.5 rounded-xl font-bold text-[#18181B] shadow-md ${colors.goldBg} hover:opacity-90 ${isSaving ? 'opacity-60 cursor-wait' : ''}`}>{isSaving ? 'Menyimpan...' : 'Simpan'}</button>

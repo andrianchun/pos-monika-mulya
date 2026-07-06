@@ -273,7 +273,7 @@ export default function Header({
                                           <p className={`text-[10px] ${colors.textMuted}`}>Nota: {s.nota}</p>
                                           <div className="flex justify-between items-center mt-1">
                                              <p className={`text-[10px] font-bold ${isLate ? 'text-red-500' : colors.gold}`}>Tagihan: Rp {formatIDR(s.total - s.paid)}</p>
-                                             <p className={`text-[10px] font-black px-2 py-0.5 rounded ${isLate ? 'bg-red-500/10 text-red-500' : '${colors.goldBg}/10 ${colors.gold}'}`}>
+                                             <p className={`text-[10px] font-black px-2 py-0.5 rounded ${isLate ? 'bg-red-500/10 text-red-500' : `bg-[#D4AF37]/10 text-[#D4AF37]`}`}>
                                                 {isLate ? `TELAT ${Math.abs(daysLeft)} HARI` : `TEMPO: ${formatDate(s.dueDate)}`}
                                              </p>
                                           </div>
@@ -295,7 +295,7 @@ export default function Header({
                                           <p className={`text-[10px] ${colors.textMuted}`}>Nota: {p.nota}</p>
                                           <div className="flex justify-between items-center mt-1">
                                              <p className={`text-[10px] font-bold ${isLate ? 'text-red-500' : colors.gold}`}>Kurang Bayar: Rp {formatIDR(p.total - p.paid)}</p>
-                                             <p className={`text-[10px] font-black px-2 py-0.5 rounded ${isLate ? 'bg-red-500/10 text-red-500' : '${colors.goldBg}/10 ${colors.gold}'}`}>
+                                             <p className={`text-[10px] font-black px-2 py-0.5 rounded ${isLate ? 'bg-red-500/10 text-red-500' : `bg-[#D4AF37]/10 text-[#D4AF37]`}`}>
                                                 {isLate ? `TELAT ${Math.abs(daysLeft)} HARI` : `TEMPO: ${formatDate(p.dueDate)}`}
                                              </p>
                                           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 // PERBAIKAN 1: Import Share2 untuk icon Kirim WA
 import { Printer, Edit, RotateCcw, Send } from 'lucide-react';
 import { formatIDR, playSound } from '../utils/helpers';
@@ -64,22 +64,30 @@ export default function POSHistory({
        setProducts(updatedProducts);
        
        if (accounting) {
-           let totalKasToRevert = 0;
+           // ✅ FIX: Buat reversal terpisah PER entry paymentHistory ke akun yang benar
+           // (sebelumnya hanya satu reversal ke accountId pertama saja)
+           const reversalEntries = [];
            let totalDepositToRevert = 0;
-           
-           (doc.paymentHistory || []).forEach(ph => {
+
+           (doc.paymentHistory || []).forEach((ph, i) => {
                if (ph.method === 'Saldo Deposit') {
                    totalDepositToRevert += ph.amount;
-               } else if (ph.method !== 'Retur') {
-                   totalKasToRevert += ph.amount;
+               } else if (ph.method !== 'Retur' && ph.method !== 'Tukar Poin' && ph.amount !== 0) {
+                   reversalEntries.push({
+                       id: Date.now() + i,
+                       accountId: ph.accountId || null,
+                       type: 'kas',
+                       name: `Hapus Nota ${doc.nota}`,
+                       amount: isSale ? -(ph.amount) : ph.amount,
+                       date: new Date().toISOString()
+                   });
                }
            });
-           
-           if (totalKasToRevert !== 0) {
-               const origAccId = (doc.paymentHistory || [])[0]?.accountId || null;
-               setAccounting([...accounting, { id: Date.now(), accountId: origAccId, type: 'kas', name: `Hapus Nota ${doc.nota}`, amount: isSale ? -totalKasToRevert : totalKasToRevert, date: new Date().toISOString() }]);
+
+           if (reversalEntries.length > 0) {
+               setAccounting([...accounting, ...reversalEntries]);
            }
-           
+
            if (isSale && totalDepositToRevert > 0 && setCustomers) {
                 // ✅ Prioritas: cari by ID (dari paymentHistory), fallback ke name-match
                 const depositPayment = (doc.paymentHistory || []).find(ph => ph.method === 'Saldo Deposit');
@@ -92,6 +100,21 @@ export default function POSHistory({
                     }
                     return c;
                 }));
+           }
+       }
+
+       // ✅ FIX: Revert poin customer saat hapus transaksi penjualan
+       if (isSale && setCustomers && (doc.earnedPoints || doc.pointsRedeemed)) {
+           const earned = doc.earnedPoints || 0;
+           const redeemed = doc.pointsRedeemed || 0;
+           if (earned !== 0 || redeemed !== 0) {
+               setCustomers(prev => prev.map(c => {
+                   if (c.name === doc.customer) {
+                       // Kembalikan: kurangi poin yang diearn, tambah balik poin yang ditukar
+                       return { ...c, points: Math.max(0, (c.points || 0) - earned + redeemed) };
+                   }
+                   return c;
+               }));
            }
        }
        if(isSale) setSales(sales.filter(s => s.id !== deleteConfirmId));
@@ -156,7 +179,8 @@ export default function POSHistory({
     showToast(`Retur terekam presisi.`, 'success');
   };
 
-  const columns = [
+  // Memoize columns agar filterOptions tidak di-compute ulang setiap render
+  const columns = useMemo(() => [
     { key: 'nota', label: 'No. Nota', render: (r) => <span className={`font-bold ${colors.gold} cursor-pointer hover:underline`} onClick={() => setSelectedDoc(r)}>{r.nota}</span> },
     { key: 'date', label: 'Tanggal & Waktu', render: (r) => new Date(r.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
     { 
@@ -171,7 +195,7 @@ export default function POSHistory({
        filterOptions: ['Lunas', 'Tempo'],
        render: (r) => <span className={`px-2 py-1 rounded text-xs font-bold ${r.status === 'Lunas' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{r.status}</span> 
     }
-  ];
+  ], [activeData, tab, colors.gold]);
 
   // PERBAIKAN 2: Seragamkan aksi Print dan tambahkan aksi Kirim WA pakai trik autoAction
   const actions = [

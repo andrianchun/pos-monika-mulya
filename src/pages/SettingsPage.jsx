@@ -317,9 +317,7 @@ export default function SettingsPage({
   };
 
   const [isSavingUser, setIsSavingUser] = useState(false);
-  const [resetPwUsername, setResetPwUsername] = useState(null); // username yang mau di-reset password-nya
-  const [resetPwValue, setResetPwValue] = useState('');
-  const [isResettingPw, setIsResettingPw] = useState(false);
+  const [deleteUsr, setDeleteUsr] = useState(null);
 
   const saveUser = async (e) => {
      e.preventDefault();
@@ -327,11 +325,27 @@ export default function SettingsPage({
      const finalForm = {...profileFields, permissions: uForm.role === 'admin' ? ['all'] : (uForm.permissions || [])};
 
      if (finalForm.id) {
-        // Edit profil (nama, role, permission). Ganti password pakai tombol
-        // "Reset Password" terpisah — lewat Cloud Function, bukan form ini.
+        if (uForm.newPassword) {
+            if (uForm.newPassword.length < 6) { showToast('Password baru minimal 6 karakter!', 'error'); return; }
+            setIsSavingUser(true);
+            try {
+               await resetStaffPasswordFn({ username: finalForm.username, newPassword: uForm.newPassword });
+               showToast(`Password "${finalForm.username}" berhasil direset`, 'success');
+            } catch (err) {
+               setIsSavingUser(false);
+               playSound('pop', isSoundOn);
+               showToast(err?.message || 'Gagal reset password', 'error');
+               return; // Hentikan penyimpanan jika reset pass gagal
+            }
+        }
+        
+        // Hapus property dummy agar tidak masuk ke firestore
+        delete finalForm.newPassword; 
+        
         setUsers(users.map(u => u.id === finalForm.id ? { ...u, ...finalForm } : u));
         playSound('success', isSoundOn);
         setIsUserModal(false);
+        setIsSavingUser(false);
         showToast('Akun user berhasil disimpan', 'success');
         return;
      }
@@ -354,23 +368,6 @@ export default function SettingsPage({
         showToast(err?.message || 'Gagal membuat akun', 'error');
      } finally {
         setIsSavingUser(false);
-     }
-  };
-
-  const submitResetPassword = async () => {
-     if (!resetPwValue || resetPwValue.length < 6) { showToast('Password baru minimal 6 karakter!', 'error'); return; }
-     setIsResettingPw(true);
-     try {
-        await resetStaffPasswordFn({ username: resetPwUsername, newPassword: resetPwValue });
-        playSound('success', isSoundOn);
-        showToast(`Password "${resetPwUsername}" berhasil direset`, 'success');
-        setResetPwUsername(null);
-        setResetPwValue('');
-     } catch (err) {
-        playSound('pop', isSoundOn);
-        showToast(err?.message || 'Gagal reset password', 'error');
-     } finally {
-        setIsResettingPw(false);
      }
   };
 
@@ -859,8 +856,7 @@ export default function SettingsPage({
                          <td className="py-3 px-4 font-mono text-gray-500">{u.username}</td>
                          <td className="py-3 px-4">
                             <div className="flex justify-center gap-2">
-                               <button onClick={() => { playSound('pop', isSoundOn); setUForm({ ...u, email: u.email || '', avatar: u.avatar || null }); setIsUserModal(true); }} className="p-1.5 rounded bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:scale-105" title="Edit profil"><Edit size={16}/></button>
-                               <button onClick={() => { playSound('pop', isSoundOn); setResetPwUsername(u.username); setResetPwValue(''); }} className="p-1.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:scale-105" title="Reset Password"><KeyRound size={16}/></button>
+                               <button onClick={() => { playSound('pop', isSoundOn); setUForm({ ...u, email: u.email || '', avatar: u.avatar || null, newPassword: '' }); setIsUserModal(true); }} className="p-1.5 rounded bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:scale-105" title="Edit profil"><Edit size={16}/></button>
                                {u.id !== 1 && u.username !== user.username && <button onClick={() => setDeleteUsr(u)} className="p-1.5 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 hover:scale-105" title="Hapus akun"><Trash2 size={16}/></button>}
                             </div>
                          </td>
@@ -1447,8 +1443,14 @@ export default function SettingsPage({
                      </div>
                      
                      {uForm.id ? (
-                        <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-700 dark:text-blue-300">
-                           Untuk reset password akun ini, tutup form ini lalu klik ikon <KeyRound size={11} className="inline mb-0.5"/> (kunci) di baris user pada tabel.
+                        <div className="p-3 mt-1 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-3">
+                           <div>
+                              <label className={`block text-xs font-bold mb-1 ${colors.text} flex items-center gap-1`}><KeyRound size={12}/> Reset Password Staff (Opsional)</label>
+                              <input type="text" className={`w-full p-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-400 bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.newPassword || ''} onChange={e=>setUForm({...uForm, newPassword: e.target.value})} placeholder="Ketik sandi baru (min. 6)..." />
+                           </div>
+                           <p className="text-[10px] text-blue-700 dark:text-blue-300">
+                              ℹ️ Pengaturan keamanan <b>email login & verifikasi</b> hanya bisa diubah oleh masing-masing user dari perangkat mereka sendiri melalui menu <b>Profil</b> (Pojok kanan atas Header). Admin hanya memiliki akses untuk me-reset password.
+                           </p>
                         </div>
                      ) : (
                         <div className="grid grid-cols-2 gap-3">
@@ -1537,24 +1539,6 @@ export default function SettingsPage({
                   <button type="submit" disabled={isSavingUser} className={`flex-1 py-3 rounded-xl font-bold text-[#18181B] shadow-md ${colors.goldBg} hover:opacity-90 ${isSavingUser ? 'opacity-60 cursor-wait' : ''}`}>{isSavingUser ? 'Menyimpan...' : 'Simpan User'}</button>
                 </div>
               </form>
-            </div>
-         </div>
-      )}
-
-      {/* MODAL RESET PASSWORD USER */}
-      {resetPwUsername && (
-         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-            <div className={`w-full max-w-sm p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
-               <div className="flex items-center gap-2 mb-4">
-                  <KeyRound className="text-blue-500" size={24} />
-                  <h3 className={`text-lg font-bold ${colors.text}`}>Reset Password "{resetPwUsername}"</h3>
-               </div>
-               <p className={`text-xs ${colors.textMuted} mb-4`}>Password lama tidak diperlukan. Beritahu password baru ini ke user yang bersangkutan.</p>
-               <input type="text" autoFocus placeholder="Password baru (min. 6 karakter)" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border} mb-4`} value={resetPwValue} onChange={e => setResetPwValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submitResetPassword(); }} />
-               <div className="flex gap-3">
-                  <button type="button" onClick={() => { setResetPwUsername(null); setResetPwValue(''); }} className={`flex-1 py-2.5 border rounded-xl font-bold ${colors.text} ${colors.border}`}>Batal</button>
-                  <button type="button" onClick={submitResetPassword} disabled={isResettingPw} className={`flex-1 py-2.5 rounded-xl font-bold text-white shadow-md bg-blue-600 hover:bg-blue-700 ${isResettingPw ? 'opacity-60 cursor-wait' : ''}`}>{isResettingPw ? 'Memproses...' : 'Reset Password'}</button>
-               </div>
             </div>
          </div>
       )}

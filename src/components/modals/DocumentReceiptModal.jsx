@@ -33,7 +33,15 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
   const handlePrint = () => {
     playSound('pop', isSoundOn);
     const targetId = printMode === 'a5' ? 'invoice-print-area' : 'receipt-print-area';
-    const printContent = document.getElementById(targetId).innerHTML;
+    
+    // ✅ FIX: Null-check element sebelum mengambil innerHTML
+    const el = document.getElementById(targetId);
+    if (!el) {
+       if (showToast) showToast('Area cetak belum siap, silakan coba lagi.', 'error');
+       return;
+    }
+    const printContent = el.innerHTML;
+    
     const printSize = printMode === 'a5' ? 'A5 portrait' : '48mm auto';
     const printWidth = printMode === 'a5' ? '148mm' : '48mm';
     const zoomCss = printMode === 'a5' ? '' : 'zoom: 0.94;';
