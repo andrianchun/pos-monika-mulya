@@ -326,6 +326,32 @@ export default function App() {
          return b.id - a.id;
       });
 
+      // Firestore menganggap permission-denied sebagai error PERMANEN dan tidak
+      // pernah otomatis mencoba lagi — beda dari error jaringan yang di-retry
+      // sendiri. Di login pertama pada perangkat/tab yang benar-benar baru
+      // (tanpa cache IndexedDB), ada celah waktu singkat di mana listener
+      // pertama terpasang sebelum token auth sepenuhnya "nyantol" di SDK
+      // Firestore, sehingga sempat ditolak walau usernya valid. Karena semua
+      // user yang login selalu diizinkan baca (lihat firestore.rules), sebuah
+      // permission-denied di titik ini nyaris pasti kejadian sesaat itu —
+      // aman untuk dicoba ulang beberapa kali sebelum benar-benar menyerah.
+      const withRetryOnDenied = (attach) => {
+         let attempt = 0;
+         let unsub = () => {};
+         const tryAttach = () => {
+            unsub = attach((error) => {
+               if (error?.code === 'permission-denied' && attempt < 4) {
+                  attempt++;
+                  setTimeout(tryAttach, attempt * 500);
+               } else {
+                  clearTimeout(safetyTimer); setLoading(false);
+               }
+            });
+         };
+         tryAttach();
+         return () => unsub();
+      };
+
       const setupRealtime = (colName, setter, sortDesc = false, limitDate = false) => {
          let q = collection(db, colName);
          if (limitDate) {
@@ -341,12 +367,12 @@ export default function App() {
              q = query(q, where(dateField, '>=', cutoffISO));
          }
 
-         return onSnapshot(q, (snap) => {
+         return withRetryOnDenied((onError) => onSnapshot(q, (snap) => {
              let data = snap.docs.map(d => normalizeObj(colName, d.data()));
             if (sortDesc) sortDescById(data);
             setter(data);
             checkLoaded();
-         }, (error) => { clearTimeout(safetyTimer); setLoading(false); });
+         }, onError));
       };
 
       // Untuk sales & purchases: gabungkan 2 query —
@@ -369,16 +395,16 @@ export default function App() {
             setter(data);
          };
 
-         unsubs.push(onSnapshot(query(collection(db, colName), where('date', '>=', cutoffISO)), (snap) => {
+         unsubs.push(withRetryOnDenied((onError) => onSnapshot(query(collection(db, colName), where('date', '>=', cutoffISO)), (snap) => {
             recentMap = new Map(snap.docs.map(d => [d.id, normalizeObj(colName, d.data())]));
             publish();
             checkLoaded();
-         }, (error) => { clearTimeout(safetyTimer); setLoading(false); }));
+         }, onError)));
 
-         unsubs.push(onSnapshot(query(collection(db, colName), where('status', '==', 'Tempo')), (snap) => {
+         unsubs.push(withRetryOnDenied((onError) => onSnapshot(query(collection(db, colName), where('status', '==', 'Tempo')), (snap) => {
             tempoMap = new Map(snap.docs.map(d => [d.id, normalizeObj(colName, d.data())]));
             publish();
-         }, (error) => {}));
+         }, (error) => { if (error?.code !== 'permission-denied') return; onError(error); })));
       };
 
       unsubs.push(setupRealtime("products", setProducts));
@@ -394,7 +420,7 @@ export default function App() {
       unsubs.push(setupRealtime("shiftHistory", setShiftHistory, true, true));
       unsubs.push(setupRealtime("activityLogs", setActivityLogs, true, true));
 
-      unsubs.push(onSnapshot(collection(db, "settings"), (snap) => {
+      unsubs.push(withRetryOnDenied((onError) => onSnapshot(collection(db, "settings"), (snap) => {
          if (!snap.empty) {
             snap.docs.forEach(d => {
                if(d.id === 'storeInfo') {
@@ -418,7 +444,7 @@ export default function App() {
                }
             });
          }
-      }));
+      }, (error) => { if (error?.code !== 'permission-denied') return; onError(error); })));
     };
     
     // Auth per pengguna: listener data hanya jalan setelah user login sungguhan.
@@ -430,6 +456,10 @@ export default function App() {
         if (!hasInitialized) {
           hasInitialized = true;
           setLoading(true);
+          // Pastikan token auth benar-benar sudah "nyantol" di SDK sebelum
+          // memasang listener Firestore — mengurangi peluang permission-denied
+          // sesaat pada login pertama di perangkat/tab yang cache-nya kosong.
+          await firebaseUser.getIdToken().catch(() => {});
           await initializeAndListen();
         }
       } else {
