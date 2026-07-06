@@ -1,8 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Lock, Store, Plus, Edit, Trash2, X, DownloadCloud, UploadCloud, Tags, Gift, Ticket, Camera, CheckSquare, Square, Image, Link2, Send, RefreshCw, Check, AlertCircle, Zap, Shield } from 'lucide-react';
+import { Lock, Store, Plus, Edit, Trash2, X, DownloadCloud, UploadCloud, Tags, Gift, Ticket, Camera, CheckSquare, Square, Image, Link2, Send, RefreshCw, Check, AlertCircle, Zap, Shield, KeyRound } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload, formatWhatsAppNumber } from '../utils/helpers';
-import { getSecondaryAuth, usernameToEmail } from '../firebase';
-import { createUserWithEmailAndPassword, signOut as fbSignOut } from 'firebase/auth';
+import { createStaffAccountFn, resetStaffPasswordFn, deleteStaffAccountFn } from '../firebase';
 import DateInput from '../components/DateInput';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import SearchableSelect from '../components/ui/SearchableSelect';
@@ -317,44 +316,61 @@ export default function SettingsPage({
      });
   };
 
+  const [isSavingUser, setIsSavingUser] = useState(false);
+  const [resetPwUsername, setResetPwUsername] = useState(null); // username yang mau di-reset password-nya
+  const [resetPwValue, setResetPwValue] = useState('');
+  const [isResettingPw, setIsResettingPw] = useState(false);
+
   const saveUser = async (e) => {
      e.preventDefault();
      const { password, ...profileFields } = uForm;
      const finalForm = {...profileFields, permissions: uForm.role === 'admin' ? ['all'] : (uForm.permissions || [])};
 
      if (finalForm.id) {
-        // Edit profil (nama, role, permission). Password TIDAK bisa diubah dari
-        // sini — akun lain hanya bisa di-reset lewat Firebase Console.
+        // Edit profil (nama, role, permission). Ganti password pakai tombol
+        // "Reset Password" terpisah — lewat Cloud Function, bukan form ini.
         setUsers(users.map(u => u.id === finalForm.id ? { ...u, ...finalForm } : u));
-        if (password) {
-           showToast('Profil disimpan. Reset password user lain: jalankan "node reset-password.cjs" di komputer (lihat panduan).', 'error');
-        } else {
-           showToast('Akun user berhasil disimpan', 'success');
-        }
         playSound('success', isSoundOn);
         setIsUserModal(false);
+        showToast('Akun user berhasil disimpan', 'success');
         return;
      }
 
-     // Akun baru: buat di Firebase Auth dulu (via instance sekunder supaya
-     // sesi admin tidak ikut ter-logout), lalu simpan profil dengan ID = UID.
+     // Akun baru: dibuat lewat Cloud Function (server yang punya hak admin
+     // Firebase), supaya sesi admin yang sedang login tidak terganggu dan
+     // proses ini tervalidasi ulang di server (bukan cuma di client).
      const username = String(finalForm.username || '').trim().toLowerCase();
      if (!username) { showToast('Username wajib diisi!', 'error'); return; }
      if (!password || password.length < 6) { showToast('Password minimal 6 karakter!', 'error'); return; }
+     setIsSavingUser(true);
      try {
-        const secAuth = getSecondaryAuth();
-        const cred = await createUserWithEmailAndPassword(secAuth, usernameToEmail(username), password);
-        await fbSignOut(secAuth).catch(() => {});
-        setUsers([...(users||[]), { ...finalForm, username, id: cred.user.uid, email: usernameToEmail(username) }]);
+        const res = await createStaffAccountFn({ username, password, name: finalForm.name, role: finalForm.role, permissions: finalForm.permissions });
+        setUsers([...(users||[]), res.data.profile]);
         playSound('success', isSoundOn);
         setIsUserModal(false);
         showToast('Akun user berhasil dibuat', 'success');
      } catch (err) {
         playSound('pop', isSoundOn);
-        const code = err?.code || '';
-        if (code === 'auth/email-already-in-use') showToast('Username sudah dipakai akun lain!', 'error');
-        else if (code === 'auth/network-request-failed') showToast('Membuat akun butuh koneksi internet.', 'error');
-        else showToast('Gagal membuat akun: ' + (err?.message || 'Error'), 'error');
+        showToast(err?.message || 'Gagal membuat akun', 'error');
+     } finally {
+        setIsSavingUser(false);
+     }
+  };
+
+  const submitResetPassword = async () => {
+     if (!resetPwValue || resetPwValue.length < 6) { showToast('Password baru minimal 6 karakter!', 'error'); return; }
+     setIsResettingPw(true);
+     try {
+        await resetStaffPasswordFn({ username: resetPwUsername, newPassword: resetPwValue });
+        playSound('success', isSoundOn);
+        showToast(`Password "${resetPwUsername}" berhasil direset`, 'success');
+        setResetPwUsername(null);
+        setResetPwValue('');
+     } catch (err) {
+        playSound('pop', isSoundOn);
+        showToast(err?.message || 'Gagal reset password', 'error');
+     } finally {
+        setIsResettingPw(false);
      }
   };
 
@@ -843,8 +859,9 @@ export default function SettingsPage({
                          <td className="py-3 px-4 font-mono text-gray-500">{u.username}</td>
                          <td className="py-3 px-4">
                             <div className="flex justify-center gap-2">
-                               <button onClick={() => { playSound('pop', isSoundOn); setUForm({ ...u, email: u.email || '', avatar: u.avatar || null }); setIsUserModal(true); }} className="p-1.5 rounded bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:scale-105"><Edit size={16}/></button>
-                               {u.id !== 1 && <button onClick={() => setDeleteUsr(u)} className="p-1.5 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 hover:scale-105"><Trash2 size={16}/></button>}
+                               <button onClick={() => { playSound('pop', isSoundOn); setUForm({ ...u, email: u.email || '', avatar: u.avatar || null }); setIsUserModal(true); }} className="p-1.5 rounded bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200 hover:scale-105" title="Edit profil"><Edit size={16}/></button>
+                               <button onClick={() => { playSound('pop', isSoundOn); setResetPwUsername(u.username); setResetPwValue(''); }} className="p-1.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:scale-105" title="Reset Password"><KeyRound size={16}/></button>
+                               {u.id !== 1 && u.username !== user.username && <button onClick={() => setDeleteUsr(u)} className="p-1.5 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 hover:scale-105" title="Hapus akun"><Trash2 size={16}/></button>}
                             </div>
                          </td>
                       </tr>
@@ -1429,10 +1446,16 @@ export default function SettingsPage({
                         <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Username Login {uForm.id ? '(terkunci)' : ''}</label><input required type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none font-mono lowercase ${uForm.id ? 'opacity-60 cursor-not-allowed' : ''}`} value={uForm.username} onChange={e=>setUForm({...uForm, username: e.target.value})} disabled={!!uForm.id} title={uForm.id ? 'Username adalah identitas login Firebase dan tidak bisa diubah' : ''} /></div>
                      </div>
                      
-                     <div className="grid grid-cols-2 gap-3">
-                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Email (Opsional)</label><input type="email" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.email} onChange={e=>setUForm({...uForm, email: e.target.value})} /></div>
-                        <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Password {uForm.id ? '(reset: script di komputer)' : '(min. 6 karakter)'}</label><input type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none ${uForm.id ? 'opacity-60 cursor-not-allowed' : ''}`} value={uForm.password} onChange={e=>setUForm({...uForm, password: e.target.value})} placeholder={uForm.id ? "node reset-password.cjs" : "Ketik Password..."} required={!uForm.id} disabled={!!uForm.id} title={uForm.id ? 'Lupa password? Jalankan: node reset-password.cjs <username> <passwordBaru> di folder aplikasi' : ''} /></div>
-                     </div>
+                     {uForm.id ? (
+                        <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-700 dark:text-blue-300">
+                           Untuk reset password akun ini, tutup form ini lalu klik ikon <KeyRound size={11} className="inline mb-0.5"/> (kunci) di baris user pada tabel.
+                        </div>
+                     ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                           <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Email (otomatis)</label><input type="text" disabled className={`w-full p-2 border rounded-lg bg-transparent opacity-60 cursor-not-allowed ${colors.text} ${colors.border} outline-none`} value={uForm.username ? `${uForm.username.toLowerCase()}@monikamulya.com` : ''} placeholder="Terisi otomatis dari username" /></div>
+                           <div><label className={`block text-xs mb-1 ${colors.textMuted}`}>Password (min. 6 karakter)</label><input type="text" className={`w-full p-2 border rounded-lg bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.password} onChange={e=>setUForm({...uForm, password: e.target.value})} placeholder="Ketik Password..." required /></div>
+                        </div>
+                     )}
                      
                      <div>
                         <label className={`block text-xs mb-1 ${colors.textMuted}`}>Tipe Akun Dasar</label>
@@ -1511,9 +1534,27 @@ export default function SettingsPage({
 
                 <div className={`flex gap-3 pt-4 border-t border-dashed ${colors.border} shrink-0 mt-2 sm:mt-4`}>
                   <button type="button" onClick={() => { playSound('pop', isSoundOn); setIsUserModal(false); }} className={`flex-1 py-3 border rounded-xl font-bold ${colors.text} ${colors.border} hover:bg-black/5 dark:hover:bg-white/5`}>Batal</button>
-                  <button type="submit" className={`flex-1 py-3 rounded-xl font-bold text-[#18181B] shadow-md ${colors.goldBg} hover:opacity-90`}>Simpan User</button>
+                  <button type="submit" disabled={isSavingUser} className={`flex-1 py-3 rounded-xl font-bold text-[#18181B] shadow-md ${colors.goldBg} hover:opacity-90 ${isSavingUser ? 'opacity-60 cursor-wait' : ''}`}>{isSavingUser ? 'Menyimpan...' : 'Simpan User'}</button>
                 </div>
               </form>
+            </div>
+         </div>
+      )}
+
+      {/* MODAL RESET PASSWORD USER */}
+      {resetPwUsername && (
+         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
+            <div className={`w-full max-w-sm p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
+               <div className="flex items-center gap-2 mb-4">
+                  <KeyRound className="text-blue-500" size={24} />
+                  <h3 className={`text-lg font-bold ${colors.text}`}>Reset Password "{resetPwUsername}"</h3>
+               </div>
+               <p className={`text-xs ${colors.textMuted} mb-4`}>Password lama tidak diperlukan. Beritahu password baru ini ke user yang bersangkutan.</p>
+               <input type="text" autoFocus placeholder="Password baru (min. 6 karakter)" className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border} mb-4`} value={resetPwValue} onChange={e => setResetPwValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submitResetPassword(); }} />
+               <div className="flex gap-3">
+                  <button type="button" onClick={() => { setResetPwUsername(null); setResetPwValue(''); }} className={`flex-1 py-2.5 border rounded-xl font-bold ${colors.text} ${colors.border}`}>Batal</button>
+                  <button type="button" onClick={submitResetPassword} disabled={isResettingPw} className={`flex-1 py-2.5 rounded-xl font-bold text-white shadow-md bg-blue-600 hover:bg-blue-700 ${isResettingPw ? 'opacity-60 cursor-wait' : ''}`}>{isResettingPw ? 'Memproses...' : 'Reset Password'}</button>
+               </div>
             </div>
          </div>
       )}
@@ -1546,7 +1587,17 @@ export default function SettingsPage({
          </div>
       )}
 
-      {deleteUsr && <DeleteConfirmModal title="Hapus Akun User?" desc="Profil user akan dihapus dari aplikasi. PENTING: hapus juga akun loginnya di Firebase Console → Authentication agar tidak bisa masuk lagi." btnText="Hapus" onConfirm={() => { setUsers((users||[]).filter(u => u !== deleteUsr)); setDeleteUsr(null); showToast('Profil dihapus. Jangan lupa hapus akunnya di Firebase Console → Authentication!', 'success'); }} onCancel={() => setDeleteUsr(null)} colors={colors} isSoundOn={isSoundOn} />}
+      {deleteUsr && <DeleteConfirmModal title="Hapus Akun User?" desc={`Akun login "${deleteUsr.username}" dan profilnya akan dihapus permanen. User ini tidak akan bisa masuk lagi.`} btnText="Hapus" onConfirm={async () => {
+         playSound('pop', isSoundOn);
+         try {
+            await deleteStaffAccountFn({ username: deleteUsr.username });
+            setUsers((users||[]).filter(u => u !== deleteUsr));
+            showToast('Akun berhasil dihapus', 'success');
+         } catch (err) {
+            showToast(err?.message || 'Gagal menghapus akun', 'error');
+         }
+         setDeleteUsr(null);
+      }} onCancel={() => setDeleteUsr(null)} colors={colors} isSoundOn={isSoundOn} />}
       {deleteFin && <DeleteConfirmModal title="Hapus Akun Keuangan?" desc="Yakin hapus akun ini?" btnText="Hapus" onConfirm={() => { setFinancialAccounts((financialAccounts||[]).filter(f => f.id !== deleteFin)); setDeleteFin(null); showToast('Akun dihapus', 'success'); }} onCancel={() => setDeleteFin(null)} colors={colors} isSoundOn={isSoundOn} />}
 
       {/* Modal Unsaved Changes */}

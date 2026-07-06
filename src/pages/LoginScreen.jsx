@@ -103,8 +103,7 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
                 <p className="text-sm text-orange-800 dark:text-orange-200 font-semibold mb-2">Panduan Reset Password:</p>
                 <ul className="text-xs text-orange-700 dark:text-orange-300 space-y-2 list-disc pl-4">
                   <li><strong>Masih ingat password &amp; sudah login?</strong> Ganti sendiri lewat menu profil (klik avatar di pojok kanan atas).</li>
-                  <li><strong>Jika Kasir Lupa:</strong> Hubungi Admin (Pemilik) — admin bisa me-reset dalam 1 menit.</li>
-                  <li><strong>Untuk Admin:</strong> Di komputer, buka folder aplikasi lalu jalankan <code>node reset-password.cjs [username] [passwordBaru]</code>. Password tidak lagi tersimpan di database demi keamanan.</li>
+                  <li><strong>Jika Lupa:</strong> Hubungi Admin (Pemilik). Admin bisa reset langsung dari menu Pengaturan &rarr; Hak Akses User &rarr; ikon kunci di baris nama Anda.</li>
                 </ul>
              </div>
              <button type="button" onClick={() => { playSound('pop', isSoundOn); setShowForgotModal(false); }} className={`w-full py-2.5 rounded-xl font-bold text-[#18181B] shadow-md ${colors.goldBg} hover:opacity-90`}>Saya Mengerti</button>

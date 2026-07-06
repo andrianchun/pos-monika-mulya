@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: "AIzaSyABQjWUXAOuEBxh34bdm4BWbBmPm_FKNio",
@@ -27,14 +28,11 @@ export const auth = getAuth(app);
 export const AUTH_EMAIL_DOMAIN = 'monikamulya.com';
 export const usernameToEmail = (username) => `${String(username || '').trim().toLowerCase()}@${AUTH_EMAIL_DOMAIN}`;
 
-// App sekunder: dipakai admin untuk MEMBUAT akun staf baru tanpa
-// menendang sesi login admin (createUserWithEmailAndPassword otomatis
-// sign-in sebagai user baru — makanya dijalankan di instance terpisah).
-let secondaryAuthInstance = null;
-export const getSecondaryAuth = () => {
-  if (!secondaryAuthInstance) {
-    const secondaryApp = initializeApp(firebaseConfig, 'secondary');
-    secondaryAuthInstance = getAuth(secondaryApp);
-  }
-  return secondaryAuthInstance;
-};
+// Cloud Functions: operasi manajemen akun staf (buat/reset password/hapus)
+// yang butuh hak admin Firebase — dijalankan di server (functions/index.js),
+// bukan di browser, supaya password tidak pernah lewat channel klien biasa
+// dan hanya admin yang bisa memanggilnya (dicek ulang di server).
+const functions = getFunctions(app);
+export const createStaffAccountFn = httpsCallable(functions, 'createStaffAccount');
+export const resetStaffPasswordFn = httpsCallable(functions, 'resetStaffPassword');
+export const deleteStaffAccountFn = httpsCallable(functions, 'deleteStaffAccount');
