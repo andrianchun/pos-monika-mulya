@@ -69,10 +69,37 @@ lalu di tiap perangkat toko: buka aplikasi → refresh (tutup-buka jika PWA).
 | Login staf | Username + password (dicek dari database) | Sama persis, tapi diverifikasi Firebase Auth |
 | Tambah akun staf | Menu Pengaturan → Akun | Sama (butuh koneksi internet saat membuat) |
 | Ganti password sendiri | Menu profil | Sama (butuh koneksi internet) |
-| Reset password user lain (lupa) | Admin edit di Pengaturan | Menu Pengaturan → Hak Akses User → klik ikon 🔑 di baris user, langsung dari aplikasi (butuh project Blaze + Cloud Functions ter-deploy) |
+| Reset password user lain (lupa) | Admin edit di Pengaturan | Menu Pengaturan → Hak Akses User → klik ikon 🔑 di baris user, langsung dari aplikasi (butuh masih ada admin yang bisa login) |
+| **Admin sendirian & lupa password (tidak ada admin lain yang bisa login)** | — | Jalur darurat via komputer, lihat bagian **"Kalau Admin Lupa Password Sendiri"** di bawah |
 | Hapus akun staf | Menu Pengaturan | Sama — sekarang otomatis menghapus akun login-nya juga, tidak perlu ke Firebase Console lagi |
 | Tambah akun staf baru | Menu Pengaturan | Sama, sekarang lewat Cloud Function (lebih aman, sesi admin tidak ikut ke-logout) |
 | Login pertama di perangkat baru | Bisa offline | Butuh internet (sesudahnya offline jalan seperti biasa) |
+
+## 🆘 Kalau Admin Lupa Password Sendiri (dan tidak ada admin lain)
+
+Tombol reset 🔑 di menu Pengaturan hanya bisa dipakai **kalau Anda sedang berhasil
+login sebagai admin**. Firebase Console juga tidak punya tombol "set password
+baru langsung" (hanya bisa kirim email reset — percuma, karena email kita
+`username@monikamulya.com` itu alamat sintetis, bukan kotak surat sungguhan).
+
+Kalau situasi ini terjadi, gunakan **jalur darurat** lewat komputer (butuh akses
+ke akun Google pemilik project Firebase, bukan akun aplikasi):
+
+1. Firebase Console (login pakai akun Google Anda) → ⚙️ Project Settings →
+   Service accounts → **Generate new private key** → simpan sebagai
+   `serviceAccountKey.json` di folder proyek ini.
+2. Jalankan:
+   ```
+   npm install firebase-admin
+   node emergency-reset-password.cjs admin passwordBaruAnda123
+   ```
+3. Login ke aplikasi pakai password baru itu.
+4. **Hapus `serviceAccountKey.json`** dari komputer setelah selesai.
+
+Ini bekerja karena scriptnya memakai kunci proyek (akses level Google Cloud),
+bukan lewat login aplikasi — jadi tetap bisa dipakai meski semua akun di
+aplikasi terkunci. Simpan file `emergency-reset-password.cjs` ini baik-baik,
+jangan dihapus — ini satu-satunya jalan keluar kalau kejadian ini menimpa Anda.
 
 ## Saran lanjutan (opsional, kapan-kapan)
 
