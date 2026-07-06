@@ -315,9 +315,7 @@ export default function SettingsPage({
         return {...prev, permissions: perms};
      });
   };
-
   const [isSavingUser, setIsSavingUser] = useState(false);
-  const [deleteUsr, setDeleteUsr] = useState(null);
 
   const saveUser = async (e) => {
      e.preventDefault();
