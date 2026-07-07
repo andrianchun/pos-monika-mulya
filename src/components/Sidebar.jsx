@@ -39,8 +39,8 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
                 {/* Teks Brand Dua Warna */}
                 <div className="flex flex-col justify-center transition-transform group-hover:scale-[1.02]">
                   <span className="text-2xl font-black tracking-tighter leading-none flex items-center">
-                    <span className={colors.gold}>HX</span>
-                    <span className="text-gray-800 dark:text-white">POS</span>
+                    <span className={colors.gold}>TOKO</span>
+                    <span className="text-gray-800 dark:text-white">TO</span>
                   </span>
                   <span className="text-[10px] text-gray-500 font-medium mt-0.5 whitespace-nowrap">
                     by andrianchun © 2026

@@ -1,6 +1,6 @@
 export async function generateDynamicManifest() {
   const storeData = JSON.parse(localStorage.getItem('pos_storeInfo')) || {};
-  let appName = storeData.name || 'HXPOS Monika';
+  let appName = storeData.name || 'TOKOTO POS';
   const logoBase64 = storeData.logoNota || '';
 
   // Generate icon using canvas

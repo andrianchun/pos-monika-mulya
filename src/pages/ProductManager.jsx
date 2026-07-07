@@ -157,7 +157,7 @@ export default function ProductManager({ products, setProducts, categories, unit
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; 
-    a.download = `Data_Produk_HXPOS_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `Data_Produk_TOKOTO_${new Date().toISOString().split('T')[0]}.csv`;
     a.click(); 
     a.remove(); 
     URL.revokeObjectURL(url);

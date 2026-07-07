@@ -907,7 +907,7 @@ export default function PosApp({ tenantGlobalInfo }) {
             </div>
          </div>
          <div className="absolute bottom-8 text-center text-[10px] text-gray-500 font-medium tracking-wide">
-            <span className="text-[#D4AF37]">HXPOS</span> by andrian chun &copy; 2026
+            <span className="text-[#D4AF37]">TOKOTO</span> by andrian chun &copy; 2026
          </div>
       </div>
     );

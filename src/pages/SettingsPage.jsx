@@ -539,7 +539,7 @@ export default function SettingsPage({
        const dateStr = new Date().toISOString().split('T')[0];
        
        a.href = url;
-       a.download = `HXPOS_Backup_${dateStr}.json`;
+       a.download = `TOKOTO_Backup_${dateStr}.json`;
        document.body.appendChild(a);
        a.click();
        document.body.removeChild(a);
