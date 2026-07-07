@@ -57,6 +57,7 @@ export default function PosApp({ tenantGlobalInfo }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
   const [installPrompt, setInstallPrompt] = useState(null);
 
   useEffect(() => {
@@ -365,7 +366,14 @@ export default function PosApp({ tenantGlobalInfo }) {
     let unsubs = []; 
     let loadedCount = 0;
     const safetyTimer = setTimeout(() => { setLoading(false); }, 3000);
-    const checkLoaded = () => { loadedCount++; if(loadedCount >= 8) { clearTimeout(safetyTimer); setLoading(false); } };
+    const checkLoaded = () => { 
+        loadedCount++; 
+        setLoadProgress(Math.min(100, Math.floor((loadedCount / 8) * 100)));
+        if(loadedCount >= 8) { 
+            clearTimeout(safetyTimer); 
+            setLoading(false); 
+        } 
+    };
 
     const initializeAndListen = async () => {
       try {
@@ -856,36 +864,54 @@ export default function PosApp({ tenantGlobalInfo }) {
   }, [products, categories, units]);
 
   const isResolvingUser = !!authUid && !user;
-  if (loading || isResolvingUser) return (
-    <div className="min-h-screen w-full bg-[#121212] flex flex-col items-center justify-center font-sans relative overflow-hidden">
-       {storeInfo?.banner && (
-          <div className="absolute inset-0 z-0 pointer-events-none opacity-40 transition-opacity duration-1000" 
-               style={{ 
-                  backgroundImage: `url(${storeInfo.banner})`, 
-                  backgroundSize: 'cover', 
-                  backgroundPosition: 'bottom',
-                  maskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
-                  WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)'
-               }}>
-          </div>
-       )}
-       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.15)_0%,transparent_60%)]"></div>
-       <div className="relative z-10 flex flex-col items-center animate-pulse">
-          {storeInfo?.logo ? (
-             <img src={storeInfo.logo} alt="Logo" className="w-28 h-28 object-contain mb-6 drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]" />
-          ) : (
-             <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#B8860B] mb-6 flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.3)]">
-                <span className="text-4xl font-black text-[#121212]">{storeInfo?.name ? storeInfo.name.charAt(0) : 'M'}</span>
-             </div>
-          )}
-          <h1 className="text-[#D4AF37] font-black text-2xl tracking-widest uppercase mb-2">{storeInfo?.name || 'MONIKA MULYA'}</h1>
-          <p className="text-gray-400 text-xs tracking-[0.2em] uppercase">Memuat Sistem...</p>
-       </div>
-       <div className="absolute bottom-8 text-center text-[10px] text-gray-500 font-medium tracking-wide">
-          <span className="text-[#D4AF37]">HXPOS</span> by andrian chun &copy; 2026
-       </div>
-    </div>
-  );
+  if (loading || isResolvingUser) {
+    const isVerifying = isResolvingUser || loadProgress >= 100;
+    const progressText = isVerifying ? 'Memverifikasi Akses...' : `${loadProgress}%`;
+    const progressWidth = isVerifying ? 100 : loadProgress;
+    
+    return (
+      <div className="min-h-screen w-full bg-[#121212] flex flex-col items-center justify-center font-sans relative overflow-hidden">
+         {storeInfo?.banner && (
+            <div className="absolute inset-0 z-0 pointer-events-none opacity-40 transition-opacity duration-1000" 
+                 style={{ 
+                    backgroundImage: `url(${storeInfo.banner})`, 
+                    backgroundSize: 'cover', 
+                    backgroundPosition: 'bottom',
+                    maskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
+                    WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)'
+                 }}>
+            </div>
+         )}
+         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.15)_0%,transparent_60%)]"></div>
+         <div className="relative z-10 flex flex-col items-center">
+            <div className={`${!isVerifying ? 'animate-pulse' : ''} flex flex-col items-center`}>
+               {storeInfo?.logo ? (
+                  <img src={storeInfo.logo} alt="Logo" className="w-28 h-28 object-contain mb-6 drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]" />
+               ) : (
+                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#B8860B] mb-6 flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.3)]">
+                     <span className="text-4xl font-black text-[#121212]">{storeInfo?.name ? storeInfo.name.charAt(0) : 'M'}</span>
+                  </div>
+               )}
+               <h1 className="text-[#D4AF37] font-black text-2xl tracking-widest uppercase mb-2">{storeInfo?.name || 'MONIKA MULYA'}</h1>
+            </div>
+            
+            <p className="text-gray-400 text-xs tracking-[0.2em] uppercase mb-6">Memuat Sistem...</p>
+            
+            <div className="w-64 h-1.5 bg-gray-800 rounded-full overflow-hidden mb-3 shadow-[0_0_10px_rgba(212,175,55,0.1)]">
+               <div className="h-full bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] transition-all duration-300 ease-out" style={{ width: `${progressWidth}%` }}></div>
+            </div>
+            
+            <div className="flex items-center gap-2 text-[#D4AF37]">
+               {isVerifying && <Loader2 size={14} className="animate-spin" />}
+               <p className="text-xs font-bold font-mono tracking-wider">{progressText}</p>
+            </div>
+         </div>
+         <div className="absolute bottom-8 text-center text-[10px] text-gray-500 font-medium tracking-wide">
+            <span className="text-[#D4AF37]">HXPOS</span> by andrian chun &copy; 2026
+         </div>
+      </div>
+    );
+  }
   if (!user) {
      const displayStoreInfo = { 
          name: storeInfo?.name || tenantGlobalInfo?.storeName || tenantGlobalInfo?.name || 'Memuat Toko...',

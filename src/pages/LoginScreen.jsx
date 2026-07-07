@@ -42,13 +42,14 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
       playSound('success', isSoundOn);
       localStorage.setItem('mmpos_last_active', Date.now().toString());
       if (onLogin) onLogin();
+      // Jangan set isLoggingIn(false) di sini karena PosApp butuh waktu untuk transisi.
+      // Jika di set false, tombol akan kembali aktif dan user bisa mengkliknya lagi.
     } catch (err) {
+      setIsLoggingIn(false);
       playSound('pop', isSoundOn);
       if (err?.code !== 'auth/popup-closed-by-user') {
          setError('Gagal login Google: ' + (err?.message || 'Error tidak dikenal'));
       }
-    } finally {
-      setIsLoggingIn(false);
     }
   };
 
@@ -66,6 +67,7 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
       localStorage.setItem('mmpos_last_active', Date.now().toString());
       if (onLogin) onLogin(); // profil dimuat oleh App dari koleksi users berdasarkan UID
     } catch (err) {
+      setIsLoggingIn(false);
       playSound('pop', isSoundOn);
       const code = err?.code || '';
       if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-email') {
@@ -77,8 +79,6 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
       } else {
         setError('Gagal login: ' + (err?.message || 'Error tidak dikenal'));
       }
-    } finally {
-      setIsLoggingIn(false);
     }
   };
 
