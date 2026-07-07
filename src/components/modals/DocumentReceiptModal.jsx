@@ -246,7 +246,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                  <div id="receipt-print-area" style={{ position: 'relative', color: '#000', backgroundColor: '#fff', fontSize: '10px', lineHeight: '1.2', fontFamily: 'Arial, sans-serif', width: '100%', maxWidth: '48mm', margin: '0 auto', padding: '16px', boxSizing: 'border-box', overflow: 'hidden' }}>
                     
                     <div style={{ position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', fontSize: '38px', fontWeight: '900', color: 'rgba(0,0,0,0.18)', zIndex: -1, whiteSpace: 'pre-line', textAlign: 'center', lineHeight: '1', pointerEvents: 'none' }}>
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', fontSize: '38px', fontWeight: '900', color: 'transparent', WebkitTextStroke: '1px #000', zIndex: -1, whiteSpace: 'pre-line', textAlign: 'center', lineHeight: '1', pointerEvents: 'none' }}>
                             {watermarkText}
                         </div>
                         {(storeInfo.logoNota || storeInfo.logo) && (
@@ -308,7 +308,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                      <div id="invoice-print-area" style={{ position: 'relative', color: '#000', backgroundColor: '#fff', fontSize: '12px', lineHeight: '1.4', fontFamily: 'Arial, sans-serif', width: '100%', boxSizing: 'border-box' }}>
                          
                          <div style={{ position: 'relative', zIndex: 1 }}>
-                             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', fontSize: '110px', fontWeight: '900', color: 'rgba(0,0,0,0.12)', zIndex: -1, whiteSpace: 'pre-line', textAlign: 'center', lineHeight: '1', pointerEvents: 'none' }}>
+                             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', fontSize: '110px', fontWeight: '900', color: 'transparent', WebkitTextStroke: '3px #000', zIndex: -1, whiteSpace: 'pre-line', textAlign: 'center', lineHeight: '1', pointerEvents: 'none' }}>
                                  {watermarkText}
                              </div>
                              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '15px' }}>
