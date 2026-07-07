@@ -653,11 +653,11 @@ export default function SettingsPage({
                           <div className="grid grid-cols-2 gap-4">
                              <div>
                                 <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Prefix Nota Jual (Sales)</label>
-                                <input required type="text" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} font-mono uppercase outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPrefSales} onChange={e => setSPrefSales(e.target.value)} placeholder="Cth: INV" />
+                                <input required type="text" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} font-mono outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPrefSales} onChange={e => setSPrefSales(e.target.value)} placeholder="Cth: INV" />
                              </div>
                              <div>
                                 <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Prefix Nota Beli (Purchase)</label>
-                                <input required type="text" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} font-mono uppercase outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPrefPurch} onChange={e => setSPrefPurch(e.target.value)} placeholder="Cth: PO" />
+                                <input required type="text" className={`w-full p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} font-mono outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sPrefPurch} onChange={e => setSPrefPurch(e.target.value)} placeholder="Cth: PO" />
                              </div>
                           </div>
                           <p className="text-[11px] text-gray-500 mt-3 italic">Profil toko akan ditampilkan pada aplikasi dan nota.</p>
