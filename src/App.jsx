@@ -6,7 +6,7 @@ import Header from './components/Header';
 import LoginScreen from './pages/LoginScreen';
 import POS from './pages/POS';
 import { generateDynamicManifest } from './utils/pwaHelper';
-import { CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
+import { CheckCircle2, RefreshCw, Loader2, AlertTriangle } from 'lucide-react';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ProductManager = lazy(() => import('./pages/ProductManager'));
