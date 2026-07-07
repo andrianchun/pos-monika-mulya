@@ -4,12 +4,12 @@ import { getAuth } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyABQjWUXAOuEBxh34bdm4BWbBmPm_FKNio",
-  authDomain: "hxpos2.firebaseapp.com",
-  projectId: "hxpos2",
-  storageBucket: "hxpos2.firebasestorage.app",
-  messagingSenderId: "1065659713657",
-  appId: "1:1065659713657:web:1f8aa9609d8ddab4276ca8"
+  apiKey: "AIzaSyAEnD6Nylvx4lJkcKyb8iiSiwcKKbjgFsg",
+  authDomain: "tokoto-id.firebaseapp.com",
+  projectId: "tokoto-id",
+  storageBucket: "tokoto-id.firebasestorage.app",
+  messagingSenderId: "701951463097",
+  appId: "1:701951463097:web:98a5959f427465ce4d5568"
 };
 
 // Initialize Firebase
