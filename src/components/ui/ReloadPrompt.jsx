@@ -4,10 +4,7 @@ import { RefreshCw, X } from 'lucide-react';
 
 export default function ReloadPrompt() {
   // Hook bawaan vite-plugin-pwa untuk bereaksi terhadap pembaruan Service Worker
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
+  const sw = useRegisterSW({
     onRegistered(r) {
       console.log('Service Worker terdaftar');
     },
@@ -15,6 +12,10 @@ export default function ReloadPrompt() {
       console.error('Service Worker gagal mendaftar:', error);
     },
   });
+
+  const needRefreshArray = sw?.needRefresh || [false, () => {}];
+  const updateServiceWorker = sw?.updateServiceWorker || (() => {});
+  const [needRefresh, setNeedRefresh] = needRefreshArray;
 
   // Jika tidak ada update baru, sembunyikan UI ini sepenuhnya
   if (!needRefresh) return null;

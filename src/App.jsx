@@ -6,6 +6,7 @@ import Header from './components/Header';
 import LoginScreen from './pages/LoginScreen';
 import POS from './pages/POS';
 import { generateDynamicManifest } from './utils/pwaHelper';
+import { CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ProductManager = lazy(() => import('./pages/ProductManager'));
@@ -99,15 +100,24 @@ export default function App() {
     
     let profile = (users || []).find(u => String(u.id) === String(authUid));
 
-    // Fallback: Jika pakai UID auth tidak ketemu, cari berdasarkan email (dari legacy data atau belum sinkron UID)
+    // Fallback: Jika pakai UID auth tidak ketemu, cari berdasarkan email atau tebakan username legacy
     if (!profile && auth.currentUser?.email) {
-       profile = (users || []).find(u => u.email === auth.currentUser.email);
+       profile = (users || []).find(u => {
+          if (u.email && u.email === auth.currentUser.email) return true;
+          // Cek mapping username sintetis (legacy)
+          if (u.username && `${String(u.username).trim().toLowerCase()}@monikamulya.com` === auth.currentUser.email) return true;
+          return false;
+       });
     }
 
     // Fallback Darurat: Jika tabel users Firestore KOSONG atau profil tetap tak ditemukan,
     // periksa dari initialUsers lokal (penting untuk instalasi baru).
     if (!profile && auth.currentUser?.email) {
-       const initialProfile = initialUsers.find(u => u.email === auth.currentUser.email);
+       const initialProfile = initialUsers.find(u => {
+          if (u.email === auth.currentUser.email) return true;
+          if (u.username && `${String(u.username).trim().toLowerCase()}@monikamulya.com` === auth.currentUser.email) return true;
+          return false;
+       });
        if (initialProfile) {
           profile = { ...initialProfile, id: authUid };
           // Otomatis seed profil ini ke Firestore agar dikenali listener selanjutnya
