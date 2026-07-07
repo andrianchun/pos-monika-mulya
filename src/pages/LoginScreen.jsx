@@ -111,14 +111,20 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
 
   return (
     <div className={`min-h-screen flex items-center justify-center relative overflow-hidden transition-colors duration-500`}>
+      {/* Warna Latar Belakang Dasar */}
+      <div className={`absolute inset-0 z-0 ${colors.bg}`}></div>
+
       {/* Background Banner Toko (jika ada) */}
-      {storeInfo?.banner ? (
-         <>
-           <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat filter blur-sm opacity-50 transition-opacity duration-1000" style={{ backgroundImage: `url(${storeInfo.banner})` }}></div>
-           <div className={`absolute inset-0 z-0 ${colors.bg} opacity-50`}></div>
-         </>
-      ) : (
-         <div className={`absolute inset-0 z-0 ${colors.bg}`}></div>
+      {storeInfo?.banner && (
+         <div className={`absolute inset-0 z-0 pointer-events-none transition-opacity duration-1000 ${theme === 'dark' ? 'opacity-40' : 'opacity-20'}`} 
+              style={{ 
+                 backgroundImage: `url(${storeInfo.banner})`, 
+                 backgroundSize: 'cover', 
+                 backgroundPosition: 'bottom',
+                 maskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
+                 WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)'
+              }}>
+         </div>
       )}
 
       <div className={`absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 ${theme === 'dark' ? 'bg-amber-900' : 'bg-amber-200'} z-0`}></div>
