@@ -18,6 +18,7 @@ const ActivityLogPage = lazy(() => import('./pages/ActivityLogPage'));
 import ShiftCloseModal from './components/modals/ShiftCloseModal';
 import ShiftOpenModal from './components/modals/ShiftOpenModal';
 import ReloadPrompt from './components/ui/ReloadPrompt';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, getDocsFromServer, writeBatch, onSnapshot, query, where, limit } from 'firebase/firestore';
@@ -831,9 +832,10 @@ export default function App() {
          />
          
          <main className="flex-1 overflow-auto p-4 pb-0 md:p-6 md:pb-0 custom-scrollbar relative">
-             <div className={activeMenu === 'pos' ? 'block h-full' : 'hidden'}>
-                <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} activeShift={activeShift} setActiveShift={setActiveShift} setShowShiftOpenModal={setShowShiftOpenModal} recordActivity={recordActivity} />
-             </div>
+             <ErrorBoundary key={activeMenu}>
+               <div className={activeMenu === 'pos' ? 'block h-full' : 'hidden'}>
+                  <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} activeShift={activeShift} setActiveShift={setActiveShift} setShowShiftOpenModal={setShowShiftOpenModal} recordActivity={recordActivity} />
+               </div>
              
              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white"></div></div>}>
                  {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={setActiveMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
@@ -857,6 +859,7 @@ export default function App() {
                 />
              )}
              </Suspense>
+             </ErrorBoundary>
          </main>
       </div>
         {toast && (
