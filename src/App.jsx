@@ -16,6 +16,7 @@ const POSHistory = lazy(() => import('./pages/POSHistory'));
 const ActivityLogPage = lazy(() => import('./pages/ActivityLogPage'));
 import ShiftCloseModal from './components/modals/ShiftCloseModal';
 import ShiftOpenModal from './components/modals/ShiftOpenModal';
+import ReloadPrompt from './components/ui/ReloadPrompt';
 
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, getDocsFromServer, writeBatch, onSnapshot, query, where, limit } from 'firebase/firestore';
@@ -34,7 +35,6 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authUid, setAuthUid] = useState(null); // UID Firebase Auth yang sedang login
   const justLoggedInRef = useRef(false); // true hanya saat login manual dari LoginScreen
-  const [updateAvailable, setUpdateAvailable] = useState(null); // fungsi updateSW() saat versi baru siap
   const [theme, setTheme] = useState('dark');
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [globalMode, setGlobalMode] = useState('penjualan');
@@ -58,28 +58,6 @@ export default function App() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, []);
-
-  // Deteksi versi baru aplikasi (PWA/service worker). Aplikasi ini dipakai
-  // sebagai kasir yang sering dibiarkan terbuka berhari-hari, jadi update
-  // TIDAK di-reload paksa (bisa membuang keranjang belanja yang sedang
-  // diisi) — cukup tampilkan tombol kecil, staf refresh saat senggang.
-  // Dicek berkala tiap 1 jam supaya tab yang lama terbuka tetap tahu ada versi baru.
-  useEffect(() => {
-    let cancelled = false;
-    import('virtual:pwa-register').then(({ registerSW }) => {
-      if (cancelled) return;
-      const updateSW = registerSW({
-        onRegisteredSW(_url, registration) {
-          if (!registration) return;
-          setInterval(() => { registration.update().catch(() => {}); }, 60 * 60 * 1000);
-        },
-        onNeedRefresh() {
-          setUpdateAvailable(() => () => updateSW(true));
-        },
-      });
-    }).catch(() => {});
-    return () => { cancelled = true; };
   }, []);
   
   const [editIntent, setEditIntent] = useState(null);
@@ -871,13 +849,17 @@ export default function App() {
              </Suspense>
          </main>
       </div>
-        {toast && (<div className={`fixed top-12 left-1/2 transform -translate-x-1/2 px-8 py-3.5 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.4)] z-[9999] font-bold transition-all text-white ${toast.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'}`}>{toast.msg}</div>)}
-
-      {updateAvailable && (
-        <button onClick={updateAvailable} className="fixed bottom-4 right-4 z-[9999] px-4 py-3 rounded-2xl shadow-lg bg-[#D4AF37] text-[#18181B] font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
-          🔄 Versi baru tersedia — Klik untuk Refresh
-        </button>
+        {toast && (
+        <div className={`fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 slide-up-animation ${
+          toast.type === 'success' ? 'bg-[#D4AF37] text-[#18181B]' : 'bg-red-500 text-white'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+          <span className="font-semibold text-sm">{toast.msg}</span>
+        </div>
       )}
+
+      {/* PWA Prompt Updater (elegan) */}
+      <ReloadPrompt />
       
       {showShiftCloseModal && (
           <ShiftCloseModal 
