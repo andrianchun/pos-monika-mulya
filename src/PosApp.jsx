@@ -855,7 +855,8 @@ export default function PosApp({ tenantGlobalInfo }) {
     }
   }, [products, categories, units]);
 
-  if (loading) return (
+  const isResolvingUser = !!authUid && !user;
+  if (loading || isResolvingUser) return (
     <div className="min-h-screen w-full bg-[#121212] flex flex-col items-center justify-center font-sans relative overflow-hidden">
        {storeInfo?.banner && (
           <div className="absolute inset-0 z-0 pointer-events-none opacity-40 transition-opacity duration-1000" 
