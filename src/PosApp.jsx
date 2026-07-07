@@ -223,7 +223,7 @@ export default function PosApp({ tenantGlobalInfo }) {
           })();
         }
       } else {
-        showToast('Profil Firebase ini tidak memiliki hak akses Bypass. Silakan login manual dengan Username/PIN Lokal Anda.', 'error');
+        showToast('Akun Google ini belum didaftarkan sebagai Staf di toko ini. Hubungi Admin.', 'error');
         signOut(auth).catch(() => {});
       }
     };
@@ -886,22 +886,29 @@ export default function PosApp({ tenantGlobalInfo }) {
     </div>
   );
   if (!user) {
-     const displayStoreInfo = tenantGlobalInfo ? { 
-         ...storeInfo, 
-         name: tenantGlobalInfo.storeName || tenantGlobalInfo.name || storeInfo.name,
-         logo: tenantGlobalInfo.logo || storeInfo.logo,
-         banner: tenantGlobalInfo.banner || storeInfo.banner
-     } : storeInfo;
+     const displayStoreInfo = { 
+         name: storeInfo?.name || tenantGlobalInfo?.storeName || tenantGlobalInfo?.name || 'Memuat Toko...',
+         logo: storeInfo?.logo || tenantGlobalInfo?.logo || null,
+         banner: storeInfo?.banner || tenantGlobalInfo?.banner || null,
+         ...tenantGlobalInfo,
+         ...storeInfo
+     };
      
      return (
         <div className="relative w-full h-screen">
-           {/* Background Banner Toko (jika ada) */}
-           {displayStoreInfo.banner && (
-              <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat filter blur-sm opacity-50" style={{ backgroundImage: `url(${displayStoreInfo.banner})` }}></div>
-           )}
            <div className="absolute inset-0 z-10">
               <LoginScreen onLogin={handleLogin} users={users} colors={themeColors} theme={theme} setTheme={setTheme} isSoundOn={true} storeInfo={displayStoreInfo} showToast={showToast} tenantId={tenantId} />
            </div>
+           
+           {/* Render Toast di layar Login */}
+           {toast && (
+             <div className={`fixed bottom-4 right-4 z-[9999] px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 slide-up-animation ${
+               toast.type === 'success' ? 'bg-[#D4AF37] text-[#18181B]' : 'bg-red-500 text-white'
+             }`}>
+               {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+               <span className="font-semibold text-sm">{toast.msg}</span>
+             </div>
+           )}
         </div>
      );
   }

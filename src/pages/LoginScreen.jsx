@@ -110,9 +110,19 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center ${colors.bg} relative overflow-hidden transition-colors duration-500`}>
-      <div className={`absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 ${theme === 'dark' ? 'bg-amber-900' : 'bg-amber-200'}`}></div>
-      <div className={`absolute bottom-[-10%] right-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-200'}`}></div>
+    <div className={`min-h-screen flex items-center justify-center relative overflow-hidden transition-colors duration-500`}>
+      {/* Background Banner Toko (jika ada) */}
+      {storeInfo?.banner ? (
+         <>
+           <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat filter blur-sm opacity-50 transition-opacity duration-1000" style={{ backgroundImage: `url(${storeInfo.banner})` }}></div>
+           <div className={`absolute inset-0 z-0 ${colors.bg} opacity-50`}></div>
+         </>
+      ) : (
+         <div className={`absolute inset-0 z-0 ${colors.bg}`}></div>
+      )}
+
+      <div className={`absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 ${theme === 'dark' ? 'bg-amber-900' : 'bg-amber-200'} z-0`}></div>
+      <div className={`absolute bottom-[-10%] right-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-200'} z-0`}></div>
 
       <button onClick={() => { playSound('pop', isSoundOn); setTheme(theme === 'light' ? 'dark' : 'light'); }} className="absolute top-4 right-4 p-3 rounded-full hover:bg-black/10 dark:hover:bg-white/10 z-50">
         {theme === 'light' ? <Moon size={24} /> : <Sun size={24} className="text-yellow-400" />}
