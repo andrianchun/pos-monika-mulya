@@ -3,8 +3,11 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import RegisterSaaS from './pages/RegisterSaaS';
 import PosApp from './PosApp';
+import TenantWrapper from './components/TenantWrapper';
 
 import SuperAdminApp from './SuperAdminApp';
+
+import GlobalLogin from './pages/GlobalLogin';
 
 export default function App() {
   return (
@@ -12,9 +15,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<RegisterSaaS />} />
+        <Route path="/login" element={<GlobalLogin />} />
         <Route path="/superadmin/*" element={<SuperAdminApp />} />
-        {/* Tenant Area: Menangkap tenantId dari URL, lalu melemparkan kontrol ke PosApp */}
-        <Route path="/:tenantId/*" element={<PosApp />} />
+        <Route path="/:tenantId/*" element={<TenantWrapper />} />
       </Routes>
     </BrowserRouter>
   );

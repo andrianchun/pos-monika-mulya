@@ -1,0 +1,73 @@
+{"users": [
+{
+  "localId": "0hvBallfURXYTw32tvcmNNTQyzD2",
+  "email": "monikamulya@gmail.com",
+  "emailVerified": true,
+  "displayName": "Monika Mulya",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJQo566qKtcrN3xcejAm9TaGCRukHpiCp1qSVblwpCCCVIeFlk8=s96-c",
+  "lastSignedInAt": "1783441817151",
+  "createdAt": "1783432560896",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "115794490222386218085",
+      "email": "monikamulya@gmail.com",
+      "displayName": "Monika Mulya",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJQo566qKtcrN3xcejAm9TaGCRukHpiCp1qSVblwpCCCVIeFlk8=s96-c"
+    }
+  ]
+},
+{
+  "localId": "KDrn8yDcYHeJXBPUNcdAdlvKxUR2",
+  "email": "untheryan@gmail.com",
+  "emailVerified": true,
+  "displayName": "Andrian Tri Wibawanto",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLD-dKPu27XsvsVjXGhwTgNIYW_iZ--L3lE2mCAhZPjpPmHMMfldg=s96-c",
+  "lastSignedInAt": "1783440140205",
+  "createdAt": "1783432450456",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "117550927675375161847",
+      "email": "untheryan@gmail.com",
+      "displayName": "Andrian Tri Wibawanto",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLD-dKPu27XsvsVjXGhwTgNIYW_iZ--L3lE2mCAhZPjpPmHMMfldg=s96-c"
+    }
+  ]
+},
+{
+  "localId": "M5zi4VDimIbkvtFQ3cIx5LlWmyj1",
+  "email": "podcastselflens@gmail.com",
+  "emailVerified": true,
+  "displayName": "Self Lens",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLBvPYIZlUMGMZi7Dlo-R4zgA3YBwpRKmTUGr3spWW7tfGyw_M=s96-c",
+  "lastSignedInAt": "1783440110327",
+  "createdAt": "1783440110326",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "103742027213784236222",
+      "email": "podcastselflens@gmail.com",
+      "displayName": "Self Lens",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLBvPYIZlUMGMZi7Dlo-R4zgA3YBwpRKmTUGr3spWW7tfGyw_M=s96-c"
+    }
+  ]
+},
+{
+  "localId": "kLgDfxC5v8hiPQcXZeHfYeDQS9B3",
+  "email": "andriantriwibawanto@gmail.com",
+  "emailVerified": true,
+  "displayName": "dr. Andrian Tri Wibawanto",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJlW6b9f5Ryo3yUDHq6REwWzNmhv3zOOiv_vGb20X7HJHbtoZL9_w=s96-c",
+  "lastSignedInAt": "1783440279812",
+  "createdAt": "1783432465126",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "102621571111323830681",
+      "email": "andriantriwibawanto@gmail.com",
+      "displayName": "dr. Andrian Tri Wibawanto",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJlW6b9f5Ryo3yUDHq6REwWzNmhv3zOOiv_vGb20X7HJHbtoZL9_w=s96-c"
+    }
+  ]
+}]}

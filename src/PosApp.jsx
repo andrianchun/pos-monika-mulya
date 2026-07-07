@@ -13,6 +13,7 @@ const ProductManager = lazy(() => import('./pages/ProductManager'));
 const ContactManager = lazy(() => import('./pages/ContactManager'));
 const Reports = lazy(() => import('./pages/Reports'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const BillingPage = lazy(() => import('./pages/BillingPage'));
 const POSHistory = lazy(() => import('./pages/POSHistory'));
 const ActivityLogPage = lazy(() => import('./pages/ActivityLogPage'));
 import ShiftCloseModal from './components/modals/ShiftCloseModal';
@@ -21,26 +22,25 @@ import ReloadPrompt from './components/ui/ReloadPrompt';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 
 import { db, auth } from './firebase';
-import { collection, doc, setDoc, getDocsFromServer, writeBatch, onSnapshot, query, where, limit } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, getDocsFromServer, writeBatch, onSnapshot, query, where, limit } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
-const defaultStoreInfo = { name: 'MONIKA MULYA', tagline: 'Bismillah', address: 'Jl. Raya Blitar No. 1', phone: '081234567890', logo: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
-const getInitialStoreInfo = () => {
+const defaultStoreInfo = { name: 'Memuat Toko...', tagline: 'Bismillah', address: 'Memuat...', phone: 'Memuat...', logo: null, banner: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
+const getInitialStoreInfo = (tenantId) => {
     try {
-        const cached = localStorage.getItem('mmpos_storeInfo');
+        const cached = localStorage.getItem(`mmpos_storeInfo_${tenantId}`);
         if (cached) return JSON.parse(cached);
     } catch(e) {}
     return defaultStoreInfo;
 };
 
 import { useParams, useNavigate } from 'react-router-dom';
-export default function PosApp() {
+export default function PosApp({ tenantGlobalInfo }) {
   const { tenantId } = useParams();
   const navigate = useNavigate();
   
   // Pastikan URL tenant valid
   if (!tenantId) return <div>Invalid Tenant URL</div>;
-
   const [user, setUser] = useState(null);
 
   const getTenantCollection = (colName) => {
@@ -91,7 +91,7 @@ export default function PosApp() {
   const [purchases, setPurchases] = useState([]);
   const [accounting, setAccounting] = useState([]);
   const [financialAccounts, setFinancialAccounts] = useState([]);
-  const [storeInfo, setStoreInfo] = useState(getInitialStoreInfo);
+  const [storeInfo, setStoreInfo] = useState(() => getInitialStoreInfo(tenantId));
   const [categories, setCategories] = useState(['Sembako', 'Makanan', 'Minuman']);
   const [units, setUnits] = useState(['Pcs', 'Kg', 'Sak']);
   const [users, setUsers] = useState([]);
@@ -101,72 +101,135 @@ export default function PosApp() {
     if (user && users && users.length > 0) {
       const updatedUser = users.find(u => String(u.id) === String(user.id));
       if (updatedUser && JSON.stringify(updatedUser) !== JSON.stringify(user)) {
-        setUser(updatedUser);
+        if (user.isFirebaseAuth && updatedUser.role !== 'admin') {
+           console.warn("Mendeteksi tabel lokal mencoba mendemosi Admin Utama. Menggagalkan demosi dan memulihkan database lokal!");
+           const fixedUser = { ...updatedUser, role: 'admin', permissions: ['dashboard', 'pos', 'riwayat_penjualan', 'riwayat_pembelian', 'kontak_customer', 'kontak_supplier', 'produk', 'laporan_keuangan', 'laporan_barang', 'aktivitas', 'pengaturan'] };
+           setUser(fixedUser);
+           setDoc(doc(getTenantCollection("users"), String(user.id)), fixedUser).catch(e => {});
+        } else {
+           setUser(updatedUser);
+        }
       }
     }
   }, [users, user]);
 
-  // Resolusi profil: setelah Firebase Auth berhasil, profil dicari di koleksi
-  // users dengan ID dokumen = UID Auth (hasil migrasi migrate-auth.cjs).
+  // Resolusi profil: setelah Firebase Auth berhasil
   useEffect(() => {
-    // Tunggu sampai authUid ada, user belum di-set, dan listener Firestore sudah selesai memuat awal (loading = false)
     if (!authUid || user || loading) return;
     
-    let profile = (users || []).find(u => String(u.id) === String(authUid));
+    const resolveUser = async () => {
+      // 1. Cek apakah ini Owner Global?
+      let ownerData = null;
+      try {
+        const docRef = doc(db, "global_users", authUid);
+        const snap = await getDoc(docRef);
+        
+        if (snap.exists() && snap.data().tenantId === tenantId) {
+            ownerData = snap.data();
+        } else if (auth.currentUser?.email) {
+            // AUTO RECOVERY HANTU UID: Jika akun Firebase pernah dihapus manual tapi email sama
+            const q = query(collection(db, "global_users"), where("email", "==", auth.currentUser.email));
+            const qs = await getDocs(q);
+            if (!qs.empty) {
+                const oldDoc = qs.docs[0];
+                if (oldDoc.data().tenantId === tenantId) {
+                    ownerData = oldDoc.data();
+                    // Migrate data ke UID baru
+                    try {
+                        await setDoc(docRef, { ...ownerData, id: authUid });
+                        await deleteDoc(doc(db, "global_users", oldDoc.id));
+                        console.log("Global Owner UID di-recovery secara otomatis!");
+                    } catch (err) {
+                        console.warn("Auto-recovery DB gagal (Firestore Rules), tapi bypass tetap berjalan.", err);
+                    }
+                }
+            }
+        }
 
-    // Fallback: Jika pakai UID auth tidak ketemu, cari berdasarkan email atau tebakan username legacy
-    if (!profile && auth.currentUser?.email) {
-       profile = (users || []).find(u => {
-          if (u.email && u.email === auth.currentUser.email) return true;
-          // Cek mapping username sintetis (legacy)
-          if (u.username && `${String(u.username).trim().toLowerCase()}@monikamulya.com` === auth.currentUser.email) return true;
-          return false;
-       });
-    }
-
-    // Fallback Darurat: Jika tabel users Firestore KOSONG atau profil tetap tak ditemukan,
-    // periksa dari initialUsers lokal (penting untuk instalasi baru).
-    if (!profile && auth.currentUser?.email) {
-       const initialProfile = initialUsers.find(u => {
-          if (u.email === auth.currentUser.email) return true;
-          if (u.username && `${String(u.username).trim().toLowerCase()}@monikamulya.com` === auth.currentUser.email) return true;
-          return false;
-       });
-       if (initialProfile) {
-          profile = { ...initialProfile, id: authUid };
-          // Otomatis seed profil ini ke Firestore agar dikenali listener selanjutnya
-          setDoc(doc(db, "users", authUid), profile).catch(console.error);
-       }
-    }
-
-    if (profile) {
-      setUser(profile);
-      setActiveMenu(profile.role === 'kasir' ? 'pos' : 'dashboard');
-      // Kalau user baru saja memverifikasi ganti ke email asli (lewat menu
-      // profil) lalu login lagi, email di Firestore masih yang lama —
-      // sinkronkan supaya resolveLoginEmail & tampilan profil ikut update.
-      if (auth.currentUser?.email && auth.currentUser.email !== profile.email) {
-        const newEmail = auth.currentUser.email;
-        customSetUsers(prev => prev.map(u => String(u.id) === String(authUid) ? { ...u, email: newEmail } : u));
-      }
-      if (justLoggedInRef.current) {
-        justLoggedInRef.current = false;
-        (async () => {
-          try {
-            const res = await fetch('https://ipapi.co/json/');
-            const data = await res.json();
-            const location = `${data.city || 'Unknown City'}, ${data.country_name || 'Unknown Country'} (IP: ${data.ip || 'Unknown'})`;
-            recordActivity('Login Sistem', `Akun diakses dari ${location}`, profile);
-          } catch (e) {
-            recordActivity('Login Sistem', `Akun diakses (Gagal melacak lokasi/IP)`, profile);
+        if (ownerData) {
+          const ownerProfile = {
+            id: authUid,
+            name: ownerData.name || auth.currentUser?.displayName || "Pemilik Usaha",
+            username: "owner",
+            email: auth.currentUser?.email || "",
+            role: "admin",
+            permissions: ['dashboard', 'pos', 'riwayat_penjualan', 'riwayat_pembelian', 'kontak_customer', 'kontak_supplier', 'produk', 'laporan_keuangan', 'laporan_barang', 'aktivitas', 'pengaturan'],
+            isFirebaseAuth: true
+          };
+          
+          // Pastikan Owner tampil di Tabel Akun & Akses (users lokal tenant)
+          const localProfile = (users || []).find(u => String(u.id) === String(authUid));
+          if (!localProfile) {
+             setDoc(doc(getTenantCollection("users"), authUid), ownerProfile).catch(e => console.warn("Gagal mirror owner ke lokal tenant", e));
+          } else if (localProfile.name !== ownerProfile.name && !localProfile.isFirebaseAuth) {
+             // Opsional: update lokal jika ada deviasi ekstrem, tapi biarkan dulu untuk menghormati edit lokal
           }
-        })();
+
+          setUser(ownerProfile);
+          setActiveMenu('dashboard');
+          return; // Langsung bypass layar Emas!
+        }
+      } catch(e) {
+        console.warn("Bukan owner global atau gagal baca", e);
+        alert(`DEBUG ERROR BACA DB: ${e.message}`);
       }
-    } else {
-      showToast('Profil akun tidak ditemukan di database. Hubungi admin.', 'error');
-      signOut(auth).catch(() => {});
-    }
-  }, [authUid, users, user, loading]);
+
+
+
+      // 2. Jika bukan Owner, maka cek Karyawan Lokal
+      let profile = (users || []).find(u => String(u.id) === String(authUid));
+
+      // Fallback: Jika pakai UID auth tidak ketemu, cari berdasarkan email atau tebakan username legacy
+      if (!profile && auth.currentUser?.email) {
+         profile = (users || []).find(u => {
+            if (u.email && u.email === auth.currentUser.email) return true;
+            if (u.username && `${String(u.username).trim().toLowerCase()}@monikamulya.com` === auth.currentUser.email) return true;
+            return false;
+         });
+      }
+
+      // Fallback Darurat
+      if (!profile && auth.currentUser?.email && typeof initialUsers !== 'undefined') {
+         const initialProfile = initialUsers.find(u => {
+            if (u.email === auth.currentUser.email) return true;
+            if (u.username && `${String(u.username).trim().toLowerCase()}@monikamulya.com` === auth.currentUser.email) return true;
+            return false;
+         });
+         if (initialProfile) {
+            profile = { ...initialProfile, id: authUid };
+            setDoc(doc(db, "tenants", tenantId, "users", authUid), profile).catch(console.error);
+         }
+      }
+
+      if (profile) {
+        setUser(profile);
+        setActiveMenu(profile.role === 'kasir' ? 'pos' : 'dashboard');
+        
+        if (auth.currentUser?.email && auth.currentUser.email !== profile.email) {
+          const newEmail = auth.currentUser.email;
+          customSetUsers(prev => prev.map(u => String(u.id) === String(authUid) ? { ...u, email: newEmail } : u));
+        }
+        if (justLoggedInRef.current) {
+          justLoggedInRef.current = false;
+          (async () => {
+            try {
+              const res = await fetch('https://ipapi.co/json/');
+              const data = await res.json();
+              const location = `${data.city || 'Unknown City'}, ${data.country_name || 'Unknown Country'} (IP: ${data.ip || 'Unknown'})`;
+              recordActivity('Login Sistem', `Akun diakses dari ${location}`, profile);
+            } catch (e) {
+              recordActivity('Login Sistem', `Akun diakses (Gagal melacak lokasi/IP)`, profile);
+            }
+          })();
+        }
+      } else {
+        showToast('Profil Firebase ini tidak memiliki hak akses Bypass. Silakan login manual dengan Username/PIN Lokal Anda.', 'error');
+        signOut(auth).catch(() => {});
+      }
+    };
+    
+    resolveUser();
+  }, [authUid, users, user, loading, tenantId]);
 
   const [activeShift, setActiveShift] = useState(() => {
     try { const cached = localStorage.getItem('mmpos_activeShift'); if (cached) return JSON.parse(cached); } catch(e) {}
@@ -180,7 +243,7 @@ export default function PosApp() {
       try {
           const id = Date.now().toString();
           const targetUser = overrideUser || user;
-          await setDoc(doc(db, "activityLogs", id), {
+          await setDoc(doc(getTenantCollection("activityLogs"), id), {
               id,
               action,
               details,
@@ -317,7 +380,7 @@ export default function PosApp() {
             const seed = async (colName, dataArr) => {
                if(!dataArr || dataArr.length === 0) return;
                let batch = writeBatch(db);
-               dataArr.forEach(item => batch.set(doc(db, "tenants", tenantId, colName, String(item.id)), JSON.parse(JSON.stringify(item))));
+               dataArr.forEach(item => batch.set(doc(getTenantCollection(colName), String(item.id)), JSON.parse(JSON.stringify(item))));
                await batch.commit();
             };
             await seed("products", initialProducts);
@@ -330,9 +393,9 @@ export default function PosApp() {
             // password tidak pernah disimpan di Firestore.
 
             const defInfo = { name: 'MONIKA MULYA', tagline: 'Bismillah', address: 'Jl. Raya Blitar No. 1', phone: '081234567890', logo: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
-            await setDoc(doc(db, "settings", "storeInfo"), defInfo);
-            await setDoc(doc(db, "settings", "categories"), { values: ['Sembako', 'Makanan', 'Minuman'] });
-            await setDoc(doc(db, "settings", "units"), { values: ['Pcs', 'Kg', 'Sak'] });
+            await setDoc(doc(getTenantCollection("settings"), "storeInfo"), defInfo);
+            await setDoc(doc(getTenantCollection("settings"), "categories"), { values: [] });
+            await setDoc(doc(getTenantCollection("settings"), "units"), { values: ['Pcs'] });
         }
       } catch (e) {}
 
@@ -456,7 +519,7 @@ export default function PosApp() {
                   storeInfoLoadedRef.current = true;
                   setStoreInfo(prev => {
                      const n = {...prev, ...dData};
-                     localStorage.setItem('mmpos_storeInfo', JSON.stringify(n));
+                     localStorage.setItem(`mmpos_storeInfo_${tenantId}`, JSON.stringify(n));
                      return n;
                   });
                }
@@ -564,12 +627,12 @@ export default function PosApp() {
       const promises = [];
 
       for (const item of itemsToDelete) { 
-          batch.delete(doc(db, collectionName, String(item.id))); 
+          batch.delete(doc(getTenantCollection(collectionName), String(item.id))); 
           count++; 
           if (count === 400) { promises.push(batch.commit()); batch = writeBatch(db); count = 0; } 
       }
       for (const item of itemsToSet) { 
-          batch.set(doc(db, collectionName, String(item.id)), JSON.parse(JSON.stringify(item))); 
+          batch.set(doc(getTenantCollection(collectionName), String(item.id)), JSON.parse(JSON.stringify(item))); 
           count++; 
           if (count === 400) { promises.push(batch.commit()); batch = writeBatch(db); count = 0; } 
       }
@@ -614,7 +677,7 @@ export default function PosApp() {
         return Promise.resolve();
      }
      setSyncCount(p=>p+1);
-     return setDoc(doc(db, "settings", "storeInfo"), JSON.parse(JSON.stringify(res)))
+     return setDoc(doc(getTenantCollection("settings"), "storeInfo"), JSON.parse(JSON.stringify(res)))
        .catch(e => { console.error(e); throw e; })
        .finally(() => setSyncCount(p=>Math.max(0,p-1))); 
   };
@@ -623,7 +686,7 @@ export default function PosApp() {
      const res = typeof next === 'function' ? next(stateRef.current.categories) : next; 
      setCategories(res); 
      setSyncCount(p=>p+1); 
-     return setDoc(doc(db, "settings", "categories"), { values: JSON.parse(JSON.stringify(res)) })
+     return setDoc(doc(getTenantCollection("settings"), "categories"), { values: JSON.parse(JSON.stringify(res)) })
        .catch(e => { console.error(e); throw e; })
        .finally(() => setSyncCount(p=>Math.max(0,p-1))); 
   };
@@ -632,7 +695,7 @@ export default function PosApp() {
      const res = typeof next === 'function' ? next(stateRef.current.units) : next; 
      setUnits(res); 
      setSyncCount(p=>p+1); 
-     return setDoc(doc(db, "settings", "units"), { values: JSON.parse(JSON.stringify(res)) })
+     return setDoc(doc(getTenantCollection("settings"), "units"), { values: JSON.parse(JSON.stringify(res)) })
        .catch(e => { console.error(e); throw e; })
        .finally(() => setSyncCount(p=>Math.max(0,p-1))); 
   };
@@ -655,30 +718,38 @@ export default function PosApp() {
       if (parsedData.users) setUsers(parsedData.users);
       if (parsedData.shiftHistory) setShiftHistory(parsedData.shiftHistory);
 
-      // 2. TEMBAK KE CLOUD (Dipantau oleh Badge Biru)
-      const syncProms = [];
-      if (parsedData.products) syncProms.push(syncCollection("products", parsedData.products, stateRef.current.products));
-      if (parsedData.customers) syncProms.push(syncCollection("customers", parsedData.customers, stateRef.current.customers));
-      if (parsedData.suppliers) syncProms.push(syncCollection("suppliers", parsedData.suppliers, stateRef.current.suppliers));
-      if (parsedData.sales) syncProms.push(syncCollection("sales", parsedData.sales, stateRef.current.sales));
-      if (parsedData.purchases) syncProms.push(syncCollection("purchases", parsedData.purchases, stateRef.current.purchases));
-      if (parsedData.accounting) syncProms.push(syncCollection("accounting", parsedData.accounting, stateRef.current.accounting));
-      if (parsedData.financialAccounts) syncProms.push(syncCollection("financialAccounts", parsedData.financialAccounts, stateRef.current.financialAccounts));
-      if (parsedData.users) syncProms.push(syncCollection("users", parsedData.users, stateRef.current.users));
-      if (parsedData.shiftHistory) syncProms.push(syncCollection("shiftHistory", parsedData.shiftHistory, stateRef.current.shiftHistory));
+      // 2. TEMBAK KE CLOUD SECARA BERURUTAN (Dipantau oleh Badge Biru)
+      // JANGAN PARALEL! Firebase IndexDB WebSDK akan hang jika ditembak >10 koleksi batch serentak!
+      const syncTasks = [];
+      if (parsedData.products) syncTasks.push(() => syncCollection("products", parsedData.products, stateRef.current.products));
+      if (parsedData.customers) syncTasks.push(() => syncCollection("customers", parsedData.customers, stateRef.current.customers));
+      if (parsedData.suppliers) syncTasks.push(() => syncCollection("suppliers", parsedData.suppliers, stateRef.current.suppliers));
+      if (parsedData.sales) syncTasks.push(() => syncCollection("sales", parsedData.sales, stateRef.current.sales));
+      if (parsedData.purchases) syncTasks.push(() => syncCollection("purchases", parsedData.purchases, stateRef.current.purchases));
+      if (parsedData.accounting) syncTasks.push(() => syncCollection("accounting", parsedData.accounting, stateRef.current.accounting));
+      if (parsedData.financialAccounts) syncTasks.push(() => syncCollection("financialAccounts", parsedData.financialAccounts, stateRef.current.financialAccounts));
       
-      if (parsedData.storeInfo) syncProms.push(customSetStoreInfo(parsedData.storeInfo));
-      if (parsedData.categories) syncProms.push(customSetCategories(parsedData.categories));
-      if (parsedData.units) syncProms.push(customSetUnits(parsedData.units));
+      // HATI-HATI DENGAN USERS! Kita abaikan array users dari backup V1 supaya tidak merusak UID SaaS Auth!
+      // Kita TIDAK meng-import users dari V1. Pengguna SaaS menggunakan Firebase Auth!
+      // if (parsedData.users) syncTasks.push(() => syncCollection("users", parsedData.users, stateRef.current.users));
+      
+      if (parsedData.shiftHistory) syncTasks.push(() => syncCollection("shiftHistory", parsedData.shiftHistory, stateRef.current.shiftHistory));
+      
+      if (parsedData.storeInfo) syncTasks.push(() => customSetStoreInfo(parsedData.storeInfo));
+      if (parsedData.categories) syncTasks.push(() => customSetCategories(parsedData.categories));
+      if (parsedData.units) syncTasks.push(() => customSetUnits(parsedData.units));
 
-      // Laporan sukses hanya muncul JIKA BENAR-BENAR sukses upload
-      Promise.all(syncProms)
-        .then(() => {
-           showToast("Semua data sukses dikunci permanen ke Cloud!", "success");
-        })
-        .catch(() => {
-           showToast("Sebagian data gagal tersinkron ke Cloud. Periksa koneksi Anda.", "error");
-        });
+      // Eksekusi berurutan (Sequential)
+      (async () => {
+         try {
+            for (const task of syncTasks) {
+               await task();
+            }
+            showToast("Semua data sukses dikunci permanen ke Cloud!", "success");
+         } catch (err) {
+            showToast("Sebagian data gagal tersinkron ke Cloud. Periksa koneksi Anda.", "error");
+         }
+      })();
 
     } catch (err) { 
       showToast("Gagal sinkronisasi. Format data rusak.", "error"); 
@@ -776,10 +847,10 @@ export default function PosApp() {
       }
       
       if (changedCats) {
-         setDoc(doc(db, "settings", "categories"), { values: JSON.parse(JSON.stringify(uniqueCats)) }).catch(console.error);
+         setDoc(doc(getTenantCollection("settings"), "categories"), { values: JSON.parse(JSON.stringify(uniqueCats)) }).catch(console.error);
       }
       if (changedUnits) {
-         setDoc(doc(db, "settings", "units"), { values: JSON.parse(JSON.stringify(uniqueUnits)) }).catch(console.error);
+         setDoc(doc(getTenantCollection("settings"), "units"), { values: JSON.parse(JSON.stringify(uniqueUnits)) }).catch(console.error);
       }
     }
   }, [products, categories, units]);
@@ -814,7 +885,26 @@ export default function PosApp() {
        </div>
     </div>
   );
-  if (!user) return <LoginScreen onLogin={handleLogin} users={users} colors={themeColors} theme={theme} setTheme={setTheme} isSoundOn={true} storeInfo={storeInfo} showToast={showToast} />;
+  if (!user) {
+     const displayStoreInfo = tenantGlobalInfo ? { 
+         ...storeInfo, 
+         name: tenantGlobalInfo.storeName || tenantGlobalInfo.name || storeInfo.name,
+         logo: tenantGlobalInfo.logo || storeInfo.logo,
+         banner: tenantGlobalInfo.banner || storeInfo.banner
+     } : storeInfo;
+     
+     return (
+        <div className="relative w-full h-screen">
+           {/* Background Banner Toko (jika ada) */}
+           {displayStoreInfo.banner && (
+              <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat filter blur-sm opacity-50" style={{ backgroundImage: `url(${displayStoreInfo.banner})` }}></div>
+           )}
+           <div className="absolute inset-0 z-10">
+              <LoginScreen onLogin={handleLogin} users={users} colors={themeColors} theme={theme} setTheme={setTheme} isSoundOn={true} storeInfo={displayStoreInfo} showToast={showToast} tenantId={tenantId} />
+           </div>
+        </div>
+     );
+  }
 
   return (
     <div className={`flex h-screen w-full ${themeColors.bg} ${themeColors.text} overflow-hidden relative`}>
@@ -858,8 +948,13 @@ export default function PosApp() {
              {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} user={user} />}
              {activeMenu === 'aktivitas' && <ActivityLogPage activityLogs={activityLogs} shiftHistory={shiftHistory} colors={themeColors} />}
              
+             {activeMenu === 'langganan' && user?.role === 'admin' && (
+                <BillingPage colors={themeColors} storeInfo={storeInfo} tenantId={tenantId} user={user} showToast={showToast} />
+             )}
+             
              {activeMenu === 'pengaturan' && (
                 <SettingsPage 
+                   tenantId={tenantId}
                    colors={baseThemeColors} user={user} 
                    storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} 
                    users={users} setUsers={customSetUsers} 

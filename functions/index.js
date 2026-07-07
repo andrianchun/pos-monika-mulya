@@ -24,14 +24,26 @@ initializeApp();
 const EMAIL_DOMAIN = 'monikamulya.com'; // harus sama dengan AUTH_EMAIL_DOMAIN di src/firebase.js
 const usernameToEmail = (username) => `${String(username || '').trim().toLowerCase()}@${EMAIL_DOMAIN}`;
 
-async function assertIsAdmin(request) {
+async function assertIsAdmin(request, tenantId) {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Anda harus login terlebih dahulu.');
   }
-  const profileSnap = await getFirestore().collection('users').doc(request.auth.uid).get();
+  if (!tenantId) {
+    throw new HttpsError('invalid-argument', 'Tenant ID wajib disertakan.');
+  }
+  
+  const db = getFirestore();
+  // Cek apakah dia Global Owner
+  const globalUserSnap = await db.collection('global_users').doc(request.auth.uid).get();
+  if (globalUserSnap.exists && globalUserSnap.data().tenantId === tenantId) {
+     return; // Valid sebagai Global Owner
+  }
+  
+  // Jika bukan Global Owner, cek apakah dia Admin Lokal di tenant tersebut
+  const profileSnap = await db.collection('tenants').doc(tenantId).collection('users').doc(request.auth.uid).get();
   const profile = profileSnap.data();
   if (!profile || profile.role !== 'admin') {
-    throw new HttpsError('permission-denied', 'Hanya admin yang boleh melakukan aksi ini.');
+    throw new HttpsError('permission-denied', 'Hanya admin yang boleh melakukan aksi ini di cabang Anda.');
   }
 }
 
@@ -40,17 +52,17 @@ async function assertIsAdmin(request) {
 // benar-benar aktif (lihat App.jsx: efek sinkronisasi setelah verifikasi
 // ganti email) — jadi ini SELALU akurat, baik masih sintetis maupun sudah
 // diganti ke email asli oleh user.
-async function findAuthEmailByUsername(username) {
+async function findAuthEmailByUsername(username, tenantId) {
   const cleanUsername = String(username || '').trim().toLowerCase();
-  if (!cleanUsername) return null;
-  const snap = await getFirestore().collection('users').where('username', '==', cleanUsername).limit(1).get();
+  if (!cleanUsername || !tenantId) return null;
+  const snap = await getFirestore().collection('tenants').doc(tenantId).collection('users').where('username', '==', cleanUsername).limit(1).get();
   if (snap.empty) return null;
   return snap.docs[0].data().email || usernameToEmail(cleanUsername);
 }
 
 exports.createStaffAccount = onCall(async (request) => {
-  await assertIsAdmin(request);
-  const { username, password, name, role, permissions } = request.data || {};
+  const { username, password, name, role, permissions, tenantId } = request.data || {};
+  await assertIsAdmin(request, tenantId);
 
   const cleanUsername = String(username || '').trim().toLowerCase();
   if (!cleanUsername) throw new HttpsError('invalid-argument', 'Username wajib diisi.');
@@ -77,19 +89,19 @@ exports.createStaffAccount = onCall(async (request) => {
     permissions: role === 'admin' ? ['all'] : (Array.isArray(permissions) ? permissions : []),
     avatar: null,
   };
-  await getFirestore().collection('users').doc(authUser.uid).set(profile);
+  await getFirestore().collection('tenants').doc(tenantId).collection('users').doc(authUser.uid).set(profile);
 
   return { success: true, profile };
 });
 
 exports.resetStaffPassword = onCall(async (request) => {
-  await assertIsAdmin(request);
-  const { username, newPassword } = request.data || {};
+  const { username, newPassword, tenantId } = request.data || {};
+  await assertIsAdmin(request, tenantId);
 
   if (!newPassword || newPassword.length < 6) {
     throw new HttpsError('invalid-argument', 'Password baru minimal 6 karakter.');
   }
-  const email = await findAuthEmailByUsername(username);
+  const email = await findAuthEmailByUsername(username, tenantId);
   if (!email) throw new HttpsError('not-found', `User "${username}" tidak ditemukan.`);
   let targetUser;
   try {
@@ -102,10 +114,10 @@ exports.resetStaffPassword = onCall(async (request) => {
 });
 
 exports.deleteStaffAccount = onCall(async (request) => {
-  await assertIsAdmin(request);
-  const { username } = request.data || {};
+  const { username, tenantId } = request.data || {};
+  await assertIsAdmin(request, tenantId);
 
-  const email = await findAuthEmailByUsername(username);
+  const email = await findAuthEmailByUsername(username, tenantId);
   try {
     if (email) {
       const targetUser = await getAuth().getUserByEmail(email);
@@ -113,12 +125,12 @@ exports.deleteStaffAccount = onCall(async (request) => {
         throw new HttpsError('failed-precondition', 'Tidak bisa menghapus akun sendiri yang sedang login.');
       }
       await getAuth().deleteUser(targetUser.uid);
-      await getFirestore().collection('users').doc(targetUser.uid).delete();
+      await getFirestore().collection('tenants').doc(tenantId).collection('users').doc(targetUser.uid).delete();
     }
   } catch (e) {
     if (e instanceof HttpsError) throw e;
     // User Auth mungkin sudah tidak ada — tetap coba bersihkan profil Firestore by username
-    const snap = await getFirestore().collection('users').where('username', '==', String(username).toLowerCase()).get();
+    const snap = await getFirestore().collection('tenants').doc(tenantId).collection('users').where('username', '==', String(username).toLowerCase()).get();
     await Promise.all(snap.docs.map(d => d.ref.delete()));
   }
   return { success: true };
@@ -128,8 +140,9 @@ exports.deleteStaffAccount = onCall(async (request) => {
 // harus bisa dipakai siapa pun yang belum login). Hanya mengembalikan alamat
 // email yang perlu dipakai untuk sign-in; tidak membocorkan data lain.
 exports.resolveLoginEmail = onCall(async (request) => {
-  const { username } = request.data || {};
-  const email = await findAuthEmailByUsername(username);
-  if (!email) throw new HttpsError('not-found', 'Username tidak ditemukan.');
+  const { username, tenantId } = request.data || {};
+  if (!tenantId) throw new HttpsError('invalid-argument', 'Tenant ID wajib disertakan.');
+  const email = await findAuthEmailByUsername(username, tenantId);
+  if (!email) throw new HttpsError('not-found', 'Username tidak ditemukan di sistem cabang Anda.');
   return { email };
 });

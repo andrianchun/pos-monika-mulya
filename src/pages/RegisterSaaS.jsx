@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Store, User, Mail, Lock, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Store, User, Mail, Lock, AlertCircle, CheckCircle2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -19,7 +19,21 @@ export default function RegisterSaaS() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  
+  const [showPassword, setShowPassword] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  React.useEffect(() => {
+    const unsub = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setCurrentUser(user);
+        setFormData(prev => ({ ...prev, email: user.email, password: 'DUMMY_PASSWORD_123' }));
+      } else {
+        setCurrentUser(null);
+      }
+    });
+    return unsub;
+  }, []);
+
   // Fungsi generateTenantId dihapus karena user akan memilih URL-nya sendiri.
 
   const handleChange = (e) => {
@@ -56,9 +70,12 @@ export default function RegisterSaaS() {
         return;
       }
 
-      // 1. Buat Akun Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      const user = userCredential.user;
+      // 1. Buat Akun Auth ATAU gunakan akun yang sedang login
+      let user = currentUser;
+      if (!user) {
+        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        user = userCredential.user;
+      }
       
       // 2. Gunakan URL pilihan user
       const tenantId = formData.tenantUrl;
@@ -68,6 +85,7 @@ export default function RegisterSaaS() {
         id: user.uid,
         email: formData.email,
         name: formData.ownerName,
+        storeName: formData.storeName,
         tenantId: tenantId,
         role: 'admin',
         permissions: ['all'],
@@ -116,12 +134,12 @@ export default function RegisterSaaS() {
                <span className="text-2xl font-black tracking-tight">tokoto.id</span>
              </Link>
              
-             <h2 className="text-4xl font-extrabold leading-tight mb-4">
-               Mulai Perjalanan<br />Bisnis Hebatmu.
-             </h2>
-             <p className="text-orange-100 text-lg">
-               Satu akun untuk mengelola ribuan transaksi dengan mudah dan aman.
-             </p>
+             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2">
+              {currentUser ? 'Langkah Terakhir!' : 'Mulai Sekarang'}
+            </h1>
+            <p className="text-orange-100/80 text-lg">
+              {currentUser ? `Buat toko pertamamu untuk akun ${currentUser.email}` : 'Daftarkan tokomu dan mulai jualan dalam hitungan detik.'}
+            </p>
            </div>
            
            <div className="mt-12 space-y-4">
@@ -209,10 +227,10 @@ export default function RegisterSaaS() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full pl-12 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all placeholder-slate-600"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all placeholder-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="nama@email.com"
                     required
-                    disabled={loading || success}
+                    disabled={loading || success || !!currentUser}
                   />
                 </div>
               </div>
@@ -237,24 +255,29 @@ export default function RegisterSaaS() {
                 <p className="text-xs text-slate-500 mt-2">Gunakan huruf, angka, dan strip (contoh: kopi-senja)</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">Password</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-slate-500" />
+              {!currentUser && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Password</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-slate-500" />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full pl-12 pr-12 py-3 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all placeholder-slate-600"
+                      placeholder="Minimal 6 karakter"
+                      required
+                      disabled={loading || success}
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-slate-300">
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full pl-12 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all placeholder-slate-600"
-                    placeholder="Minimal 6 karakter"
-                    required
-                    disabled={loading || success}
-                  />
                 </div>
-              </div>
+              )}
 
               <button
                 type="submit"

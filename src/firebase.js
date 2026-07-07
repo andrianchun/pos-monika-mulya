@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
 const firebaseConfig = {
@@ -22,6 +22,7 @@ export const db = initializeFirestore(app, {
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
 // Domain email sintetis: staf login pakai username, di belakang layar
 // diubah menjadi email untuk Firebase Auth.

@@ -152,7 +152,7 @@ export default function Header({
 
   const totalNotifCount = lowStockItems.length + incomingDebts.length + incomingReceivables.length + expiringItems.length + hppChangedItems.length;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (activeShift && activeShift.status === 'OPEN') {
         playSound('error', isSoundOn);
         showToast('Wajib Tutup Shift sebelum logout!', 'error');
@@ -165,8 +165,14 @@ export default function Header({
     }
     localStorage.removeItem('mmpos_user');
     localStorage.removeItem('mmpos_last_active');
-    setUser(null);
-    signOut(auth).catch(() => {});
+    // JANGAN memanggil setUser(null) di sini secara sinkron!
+    // Itu akan memicu race condition dengan useEffect auto-login di App.jsx.
+    // Biarkan onAuthStateChanged di App.jsx yang mengatur semuanya begitu signOut berhasil.
+    try {
+        await signOut(auth);
+    } catch (err) {
+        console.error('Logout error', err);
+    }
   };
 
   return (

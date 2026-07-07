@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, ShoppingCart, Package, FileText, Users, Settings, X, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, FileText, Users, Settings, X, ChevronLeft, ChevronRight, Activity, CreditCard } from 'lucide-react';
 
 export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handleMenuClick, user, storeInfo }) {
   const fullMenuItems = [
@@ -10,10 +10,11 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
     { id: 'produk', icon: Package, label: 'Produk', modules: ['produk'] },
     { id: 'laporan', icon: FileText, label: 'Laporan', modules: ['laporan_keuangan', 'laporan_barang'] },
     { id: 'aktivitas', icon: Activity, label: 'Log Aktivitas', modules: ['aktivitas'] },
-    { id: 'pengaturan', icon: Settings, label: 'Pengaturan', modules: ['pengaturan'] }
+    { id: 'pengaturan', icon: Settings, label: 'Pengaturan', modules: ['pengaturan'] },
+    { id: 'langganan', icon: CreditCard, label: 'Langganan', modules: [], adminOnly: true }
   ];
 
-  const permittedMenu = user.role === 'admin' ? fullMenuItems : fullMenuItems.filter(m => m.modules.some(mod => user.permissions?.includes(mod)));
+  const permittedMenu = user.role === 'admin' ? fullMenuItems : fullMenuItems.filter(m => !m.adminOnly && m.modules.some(mod => user.permissions?.includes(mod)));
 
   return (
     <>

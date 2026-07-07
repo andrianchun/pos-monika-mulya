@@ -2,12 +2,13 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Lock, Store, Plus, Edit, Trash2, X, DownloadCloud, UploadCloud, Tags, Gift, Ticket, Camera, CheckSquare, Square, Image, Link2, Send, RefreshCw, Check, AlertCircle, Zap, Shield, KeyRound } from 'lucide-react';
 import { formatIDR, parseIDR, smartFormatInput, playSound, handleImageUpload, formatWhatsAppNumber } from '../utils/helpers';
 import { createStaffAccountFn, resetStaffPasswordFn, deleteStaffAccountFn } from '../firebase';
+import { runHxposMigration } from '../utils/migrationTool';
 import DateInput from '../components/DateInput';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import SearchableSelect from '../components/ui/SearchableSelect';
 
 export default function SettingsPage({ 
-  colors, user, showToast, isSoundOn, 
+  tenantId, colors, user, showToast, isSoundOn, 
   storeInfo = {}, setStoreInfo, users = [], setUsers, categories = [], setCategories, units = [], setUnits, 
   financialAccounts = [], setFinancialAccounts, setAllDatabase, products = [], setProducts, customers = [],
   sales = [], purchases = [], accounting = [], suppliers = []
@@ -19,6 +20,8 @@ export default function SettingsPage({
 
   const [pendingTabSwitch, setPendingTabSwitch] = useState(null);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [migrationLog, setMigrationLog] = useState('');
+  const [isMigrating, setIsMigrating] = useState(false);
 
   // --- SELF-HEALING: PURGE GHOST USERS ---
   React.useEffect(() => {
@@ -323,11 +326,18 @@ export default function SettingsPage({
      const finalForm = {...profileFields, permissions: uForm.role === 'admin' ? ['all'] : (uForm.permissions || [])};
 
      if (finalForm.id) {
+         // PROTEKSI DEMOSI DIRI SENDIRI
+         if (String(finalForm.id) === String(user.id) && finalForm.role !== 'admin') {
+             showToast("Keamanan: Anda tidak diizinkan menurunkan jabatan Anda sendiri menjadi Kasir!", "error");
+             playSound('pop', isSoundOn);
+             setIsSavingUser(false);
+             return;
+         }
         if (uForm.newPassword) {
             if (uForm.newPassword.length < 6) { showToast('Password baru minimal 6 karakter!', 'error'); return; }
             setIsSavingUser(true);
             try {
-               await resetStaffPasswordFn({ username: finalForm.username, newPassword: uForm.newPassword });
+               await resetStaffPasswordFn({ username: finalForm.username, newPassword: uForm.newPassword, tenantId });
                showToast(`Password "${finalForm.username}" berhasil direset`, 'success');
             } catch (err) {
                setIsSavingUser(false);
@@ -356,7 +366,7 @@ export default function SettingsPage({
      if (!password || password.length < 6) { showToast('Password minimal 6 karakter!', 'error'); return; }
      setIsSavingUser(true);
      try {
-        const res = await createStaffAccountFn({ username, password, name: finalForm.name, role: finalForm.role, permissions: finalForm.permissions });
+        const res = await createStaffAccountFn({ username, password, name: finalForm.name, role: finalForm.role, permissions: finalForm.permissions, tenantId });
         setUsers([...(users||[]), res.data.profile]);
         playSound('success', isSoundOn);
         setIsUserModal(false);
@@ -995,6 +1005,38 @@ export default function SettingsPage({
                      <button type="button" onClick={() => { playSound('pop', isSoundOn); importDbRef.current.click(); }} className="px-4 py-2.5 bg-blue-500 text-white font-black rounded-xl text-xs w-full shadow-sm hover:bg-blue-600 transition-colors">Pilih File Backup</button>
                   </div>
                </div>
+
+               {/* TOOL MIGRASI LAMA */}
+               <div className="mt-6 p-5 rounded-xl border border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-900/10">
+                  <h4 className={`font-black text-sm mb-2 text-orange-600 dark:text-orange-400`}>Migrasi Data Legacy (hxpos2) ke Sistem Tenant Baru</h4>
+                  <p className="text-xs text-orange-800/70 dark:text-orange-200/70 mb-4">Fitur sekali-pakai untuk menyedot semua data (Produk, Penjualan, dll) dari root database lama ke dalam kamar tokomu saat ini.</p>
+                  
+                  {migrationLog && (
+                     <div className="mb-4 p-3 bg-black/80 text-green-400 font-mono text-[10px] rounded-lg h-32 overflow-y-auto whitespace-pre-wrap">
+                        {migrationLog}
+                     </div>
+                  )}
+
+                  <button 
+                     type="button"
+                     disabled={isMigrating}
+                     onClick={async () => {
+                        if(!window.confirm("Yakin ingin memulai migrasi data besar-besaran dari HxPOS2 ke tenant ini sekarang?")) return;
+                        setIsMigrating(true);
+                        setMigrationLog("Memulai...\n");
+                        try {
+                           await runHxposMigration(tenantId, (msg) => setMigrationLog(prev => prev + msg + "\n"));
+                           showToast("Migrasi HxPOS2 berhasil dijalankan!", "success");
+                        } catch(e) {
+                           showToast("Gagal memigrasi: " + e.message, "error");
+                        }
+                        setIsMigrating(false);
+                     }}
+                     className={`w-full py-3 rounded-xl font-bold text-white shadow-md flex items-center justify-center gap-2 transition-transform hover:scale-[1.01] ${isMigrating ? 'bg-orange-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'}`}
+                  >
+                     <Zap size={18}/> {isMigrating ? 'Sedang Memigrasi...' : 'Mulai Migrasi Data Sekarang'}
+                  </button>
+               </div>
             </div>
          )}
 
@@ -1459,7 +1501,7 @@ export default function SettingsPage({
                      
                      <div>
                         <label className={`block text-xs mb-1 ${colors.textMuted}`}>Tipe Akun Dasar</label>
-                        <select className={`w-full p-2 border rounded-lg bg-white dark:bg-[#1e1e1e] ${colors.text} ${colors.border} outline-none`} value={uForm.role} onChange={e=>setUForm({...uForm, role: e.target.value})} disabled={uForm.id === 1}>
+                        <select className={`w-full p-2 border rounded-lg bg-white dark:bg-[#1e1e1e] ${colors.text} ${colors.border} outline-none`} value={uForm.role} onChange={e=>setUForm({...uForm, role: e.target.value})} disabled={uForm.id === 1 || String(uForm.id) === String(user?.id)}>
                              <option value="kasir">STAFF (Bisa Kustom Akses)</option><option value="admin">ADMIN (Full Akses)</option>
                         </select>
                      </div>
@@ -1572,7 +1614,7 @@ export default function SettingsPage({
       {deleteUsr && <DeleteConfirmModal title="Hapus Akun User?" desc={`Akun login "${deleteUsr.username}" dan profilnya akan dihapus permanen. User ini tidak akan bisa masuk lagi.`} btnText="Hapus" onConfirm={async () => {
          playSound('pop', isSoundOn);
          try {
-            await deleteStaffAccountFn({ username: deleteUsr.username });
+            await deleteStaffAccountFn({ username: deleteUsr.username, tenantId });
             setUsers((users||[]).filter(u => u !== deleteUsr));
             showToast('Akun berhasil dihapus', 'success');
          } catch (err) {

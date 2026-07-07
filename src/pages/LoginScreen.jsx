@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { ShoppingCart, AlertCircle, User, Lock, Moon, Sun, ShieldAlert, Mail, CheckCircle2 } from 'lucide-react';
+import { ShoppingCart, AlertCircle, User, Lock, Moon, Sun, ShieldAlert, Mail, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { playSound } from '../utils/helpers';
-import { auth, usernameToEmail, resolveLoginEmailFn, AUTH_EMAIL_DOMAIN } from '../firebase';
-import { signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
+import { auth, usernameToEmail, resolveLoginEmailFn, AUTH_EMAIL_DOMAIN, googleProvider } from '../firebase';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence, signInWithPopup } from 'firebase/auth';
 
-export default function LoginScreen({ onLogin, users, colors, theme, setTheme, isSoundOn, showToast, storeInfo }) {
+export default function LoginScreen({ onLogin, users, colors, theme, setTheme, isSoundOn, showToast, storeInfo, tenantId }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -17,13 +18,37 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
   const [forgotEmailSentTo, setForgotEmailSentTo] = useState('');
 
   const resolveEmailForUsername = async (uname) => {
+    // Jika input sudah berupa format email (mengandung @), langsung gunakan
+    if (uname.includes('@')) {
+       return uname.trim();
+    }
+    
     try {
-      const res = await resolveLoginEmailFn({ username: uname });
+      const res = await resolveLoginEmailFn({ username: uname, tenantId });
       return res.data.email;
     } catch (e) {
       // Cloud Function belum terjangkau (offline dsb) — jatuh ke tebakan
       // email sintetis lama, cukup untuk akun yang belum pernah ganti email.
       return usernameToEmail(uname);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    setIsLoggingIn(true);
+    try {
+      await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+      await signInWithPopup(auth, googleProvider);
+      playSound('success', isSoundOn);
+      localStorage.setItem('mmpos_last_active', Date.now().toString());
+      if (onLogin) onLogin();
+    } catch (err) {
+      playSound('pop', isSoundOn);
+      if (err?.code !== 'auth/popup-closed-by-user') {
+         setError('Gagal login Google: ' + (err?.message || 'Error tidak dikenal'));
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -43,8 +68,8 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
     } catch (err) {
       playSound('pop', isSoundOn);
       const code = err?.code || '';
-      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
-        setError('Username atau password salah');
+      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-email') {
+        setError('Username / Email atau password salah');
       } else if (code === 'auth/too-many-requests') {
         setError('Terlalu banyak percobaan gagal. Tunggu beberapa menit lalu coba lagi.');
       } else if (code === 'auth/network-request-failed') {
@@ -69,7 +94,7 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
     if (!forgotUsername.trim()) return;
     setForgotState('sending');
     try {
-      const res = await resolveLoginEmailFn({ username: forgotUsername.trim() });
+      const res = await resolveLoginEmailFn({ username: forgotUsername.trim(), tenantId });
       const email = res.data.email;
       if (email.endsWith('@' + AUTH_EMAIL_DOMAIN)) {
         // Belum pernah ganti ke email asli — kirim ke sini percuma, tidak ada yang menerima.
@@ -98,8 +123,8 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
           {storeInfo.logo ? (
             <img src={storeInfo.logo} className="w-24 h-24 mx-auto object-contain mb-4 drop-shadow-md" alt="logo"/>
           ) : (
-            <div className={`w-20 h-20 mx-auto rounded-2xl ${colors.goldBg} flex items-center justify-center shadow-lg mb-4 overflow-hidden`}>
-              <ShoppingCart size={40} className="text-white" />
+            <div className={`w-24 h-24 mx-auto rounded-2xl ${colors.goldBg} flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.3)] mb-4`}>
+              <span className="text-4xl font-black text-[#121212]">{storeInfo.name ? storeInfo.name.charAt(0).toUpperCase() : 'T'}</span>
             </div>
           )}
           <h1 className={`text-3xl font-extrabold ${colors.gold}`}>{storeInfo.name}</h1>
@@ -109,7 +134,7 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className={`block text-sm font-medium mb-1 ${colors.text}`}>Username</label>
+            <label className={`block text-sm font-medium mb-1 ${colors.text}`}>Username / Email</label>
             <div className="relative">
               <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
               <input type="text" className={`w-full pl-10 pr-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={username} onChange={e => setUsername(e.target.value)} required />
@@ -119,7 +144,10 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
             <label className={`block text-sm font-medium mb-1 ${colors.text}`}>Password</label>
             <div className="relative">
               <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
-              <input type="password" className={`w-full pl-10 pr-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={password} onChange={e => setPassword(e.target.value)} required />
+              <input type={showPassword ? "text" : "password"} className={`w-full pl-10 pr-12 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={password} onChange={e => setPassword(e.target.value)} required />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted} hover:text-[#D4AF37] transition-colors`}>
+                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
           </div>
           <div className="flex items-center justify-between text-sm py-2">
@@ -130,6 +158,22 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
             <button type="button" onClick={openForgotModal} className={`${colors.gold} hover:underline`}>Lupa Password?</button>
           </div>
           <button type="submit" disabled={isLoggingIn} className={`w-full py-3 rounded-xl font-bold text-[#18181B] transition-transform active:scale-95 ${colors.goldBg} hover:opacity-90 shadow-md ${isLoggingIn ? 'opacity-60 cursor-wait' : ''}`}>{isLoggingIn ? 'Memeriksa...' : 'Masuk'}</button>
+          
+          <div className="relative flex py-2 items-center">
+             <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
+             <span className={`flex-shrink-0 mx-4 ${colors.textMuted} text-xs font-medium`}>ATAU</span>
+             <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
+          </div>
+          
+          <button type="button" onClick={handleGoogleLogin} disabled={isLoggingIn} className={`w-full py-3 rounded-xl font-bold border transition-transform active:scale-95 flex items-center justify-center gap-3 shadow-sm hover:shadow-md ${colors.text} ${colors.border} ${theme === 'dark' ? 'bg-[#18181B] hover:bg-[#27272A]' : 'bg-white hover:bg-gray-50'} ${isLoggingIn ? 'opacity-60 cursor-wait' : ''}`}>
+             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
+               <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+               <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+               <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0124 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+               <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+             </svg>
+             Masuk dengan Google
+          </button>
         </form>
       </div>
 

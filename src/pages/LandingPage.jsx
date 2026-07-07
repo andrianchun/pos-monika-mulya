@@ -28,7 +28,7 @@ export default function LandingPage() {
 
         <div className="flex items-center gap-4">
           {/* Untuk Login Kasir, diarahkan ke pencarian toko atau jika tahu URL langsung */}
-          <Link to="/register" className="hidden md:block text-slate-300 hover:text-white font-medium transition-colors">
+          <Link to="/login" className="hidden md:block text-slate-300 hover:text-white font-medium transition-colors">
             Masuk Kasir
           </Link>
           <Link 

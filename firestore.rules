@@ -1,14 +1,8 @@
 rules_version = '2';
 
 // ============================================================================
-// SECURITY RULES — POS MONIKA MULYA
+// SECURITY RULES — POS MONIKA MULYA (VERSI SAAS MULTI-TENANT)
 // Tempel isi file ini di: Firebase Console → Firestore Database → Rules → Publish
-//
-// Prinsip:
-// - Tanpa login Firebase Auth: TIDAK ADA akses sama sekali.
-// - Kasir (role selain admin): boleh operasional harian, tapi TIDAK bisa
-//   mengubah pengaturan toko, akun user, atau menghapus jejak aktivitas.
-// - Admin: akses penuh.
 // ============================================================================
 
 service cloud.firestore {
@@ -18,64 +12,34 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return signedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // 1. DATA GLOBAL (Akses Root)
+    // Profil user global yang mengikat login ke sistem SaaS.
+    match /global_users/{uid} {
+      allow read: if true; 
+      allow write: if signedIn(); 
     }
 
-    // --- Profil user: password TIDAK disimpan di sini (ada di Firebase Auth) ---
-    match /users/{uid} {
-      allow read: if signedIn();
-      // User boleh bikin profilnya sendiri saat inisialisasi awal (seeding), 
-      // ATAU admin boleh bikin.
-      allow create: if isAdmin() || (signedIn() && request.auth.uid == uid);
-      allow delete: if isAdmin();
-      // User boleh update profilnya sendiri (nama/foto), tapi TIDAK boleh
-      // menaikkan role/permission-nya sendiri.
-      allow update: if isAdmin() || (
-        signedIn() && request.auth.uid == uid &&
-        request.resource.data.role == resource.data.role &&
-        request.resource.data.permissions == resource.data.permissions
-      );
-    }
-
-    // --- Pengaturan toko: hanya admin. Kasir hanya boleh menaikkan nomor
-    //     urut nota saat checkout (field nextSeqSales / nextSeqPurchase). ---
-    match /settings/storeInfo {
-      allow read: if signedIn();
-      allow update: if isAdmin() || (
-        signedIn() &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['nextSeqSales', 'nextSeqPurchase'])
-      );
-      allow create, delete: if isAdmin();
-    }
-
-    // Kategori & satuan boleh ditulis semua user login (auto-merge dari produk).
-    match /settings/categories {
+    // 2. DATA KAMAR TENANT (Arsitektur SaaS)
+    // Semua aktivitas operasional (kasir, barang, transaksi) dikerjakan di dalam sini.
+    match /tenants/{tenantId} {
       allow read, write: if signedIn();
     }
-    match /settings/units {
-      allow read, write: if signedIn();
+    
+    match /tenants/{tenantId}/{document=**} {
+      allow read, write: if signedIn(); // Operasional POS SaaS berlangsung di sini
     }
 
-    // --- Log aktivitas: bisa ditambah siapa pun yang login,
-    //     tapi TIDAK bisa diedit/dihapus kecuali admin (anti penghapusan jejak). ---
-    match /activityLogs/{docId} {
-      allow read, create: if signedIn();
-      allow update, delete: if isAdmin();
-    }
-
-    // --- Data operasional: semua user login boleh baca-tulis.
-    //     CATATAN: pakai whitelist eksplisit — di Firestore Rules, jika salah
-    //     satu blok match mengizinkan maka akses lolos, jadi catch-all bebas
-    //     akan membocorkan izin tulis ke users/settings/activityLogs. ---
-    match /{collection}/{docId} {
-      allow read: if signedIn();
-      allow write: if signedIn() && collection in [
-        'products', 'sales', 'purchases', 'customers', 'suppliers',
-        'accounting', 'financialAccounts', 'shiftHistory'
+    // 3. PROTEKSI DATA LAMA (hxpos2)
+    // Ini mengunci seluruh koleksi root lama (Sistem Single Tenant sebelumnya).
+    // DIJAMIN 100% AMAN! Data lama hanya diizinkan untuk DIBACA (Read-Only) saat proses 
+    // migrasi nanti, dan DITOLAK KERAS jika ada yang mencoba mengubah/menghapus!
+    match /{legacyCollection}/{docId} {
+      allow read: if signedIn() && legacyCollection in [
+        'users', 'products', 'sales', 'purchases', 'customers', 'suppliers',
+        'accounting', 'financialAccounts', 'shiftHistory', 'settings', 'activityLogs'
       ];
+      allow write: if false; // PENGUNCIAN MUTLAK! Data HXPOS2 tidak bisa diubah!
     }
+
   }
 }
