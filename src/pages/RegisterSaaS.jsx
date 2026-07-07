@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Store, User, Mail, Lock, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 export default function RegisterSaaS() {
   const navigate = useNavigate();
@@ -12,6 +12,7 @@ export default function RegisterSaaS() {
     storeName: '',
     ownerName: '',
     email: '',
+    tenantUrl: '',
     password: ''
   });
   
@@ -19,19 +20,7 @@ export default function RegisterSaaS() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   
-  const generateTenantId = (name) => {
-    // Ubah "Kopi Senja 99" menjadi "kopi-senja-99"
-    let slug = name.toString().toLowerCase()
-      .replace(/\s+/g, '-')           
-      .replace(/[^\w\-]+/g, '')       
-      .replace(/\-\-+/g, '-')         
-      .replace(/^-+/, '')             
-      .replace(/-+$/, '');
-    
-    // Tambahkan 4 karakter acak agar unik
-    const randomSuffix = Math.random().toString(36).substring(2, 6);
-    return `${slug}-${randomSuffix}`;
-  };
+  // Fungsi generateTenantId dihapus karena user akan memilih URL-nya sendiri.
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -41,8 +30,14 @@ export default function RegisterSaaS() {
     e.preventDefault();
     setError('');
     
-    if (!formData.storeName || !formData.ownerName || !formData.email || !formData.password) {
+    if (!formData.storeName || !formData.ownerName || !formData.email || !formData.password || !formData.tenantUrl) {
       setError('Semua kolom wajib diisi!');
+      return;
+    }
+    
+    const urlRegex = /^[a-z0-9\-]+$/;
+    if (!urlRegex.test(formData.tenantUrl)) {
+      setError('URL Toko hanya boleh berisi huruf kecil, angka, dan tanda hubung (-). Tanpa spasi.');
       return;
     }
     
@@ -53,12 +48,20 @@ export default function RegisterSaaS() {
 
     setLoading(true);
     try {
+      // 0. Cek Ketersediaan URL Toko
+      const tenantDoc = await getDoc(doc(db, "tenants", formData.tenantUrl));
+      if (tenantDoc.exists()) {
+        setError('Maaf, URL "' + formData.tenantUrl + '" sudah dipakai toko lain. Silakan cari nama URL yang lain.');
+        setLoading(false);
+        return;
+      }
+
       // 1. Buat Akun Auth
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = userCredential.user;
       
-      // 2. Generate ID Toko Unik
-      const tenantId = generateTenantId(formData.storeName);
+      // 2. Gunakan URL pilihan user
+      const tenantId = formData.tenantUrl;
       
       // 3. Simpan Profil ke Global Users Root (Supaya bisa deteksi tenant saat login nantinya)
       await setDoc(doc(db, "global_users", user.uid), {
@@ -212,6 +215,26 @@ export default function RegisterSaaS() {
                     disabled={loading || success}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Alamat URL Toko</label>
+                <div className="flex rounded-xl overflow-hidden border border-slate-700 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500 transition-all bg-slate-900">
+                  <span className="flex items-center px-4 bg-slate-800 text-slate-400 border-r border-slate-700 text-sm pointer-events-none select-none">
+                    tokoto-id.web.app/
+                  </span>
+                  <input
+                    type="text"
+                    name="tenantUrl"
+                    value={formData.tenantUrl}
+                    onChange={(e) => setFormData({...formData, tenantUrl: e.target.value.toLowerCase().replace(/[^a-z0-9\-]/g, '')})}
+                    className="w-full px-4 py-3 bg-transparent outline-none placeholder-slate-600 text-white"
+                    placeholder="nama-toko-anda"
+                    required
+                    disabled={loading || success}
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-2">Gunakan huruf, angka, dan strip (contoh: kopi-senja)</p>
               </div>
 
               <div>
