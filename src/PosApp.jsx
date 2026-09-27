@@ -969,15 +969,17 @@ export default function PosApp({ tenantGlobalInfo }) {
                <p className="text-xs font-bold font-mono tracking-wider">{progressText}</p>
             </div>
          </div>
-         <div className="absolute bottom-8 flex flex-col items-center gap-1 text-center text-xs text-gray-500 font-medium tracking-wide">
-            <div className="flex items-center gap-1.5">
-               <img src="/logo-icon.webp" alt="Tokoto" className="w-3.5 h-3.5 object-contain" />
-               <span className="text-orange-500 font-bold">TOKOTO.ID</span>
-               <span className="text-gray-400">&bull; Cloud POS Platform</span>
-            </div>
-            <span className="text-[10px] text-gray-600">&copy; 2026 Tokoto. All rights reserved.</span>
-         </div>
-      </div>
+         <div className="absolute bottom-8 flex flex-col items-center gap-1.5 text-center select-none">
+             <img 
+               src="/logo-banner.webp" 
+               alt="Logo Banner" 
+               className="h-8 w-auto max-w-[170px] object-contain opacity-85 hover:opacity-100 transition-opacity drop-shadow-md" 
+             />
+             <span className="text-[10px] text-gray-400 font-medium tracking-wide">
+               Sistem Kasir Cloud &bull; Tokoto POS
+             </span>
+          </div>
+       </div>
     );
   }
   if (!user) {

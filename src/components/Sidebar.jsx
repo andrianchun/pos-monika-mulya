@@ -41,13 +41,13 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
                   <img 
                     src="/logo-banner.webp" 
                     alt="TOKOTO" 
-                    className="h-7 w-auto max-w-[145px] object-contain object-left pointer-events-none drop-shadow-sm" 
+                    className="h-5 w-auto max-w-[105px] object-contain object-left pointer-events-none drop-shadow-sm opacity-90" 
                   />
-                  <span className="text-[9px] text-gray-500 dark:text-gray-400 font-medium mt-0.5 tracking-tight whitespace-nowrap">
+                  <span className="text-[8px] text-gray-400 dark:text-gray-500 font-normal mt-0.5 tracking-tight whitespace-nowrap opacity-80">
                     by andrianchun © 2026
                   </span>
                 </div>
-                <div className={`hidden lg:flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 ${colors.goldHoverText} border border-transparent ${colors.goldHoverBorder} transition-all`}>
+                <div className={`hidden lg:flex items-center justify-center w-7 h-7 rounded-full bg-black/5 dark:bg-white/5 text-gray-400 dark:text-gray-300 ${colors.goldHoverText} border ${colors.border} ${colors.goldHoverBorder} transition-all`}>
                   <ChevronLeft size={16} />
                 </div>
               </div>
@@ -61,7 +61,7 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
                   <img 
                     src="/logo-icon.webp" 
                     alt="TOKOTO" 
-                    className="w-8 h-8 object-contain pointer-events-none drop-shadow-sm" 
+                    className="w-6 h-6 object-contain pointer-events-none drop-shadow-sm opacity-90" 
                   />
               </div>
             )}

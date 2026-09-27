@@ -24,7 +24,7 @@ export default function DocumentReturnModal({ doc, onClose, onSaveReturn, colors
       <div className={`w-full max-w-2xl p-4 sm:p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
         <div className="flex justify-between items-center mb-4">
            <h3 className={`text-xl font-bold ${colors.text}`}>Retur Barang - {doc.nota.toUpperCase()}</h3>
-           <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="text-red-500 hover:scale-110"><X size={24}/></button>
+           <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg p-1.5 transition-colors"><X size={20}/></button>
         </div>
         <p className={`text-sm mb-4 ${colors.textMuted}`}>Pilih barang yang diretur/dikembalikan. Stok otomatis bertambah kembali dan total nota serta omset disesuaikan secara presisi.</p>
         

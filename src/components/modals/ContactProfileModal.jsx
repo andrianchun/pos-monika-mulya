@@ -46,7 +46,7 @@ export default function ContactProfileModal({ contact, type, sales, purchases, o
               {contact.address && <p className={`text-xs ${colors.textMuted} mt-1`}>{contact.address}</p>}
             </div>
           </div>
-          <button onClick={onClose} className="text-red-500 hover:scale-110 p-2"><X size={24}/></button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"><X size={22}/></button>
         </div>
 
         {/* Stats */}

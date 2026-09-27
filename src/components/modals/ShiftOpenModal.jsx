@@ -93,7 +93,7 @@ export default function ShiftOpenModal({ colors, onClose, setActiveShift, user, 
                         <button
                            type="button"
                            onClick={() => setStartingCashStr('0')}
-                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 p-1 transition-colors"
+                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 transition-colors"
                            title="Kosongkan (Rp 0)"
                         >
                            <X size={16} />

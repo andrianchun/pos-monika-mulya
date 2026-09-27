@@ -32,7 +32,7 @@ export default function ReloadPrompt() {
                Versi terbaru aplikasi telah terunduh. Muat ulang aplikasi untuk mengaplikasikan fitur baru.
             </p>
          </div>
-         <button onClick={() => setNeedRefresh(false)} className="text-gray-400 hover:text-red-500 transition-colors bg-black/5 dark:bg-white/5 rounded-full p-1">
+         <button onClick={() => setNeedRefresh(false)} className="text-gray-400 hover:text-white transition-colors bg-black/5 dark:bg-white/5 rounded-full p-1">
             <X size={16} />
          </button>
       </div>

@@ -66,7 +66,7 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
   const columnsSupplier = [
     { key: 'name', label: 'Nama', render: r => <button onClick={(e) => { e.stopPropagation(); playSound('pop', isSoundOn); setActiveProfile(r); }} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left text-wrap">{r.name}</button> },
     { key: 'phone', label: 'Telepon', render: r => r.phone !== '-' && r.phone ? <button onClick={(e) => { e.stopPropagation(); playSound('pop', isSoundOn); handleWA(r.phone); }} className="text-green-600 hover:underline flex items-center gap-1 font-semibold"><Phone size={14}/> {r.phone}</button> : '-' },
-    { key: 'address', label: 'Alamat' }
+    { key: 'address', label: 'Alamat', render: r => <span className="block max-w-[220px] sm:max-w-[280px] lg:max-w-[360px] truncate" title={r.address}>{r.address || '-'}</span> }
   ];
 
   const handleSave = (e) => {
@@ -156,7 +156,7 @@ export default function ContactManager({ customers, setCustomers, suppliers, set
              <div className={`w-full max-w-md p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
                 <div className="flex justify-between items-center mb-4">
                    <h3 className={`text-xl font-bold ${colors.text}`}>{editingId ? 'Edit Kontak' : 'Tambah Kontak'} {tab === 'customer' ? 'Customer' : 'Supplier'}</h3>
-                   <button onClick={() => { playSound('pop', isSoundOn); setIsModalOpen(false); }} className="text-red-500 hover:scale-110"><X size={24}/></button>
+                   <button onClick={() => { playSound('pop', isSoundOn); setIsModalOpen(false); }} className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"><X size={22}/></button>
                 </div>
                 <form onSubmit={handleSave} className="space-y-4">
                    <div><label className={`block text-xs font-bold mb-1 ${colors.text}`}>Nama Lengkap *</label><input type="text" required className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>

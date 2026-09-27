@@ -218,7 +218,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
            
            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
              <h3 className="text-lg font-bold text-gray-800 dark:text-[#FFFDD0]">Preview Nota</h3>
-             <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="text-red-500 hover:scale-110 p-1"><X size={24}/></button>
+             <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"><X size={22}/></button>
            </div>
 
            <div className="flex-1 overflow-auto p-4 custom-scrollbar bg-gray-100 dark:bg-[#121212] flex flex-col items-center relative">

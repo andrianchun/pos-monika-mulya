@@ -200,7 +200,7 @@ export default function TransactionEditModal({
                 <h3 className={`text-xl font-bold ${colors.text}`}>Edit {editedDoc.nota}</h3>
                 <p className={`text-xs ${colors.textMuted}`}>{isSale ? 'Pelanggan: ' + editedDoc.customer : 'Supplier: ' + editedDoc.supplier} | Status: <span className={editedDoc.status === 'Lunas' ? 'text-green-500' : 'text-orange-500'}>{editedDoc.status}</span></p>
              </div>
-             <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="text-red-500 hover:scale-110"><X size={24}/></button>
+             <button onClick={() => { playSound('pop', isSoundOn); onClose(); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg p-1.5 transition-colors"><X size={20}/></button>
           </div>
 
           <div className={`flex border-b ${colors.border} mb-4 shrink-0`}>

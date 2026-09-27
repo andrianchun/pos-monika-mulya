@@ -333,7 +333,7 @@ export default function ProductManager({ products, setProducts, categories, unit
                  <div className="flex justify-between items-center mb-6 shrink-0">
                     <h3 className={`text-xl font-bold ${colors.text}`}>{editingId ? 'Edit Produk' : 'Tambah Produk'}</h3>
                      <div className="flex items-center gap-2">
-                        <button onClick={() => { playSound('pop', isSoundOn); setIsModalOpen(false); }} className="text-red-500 hover:scale-110 p-1"><X size={24}/></button>
+                        <button onClick={() => { playSound('pop', isSoundOn); setIsModalOpen(false); }} className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"><X size={22}/></button>
                      </div>
                  </div>
                  <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-1 sm:px-3 pb-4">

@@ -272,10 +272,36 @@ export default function Dashboard({ products, sales, purchases, customers, color
     };
 
     const kpiData = [
-      { title: 'Total Penjualan', value: `Rp ${formatIDR(stats.totalPenjualan)}`, trend: getTrendBadge(stats.trends.penjualan), icon: TrendingUp },
-      { title: 'Total Laba', value: `Rp ${formatIDR(stats.totalLaba)}`, trend: getTrendBadge(stats.trends.laba), icon: Wallet },
-      { title: 'Total Transaksi', value: stats.totalTransaksi, trend: getTrendBadge(stats.trends.transaksi), icon: ShoppingCart },
-      { title: 'Customer Aktif', value: `${stats.uniqueCusts} Orang`, trend: getTrendBadge(stats.trends.customer), icon: Users }
+      { 
+        title: 'Total Penjualan', 
+        prefix: 'Rp', 
+        valText: formatIDR(stats.totalPenjualan), 
+        trend: getTrendBadge(stats.trends.penjualan), 
+        icon: TrendingUp 
+      },
+      { 
+        title: 'Total Laba', 
+        prefix: 'Rp', 
+        valText: formatIDR(stats.totalLaba), 
+        trend: getTrendBadge(stats.trends.laba), 
+        icon: Wallet 
+      },
+      { 
+        title: 'Total Transaksi', 
+        prefix: null, 
+        valText: formatIDR(stats.totalTransaksi), 
+        suffix: '',
+        trend: getTrendBadge(stats.trends.transaksi), 
+        icon: ShoppingCart 
+      },
+      { 
+        title: 'Customer Aktif', 
+        prefix: null, 
+        valText: formatIDR(stats.uniqueCusts), 
+        suffix: 'Orang',
+        trend: getTrendBadge(stats.trends.customer), 
+        icon: Users 
+      }
     ];
 
   return (
@@ -303,31 +329,45 @@ export default function Dashboard({ products, sales, purchases, customers, color
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpiData.map((kpi, idx) => (
-          <div key={idx} className={`relative overflow-hidden p-5 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm group hover:border-[#D4AF37] transition-colors`}>
-            <div className="flex justify-between items-start mb-2">
-               <div>
-                 <p className={`text-xs font-bold ${colors.textMuted} mb-1 opacity-70`}>{kpi.title}</p>
-                 {isDataLoading && stats.totalPenjualan === 0 ? (
-                   <div className="h-7 w-28 bg-slate-700/40 rounded-lg animate-pulse my-1"></div>
-                 ) : (
-                   <h3 className={`text-xl sm:text-2xl font-black ${colors.text}`}>{kpi.value}</h3>
-                 )}
-               </div>
-               <div className="absolute -right-2 -bottom-2 opacity-[0.03] dark:opacity-[0.05] group-hover:opacity-10 group-hover:scale-110 transition-all pointer-events-none">
-                   <kpi.icon size={100} className={colors.text} />
-                 </div>
+          <div key={idx} className={`relative overflow-hidden p-4 sm:p-5 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm group hover:border-[#D4AF37] transition-all flex flex-col justify-between min-h-[128px]`}>
+            <div>
+              <p className={`text-xs font-bold ${colors.textMuted} mb-1 opacity-70`}>{kpi.title}</p>
+              {isDataLoading && stats.totalPenjualan === 0 ? (
+                <div className="h-7 w-28 bg-slate-700/40 rounded-lg animate-pulse my-1"></div>
+              ) : (
+                <div className="flex items-baseline gap-1.5 flex-nowrap overflow-hidden">
+                  {kpi.prefix && (
+                    <span className="text-xs sm:text-sm font-bold text-[#D4AF37] select-none shrink-0">
+                      {kpi.prefix}
+                    </span>
+                  )}
+                  <h3 className={`text-lg sm:text-xl lg:text-lg xl:text-2xl font-black ${colors.text} tracking-tight whitespace-nowrap truncate`} title={`${kpi.prefix ? kpi.prefix + ' ' : ''}${kpi.valText}`}>
+                    {kpi.valText}
+                  </h3>
+                  {kpi.suffix && (
+                    <span className="text-xs sm:text-sm font-bold text-gray-400 select-none shrink-0">
+                      {kpi.suffix}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
+
+            <div className="absolute -right-2 -bottom-2 opacity-[0.03] dark:opacity-[0.05] group-hover:opacity-10 group-hover:scale-110 transition-all pointer-events-none">
+              <kpi.icon size={100} className={colors.text} />
+            </div>
+
             {stats.totalPenjualan > 0 && (
-               <div className="flex items-center gap-2 mt-4 text-[10px] font-bold">
-                  <span className={`${kpi.trend.bg} ${kpi.trend.color} px-2 py-0.5 rounded`}>{kpi.trend.text}</span>
-                  <span className={colors.textMuted}>
-                    {timeRange === 'hari' ? 'dibanding kemarin' :
-                     timeRange === 'minggu' ? 'dibanding minggu lalu' :
-                     timeRange === 'bulan' ? 'dibanding bulan lalu' :
-                     timeRange === 'tahun' ? 'dibanding tahun lalu' :
-                     'sepanjang waktu'}
-                  </span>
-               </div>
+              <div className="flex items-center gap-2 mt-3 text-[10px] font-bold">
+                <span className={`${kpi.trend.bg} ${kpi.trend.color} px-2 py-0.5 rounded shrink-0`}>{kpi.trend.text}</span>
+                <span className={`${colors.textMuted} truncate`}>
+                  {timeRange === 'hari' ? 'dibanding kemarin' :
+                   timeRange === 'minggu' ? 'dibanding minggu lalu' :
+                   timeRange === 'bulan' ? 'dibanding bulan lalu' :
+                   timeRange === 'tahun' ? 'dibanding tahun lalu' :
+                   'sepanjang waktu'}
+                </span>
+              </div>
             )}
           </div>
         ))}

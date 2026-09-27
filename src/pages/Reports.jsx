@@ -721,7 +721,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
              <div className={`w-full max-w-lg p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
                <div className="flex justify-between items-center mb-6">
                  <h3 className={`text-xl font-bold ${colors.text}`}>{accForm.id ? 'Edit Data Pembukuan' : 'Input Pembukuan Manual'}</h3>
-                 <button onClick={() => { playSound('pop', isSoundOn); setShowAccModal(false); }} className="text-red-500 hover:scale-110"><X size={24}/></button>
+                 <button onClick={() => { playSound('pop', isSoundOn); setShowAccModal(false); }} className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"><X size={22}/></button>
                </div>
                <form onSubmit={handleAccSave} className="space-y-4">
                  <div>
@@ -786,7 +786,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
              <div className={`w-full max-w-2xl max-h-[80vh] flex flex-col p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
                 <div className="flex justify-between items-center mb-4">
                    <h3 className={`text-xl font-bold text-red-500`}>Rincian Utang Usaha</h3>
-                   <button onClick={() => { playSound('pop', isSoundOn); setUtangModalOpen(false); }} className="text-gray-500 hover:text-red-500 hover:scale-110"><X size={24}/></button>
+                   <button onClick={() => { playSound('pop', isSoundOn); setUtangModalOpen(false); }} className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"><X size={22}/></button>
                 </div>
                 <div className="overflow-y-auto custom-scrollbar flex-1 space-y-2">
                    {purchases.filter(s => s.status === 'Tempo' && s.total > (s.paid || 0)).length === 0 ? <p className="text-center py-4 text-gray-500">Tidak ada utang usaha.</p> : purchases.filter(s => s.status === 'Tempo' && s.total > (s.paid || 0)).map(p => (
@@ -810,7 +810,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
              <div className={`w-full max-w-2xl max-h-[80vh] flex flex-col p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
                 <div className="flex justify-between items-center mb-4">
                    <h3 className={`text-xl font-bold ${colors.gold}`}>Rincian Piutang Usaha</h3>
-                   <button onClick={() => { playSound('pop', isSoundOn); setPiutangModalOpen(false); }} className="text-gray-500 hover:text-red-500 hover:scale-110"><X size={24}/></button>
+                   <button onClick={() => { playSound('pop', isSoundOn); setPiutangModalOpen(false); }} className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"><X size={22}/></button>
                 </div>
                 <div className="overflow-y-auto custom-scrollbar flex-1 space-y-2">
                    {sales.filter(s => s.status === 'Tempo' && s.total > (s.paid || 0)).length === 0 ? <p className="text-center py-4 text-gray-500">Tidak ada piutang usaha.</p> : sales.filter(s => s.status === 'Tempo' && s.total > (s.paid || 0)).map(s => (
@@ -834,7 +834,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
              <div className={`w-full max-w-2xl max-h-[80vh] flex flex-col p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border}`}>
                 <div className="flex justify-between items-center mb-4">
                    <h3 className={`text-xl font-bold text-orange-500`}>Rincian Deposit Pelanggan</h3>
-                   <button onClick={() => { playSound('pop', isSoundOn); setDepositModalOpen(false); }} className="text-gray-500 hover:text-red-500 hover:scale-110"><X size={24}/></button>
+                   <button onClick={() => { playSound('pop', isSoundOn); setDepositModalOpen(false); }} className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"><X size={22}/></button>
                 </div>
                 <div className="overflow-y-auto custom-scrollbar flex-1 space-y-2">
                    {customers?.filter(c => Number(c.deposit) > 0).length === 0 ? <p className="text-center py-4 text-gray-500">Tidak ada pelanggan dengan deposit.</p> : customers?.filter(c => Number(c.deposit) > 0).map(c => (

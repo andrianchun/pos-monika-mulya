@@ -1304,7 +1304,7 @@ export default function SettingsPage({
             <div className={`w-full max-w-lg p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] overflow-y-auto custom-scrollbar`}>
                <div className="flex justify-between items-center mb-4 border-b border-solid border-gray-200 dark:border-gray-800 pb-2">
                  <h3 className={`text-lg font-bold flex items-center gap-2 ${colors.text}`}><Tags size={20} className={colors.gold}/> Kelola Lapis Grosir</h3>
-                 <button onClick={() => setIsGrosirModal(false)} className="text-red-500"><X size={20}/></button>
+                 <button onClick={() => setIsGrosirModal(false)} className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"><X size={20}/></button>
                </div>
                
                <form onSubmit={saveWholesale} className="space-y-4">
@@ -1438,7 +1438,7 @@ export default function SettingsPage({
             <div className={`w-full max-w-lg p-6 rounded-2xl shadow-2xl ${colors.panel} border ${colors.border} max-h-[90vh] overflow-y-auto custom-scrollbar`}>
                <div className="flex justify-between items-center mb-4 border-b border-solid border-gray-200 dark:border-gray-800 pb-2">
                  <h3 className={`text-xl font-bold flex items-center gap-2 ${colors.text}`}><Ticket size={20} className={colors.gold}/> {pForm.id ? 'Edit' : 'Buat'} Promo Diskon</h3>
-                 <button type="button" onClick={() => setIsPromoModal(false)} className="text-red-500"><X size={20}/></button>
+                 <button type="button" onClick={() => setIsPromoModal(false)} className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"><X size={20}/></button>
                </div>
                
                <form onSubmit={savePromo} className="space-y-4">

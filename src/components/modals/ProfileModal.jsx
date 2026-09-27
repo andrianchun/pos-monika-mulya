@@ -134,7 +134,7 @@ export default function ProfileModal({ user, setUser, users, setUsers, colors, i
           <button 
             type="button" 
             onClick={() => { playSound('pop', isSoundOn); onClose(); }} 
-            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg p-1.5 transition-colors"
           >
             <X size={20}/>
           </button>
