@@ -376,40 +376,74 @@ export default function Header({
                             </CollapsibleNotifGroup>
 
                             <CollapsibleNotifGroup 
-                               title="Harga Beli (HPP) Berubah" 
+                               title="Harga Modal (Kulak) Naik" 
                                count={hppChangedItems.length} 
                                icon={AlertTriangle} 
-                               colorClass="text-blue-500" 
+                               colorClass="text-amber-500" 
                                colors={colors} 
                                defaultOpen={true}
                                action={
                                   <button 
                                      onClick={handleDismissAllHpp}
-                                     title="Bersihkan semua notifikasi HPP"
-                                     className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors flex items-center gap-1"
+                                     title="Bersihkan semua notifikasi harga modal"
+                                     className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors flex items-center gap-1"
                                   >
                                      <CheckCheck size={12} /> Bersihkan
                                   </button>
                                }
                             >
-                               {hppChangedItems.map(item => (
-                                   <div key={`hpp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className="py-2 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-between gap-2 cursor-pointer transition-colors">
-                                       <div className="min-w-0 flex-1">
-                                           <span className={`text-xs font-bold truncate block ${colors.text}`}>{item.name}</span>
-                                           <span className="text-[10px] text-gray-400">Dari Rp{formatIDR(item.lastHpp || item.cost || 0)} → <span className="text-blue-400 font-semibold">Rp{formatIDR(item.cost || item.basePrice || 0)}</span></span>
+                               {hppChangedItems.map(item => {
+                                   const modalLama = item.lastHpp || 0;
+                                   const modalBaru = item.cost || item.basePrice || 0;
+                                   const hargaJual = item.price || 0;
+                                   const laba = hargaJual - modalBaru;
+                                   const isRugi = laba <= 0;
+                                   const marginPersen = modalBaru > 0 ? Math.round((laba / modalBaru) * 100) : 0;
+
+                                   return (
+                                       <div 
+                                          key={`hpp-${item.id}`} 
+                                          onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} 
+                                          className="py-2 px-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 flex flex-col gap-1 cursor-pointer transition-colors border border-transparent hover:border-amber-500/30 group"
+                                       >
+                                           <div className="flex justify-between items-start gap-2">
+                                               <span className={`text-xs font-bold truncate ${colors.text}`}>{item.name}</span>
+                                               <div className="flex items-center gap-1 shrink-0">
+                                                  {isRugi ? (
+                                                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-500 animate-pulse">
+                                                        ⚠️ Jual Rugi!
+                                                     </span>
+                                                  ) : (
+                                                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">
+                                                        Laba: Rp {formatIDR(laba)} ({marginPersen}%)
+                                                     </span>
+                                                  )}
+                                                  <button 
+                                                     onClick={(e) => handleDismissSingleHpp(e, item.id)} 
+                                                     className="text-gray-400 hover:text-white p-0.5 rounded hover:bg-white/10 transition-colors ml-0.5"
+                                                     title="Abaikan (Sudah pas)"
+                                                  >
+                                                     <X size={13} />
+                                                  </button>
+                                               </div>
+                                           </div>
+
+                                           <div className="flex justify-between items-center text-[10px] text-gray-400">
+                                               <span>
+                                                  Modal: {modalLama > 0 ? `Rp ${formatIDR(modalLama)} → ` : ''}
+                                                  <strong className="text-amber-500 dark:text-amber-400 font-bold">Rp {formatIDR(modalBaru)}</strong>
+                                               </span>
+                                               <span>
+                                                  Jual saat ini: <strong className="text-gray-200">Rp {formatIDR(hargaJual)}</strong>
+                                               </span>
+                                           </div>
+
+                                           <p className="text-[10px] text-[#D4AF37] font-semibold flex items-center gap-1 group-hover:underline">
+                                              👉 Klik untuk sesuaikan harga jual
+                                           </p>
                                        </div>
-                                       <div className="flex items-center gap-1.5 shrink-0">
-                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">HPP Naik</span>
-                                          <button 
-                                             onClick={(e) => handleDismissSingleHpp(e, item.id)} 
-                                             className="text-gray-400 hover:text-white p-0.5 rounded hover:bg-white/10 transition-colors"
-                                             title="Abaikan notifikasi ini"
-                                          >
-                                             <X size={13} />
-                                          </button>
-                                       </div>
-                                   </div>
-                               ))}
+                                   );
+                               })}
                             </CollapsibleNotifGroup>
                          </>
                       )}

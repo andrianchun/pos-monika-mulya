@@ -338,6 +338,21 @@ export default function ProductManager({ products, setProducts, categories, unit
                  </div>
                  <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-1 sm:px-3 pb-4">
                     <form id="productForm" onSubmit={handleSave} className="space-y-5">
+                     {form.hppChanged && (
+                        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 text-xs animate-fadeIn">
+                           <div className="text-amber-600 dark:text-amber-400">
+                              <span className="font-bold">⚠️ Harga modal baru saja naik:</span> Rp {formatIDR(form.lastHpp || 0)} ➔ <span className="font-extrabold text-white">Rp {formatIDR(form.cost || 0)}</span>.
+                              <span className="block text-[11px] text-gray-400 mt-0.5">Periksa dan sesuaikan Harga Jual di bawah agar margin keuntungan toko tetap terjaga.</span>
+                           </div>
+                           <button 
+                              type="button" 
+                              onClick={() => setForm(f => ({ ...f, hppChanged: false }))} 
+                              className="px-2.5 py-1 text-[11px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 rounded-lg transition-colors shrink-0"
+                           >
+                              Sudah Sesuai ✓
+                           </button>
+                        </div>
+                     )}
               <div className="flex flex-col items-center mb-4">
                  <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group shrink-0`} title="Upload Thumbnail Produk">
                     {form.img && (form.img.startsWith('data:image') || form.img.startsWith('http')) ? <img src={form.img} className="w-full h-full object-cover" alt="Thumb" /> : <span className="text-4xl">{form.img}</span>}
