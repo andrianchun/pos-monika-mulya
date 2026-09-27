@@ -4,6 +4,13 @@ import { playSound } from '../../utils/helpers';
 
 export default function PwaInstallButton({ installPrompt, storeName = 'Monika Mulya', isSoundOn = true, showToast = null, variant = 'compact' }) {
   const [isStandalone, setIsStandalone] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(() => {
+    try {
+      return localStorage.getItem('tokoto_pwa_installed') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
   const [promptReady, setPromptReady] = useState(() => !!(installPrompt || (typeof window !== 'undefined' && window.deferredInstallPrompt)));
 
   useEffect(() => {
@@ -18,6 +25,27 @@ export default function PwaInstallButton({ installPrompt, storeName = 'Monika Mu
     checkStandalone();
     window.matchMedia('(display-mode: standalone)').addEventListener('change', checkStandalone);
 
+    // Cek apakah browser mendeteksi aplikasi sudah terpasang di OS
+    if (typeof navigator !== 'undefined' && navigator.getInstalledRelatedApps) {
+      navigator.getInstalledRelatedApps().then((apps) => {
+        if (apps && apps.length > 0) {
+          setIsInstalled(true);
+          try {
+            localStorage.setItem('tokoto_pwa_installed', 'true');
+          } catch (e) {}
+        }
+      }).catch(() => {});
+    }
+
+    // Tangkap event bawaan browser saat instalasi PWA selesai
+    const onAppInstalled = () => {
+      setIsInstalled(true);
+      try {
+        localStorage.setItem('tokoto_pwa_installed', 'true');
+      } catch (e) {}
+    };
+    window.addEventListener('appinstalled', onAppInstalled);
+
     const onInstallReady = () => setPromptReady(true);
     window.addEventListener('tokoto-install-ready', onInstallReady);
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -28,10 +56,17 @@ export default function PwaInstallButton({ installPrompt, storeName = 'Monika Mu
 
     return () => {
       window.removeEventListener('tokoto-install-ready', onInstallReady);
+      window.removeEventListener('appinstalled', onAppInstalled);
     };
   }, []);
 
-  if (isStandalone) {
+  const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  // Sembunyikan tombol jika:
+  // 1. Di PC / Desktop (Chrome / Edge desktop sudah memiliki tombol "Open in app" / install resmi di address bar)
+  // 2. Sudah dibuka di mode aplikasi mandiri (standalone)
+  // 3. Sudah pernah dipasang di perangkat ini (isInstalled)
+  if (!isMobile || isStandalone || isInstalled) {
     return null;
   }
 
@@ -46,6 +81,10 @@ export default function PwaInstallButton({ installPrompt, storeName = 'Monika Mu
         activePrompt.prompt();
         const { outcome } = await activePrompt.userChoice;
         if (outcome === 'accepted') {
+          setIsInstalled(true);
+          try {
+            localStorage.setItem('tokoto_pwa_installed', 'true');
+          } catch (e) {}
           if (showToast) showToast('Aplikasi berhasil dipasang di layar utama!', 'success');
           if (typeof window !== 'undefined') window.deferredInstallPrompt = null;
         }
@@ -77,13 +116,30 @@ export default function PwaInstallButton({ installPrompt, storeName = 'Monika Mu
       try {
         const apps = await navigator.getInstalledRelatedApps();
         if (apps && apps.length > 0) {
+          setIsInstalled(true);
+          try {
+            localStorage.setItem('tokoto_pwa_installed', 'true');
+          } catch (e) {}
           if (showToast) showToast('Aplikasi sudah terpasang di HP Anda! Buka dari layar depan (Homescreen).', 'success');
           return;
         }
       } catch (e) {}
     }
 
-    // 4. Jika prompt belum siap di Chrome Android, berikan petunjuk ringkas tanpa sharing text
+    // 4. Jika di PC / Desktop prompt tidak aktif (karena aplikasi sudah terpasang di Chrome)
+    const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (!isMobile) {
+      setIsInstalled(true);
+      try {
+        localStorage.setItem('tokoto_pwa_installed', 'true');
+      } catch (e) {}
+      if (showToast) {
+        showToast('Aplikasi sudah terpasang di PC Anda. Tombol instalasi disembunyikan.', 'success');
+      }
+      return;
+    }
+
+    // 5. Jika di HP Android prompt sistem belum siap
     if (showToast) {
       showToast('Tekan menu titik tiga (⋮) Chrome ➔ pilih "Install Aplikasi"', 'info');
     }

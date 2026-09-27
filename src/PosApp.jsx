@@ -366,25 +366,6 @@ export default function PosApp({ tenantGlobalInfo }) {
         document.getElementsByTagName('head')[0].appendChild(link);
       }
       link.href = storeInfo.logo;
-      
-      // Dynamic PWA Manifest untuk "Save to Home Screen"
-      let manifestLink = document.querySelector("link[rel='manifest']");
-      if (!manifestLink) {
-        manifestLink = document.createElement('link');
-        manifestLink.rel = 'manifest';
-        document.getElementsByTagName('head')[0].appendChild(manifestLink);
-      }
-      const manifest = {
-        name: `POS ${storeInfo.name}`,
-        short_name: storeInfo.name,
-        start_url: window.location.origin + "/",
-        display: "standalone",
-        background_color: "#121212",
-        theme_color: "#D4AF37",
-        icons: [{ src: storeInfo.logo, sizes: "192x192 512x512", type: "image/png" }]
-      };
-      const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-      manifestLink.href = URL.createObjectURL(blob);
     }
   }, [storeInfo?.name, storeInfo?.logo]);
 

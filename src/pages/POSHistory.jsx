@@ -26,6 +26,13 @@ export default function POSHistory({
 
   const [selectedYear, setSelectedYear] = useState('all');
   const rawData = tab === 'penjualan' ? sales : purchases;
+  const availableYears = useMemo(() => {
+    const years = new Set(rawData.map(d => new Date(d.date).getFullYear()).filter(Boolean));
+    const currentYr = new Date().getFullYear();
+    years.add(currentYr);
+    return Array.from(years).sort((a, b) => b - a);
+  }, [rawData]);
+
   const activeData = useMemo(() => {
     if (selectedYear === 'all') return rawData;
     return rawData.filter(d => {
@@ -263,8 +270,9 @@ export default function POSHistory({
                       className={`bg-transparent outline-none cursor-pointer font-bold ${colors.text} text-xs`}
                    >
                       <option value="all" className="bg-white dark:bg-[#18181B]">Semua ({rawData.length})</option>
-                      <option value="2026" className="bg-white dark:bg-[#18181B]">Tahun 2026</option>
-                      <option value="2025" className="bg-white dark:bg-[#18181B]">Tahun 2025</option>
+                      {availableYears.map(yr => (
+                        <option key={yr} value={String(yr)} className="bg-white dark:bg-[#18181B]">Tahun {yr}</option>
+                      ))}
                    </select>
                 </div>
               </div>

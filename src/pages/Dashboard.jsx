@@ -7,15 +7,20 @@ export default function Dashboard({ products, sales, purchases, customers, color
   const [chartTab, setChartTab] = useState('penjualan');
   const [listTab, setListTab] = useState('laris');
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
-  const ranges = {
+  const baseRanges = {
     hari: 'Hari Ini',
     minggu: 'Minggu Ini',
     bulan: 'Bulan Ini',
     tahun: '1 Tahun Terakhir',
-    tahun_2026: 'Tahun 2026',
-    tahun_2025: 'Tahun 2025',
     semua: 'Semua (Per Tahun)'
   };
+
+  const availableYears = useMemo(() => {
+    const years = new Set(sales.map(s => new Date(s.date).getFullYear()).filter(Boolean));
+    const currentYr = new Date().getFullYear();
+    years.add(currentYr);
+    return Array.from(years).sort((a, b) => b - a);
+  }, [sales]);
 
   const filteredSales = useMemo(() => {
     return sales.filter(s => {
@@ -39,11 +44,9 @@ export default function Dashboard({ products, sales, purchases, customers, color
         yearAgo.setHours(0,0,0,0);
         return d >= yearAgo;
       }
-      if (timeRange === 'tahun_2026') {
-        return d.getFullYear() === 2026;
-      }
-      if (timeRange === 'tahun_2025') {
-        return d.getFullYear() === 2025;
+      if (timeRange.startsWith('tahun_')) {
+        const targetYear = parseInt(timeRange.replace('tahun_', ''), 10);
+        return d.getFullYear() === targetYear;
       }
       if (timeRange === 'semua') return true;
       return true;
@@ -83,11 +86,9 @@ export default function Dashboard({ products, sales, purchases, customers, color
         twoYearsAgo.setHours(0,0,0,0); yearAgo.setHours(0,0,0,0);
         return d >= twoYearsAgo && d < yearAgo;
       }
-      if (timeRange === 'tahun_2026') {
-        return d.getFullYear() === 2025;
-      }
-      if (timeRange === 'tahun_2025') {
-        return d.getFullYear() === 2024;
+      if (timeRange.startsWith('tahun_')) {
+        const targetYear = parseInt(timeRange.replace('tahun_', ''), 10);
+        return d.getFullYear() === targetYear - 1;
       }
       return false; 
     });
@@ -206,8 +207,8 @@ export default function Dashboard({ products, sales, purchases, customers, color
         }
       });
       dataMap = tempMap;
-    } else if (timeRange === 'tahun_2026' || timeRange === 'tahun_2025') {
-      const targetYear = timeRange === 'tahun_2026' ? 2026 : 2025;
+    } else if (timeRange.startsWith('tahun_')) {
+      const targetYear = parseInt(timeRange.replace('tahun_', ''), 10);
       const yrShort = String(targetYear).slice(2);
       labels = [];
       const tempMap = {};
@@ -348,22 +349,60 @@ export default function Dashboard({ products, sales, purchases, customers, color
     <div className="space-y-4 select-none -m-4 md:-m-6 p-4 sm:p-6 min-h-full bg-gray-50 dark:bg-[#121212] pb-10">
       <div className="flex justify-between items-center mb-4">
          <h2 className={`text-xl sm:text-2xl font-extrabold ${colors.text}`}>Dashboard Overview</h2>
-         <div className="relative">
-            <button 
-              onClick={() => setShowRangeDropdown(!showRangeDropdown)}
-              className={`flex items-center gap-2 ${colors.panel} border ${colors.border} px-4 py-2 rounded-xl text-sm ${colors.text} hover:border-[#D4AF37] transition-all shadow-sm font-bold`}
-            >
-              {ranges[timeRange]} <ChevronDown size={16} className={showRangeDropdown ? 'rotate-180' : ''} />
-            </button>
-            {showRangeDropdown && (
-              <div className={`absolute right-0 mt-2 w-48 rounded-xl shadow-xl ${colors.panel} border ${colors.border} z-[100] overflow-hidden`}>
-                {Object.entries(ranges).map(([key, label]) => (
-                  <button key={key} onClick={() => { setTimeRange(key); setShowRangeDropdown(false); playSound('pop', isSoundOn); }} className={`w-full text-left px-4 py-2.5 text-xs font-semibold border-b ${colors.border} last:border-0 hover:bg-gray-100 dark:hover:bg-[#27272A] ${timeRange === key ? 'text-[#D4AF37]' : colors.text}`}>
-                    {label}
-                  </button>
-                ))}
+         <div className="flex items-center gap-2">
+            {/* 1. Selector Tahun Terpisah (Opsi 1) */}
+            {availableYears.length > 0 && (
+              <div className={`flex items-center border ${colors.border} rounded-xl overflow-hidden h-[38px] ${colors.panel} px-2.5 text-xs font-bold shadow-sm hover:border-[#D4AF37] transition-all`}>
+                <span className={`${colors.textMuted} mr-1.5 hidden sm:inline`}>Tahun:</span>
+                <select
+                  value={timeRange.startsWith('tahun_') ? timeRange.replace('tahun_', '') : ''}
+                  onChange={(e) => {
+                    playSound('pop', isSoundOn);
+                    if (e.target.value) {
+                      setTimeRange(`tahun_${e.target.value}`);
+                    } else {
+                      setTimeRange('bulan');
+                    }
+                  }}
+                  className={`bg-transparent outline-none cursor-pointer font-bold ${timeRange.startsWith('tahun_') ? 'text-[#D4AF37]' : colors.text} text-xs`}
+                >
+                  <option value="" className="bg-white dark:bg-[#18181B] text-gray-400">Pilih Tahun</option>
+                  {availableYears.map((yr) => (
+                    <option key={yr} value={String(yr)} className="bg-white dark:bg-[#18181B] text-gray-900 dark:text-white">
+                      Tahun {yr}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
+
+            {/* 2. Dropdown Rentang Waktu Utama (Hanya Rentang Standar) */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowRangeDropdown(!showRangeDropdown)}
+                className={`flex items-center gap-2 ${colors.panel} border ${colors.border} px-3.5 py-2 rounded-xl text-xs sm:text-sm ${colors.text} hover:border-[#D4AF37] transition-all shadow-sm font-bold h-[38px]`}
+              >
+                {timeRange.startsWith('tahun_') 
+                  ? `Tahun ${timeRange.replace('tahun_', '')}` 
+                  : baseRanges[timeRange] || 'Bulan Ini'} <ChevronDown size={15} className={showRangeDropdown ? 'rotate-180' : ''} />
+              </button>
+              {showRangeDropdown && (
+                <>
+                  <div className="fixed inset-0 z-[99]" onClick={() => setShowRangeDropdown(false)} />
+                  <div className={`absolute right-0 mt-2 w-44 rounded-xl shadow-xl ${colors.panel} border ${colors.border} z-[100] overflow-hidden p-1 space-y-0.5 animate-in fade-in zoom-in-95 duration-150`}>
+                    {Object.entries(baseRanges).map(([key, label]) => (
+                      <button 
+                        key={key} 
+                        onClick={() => { setTimeRange(key); setShowRangeDropdown(false); playSound('pop', isSoundOn); }} 
+                        className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${timeRange === key ? 'text-[#D4AF37] font-bold bg-[#D4AF37]/10' : colors.text}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
          </div>
       </div>
       

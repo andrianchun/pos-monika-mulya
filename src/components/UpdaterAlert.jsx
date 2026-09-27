@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertCircle, X, DownloadCloud, Sparkles, RefreshCw } from 'lucide-react';
+import { AlertCircle, X, DownloadCloud, RefreshCw } from 'lucide-react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 
@@ -281,15 +281,9 @@ export default function UpdaterAlert() {
           </div>
 
           {manifest.release_notes && (
-            <div className="rounded-2xl bg-slate-800/80 p-3.5 text-left border border-slate-700/60 space-y-1">
-              <p className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles size={14} />
-                Yang Baru:
-              </p>
-              <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
-                {manifest.release_notes}
-              </p>
-            </div>
+            <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed px-1">
+              {manifest.release_notes}
+            </p>
           )}
 
           {errorMsg && (
@@ -365,7 +359,7 @@ export default function UpdaterAlert() {
         </div>
 
         {manifest.release_notes && !isDownloading && (
-          <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50">
+          <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
             {manifest.release_notes}
           </p>
         )}
