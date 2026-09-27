@@ -44,7 +44,7 @@ export default function PosApp({ tenantGlobalInfo }) {
   if (!tenantId) return <div>Invalid Tenant URL</div>;
   const [user, setUser] = useState(() => {
     try {
-      const cached = localStorage.getItem(`mmpos_user_${tenantId}`) || localStorage.getItem('mmpos_user');
+      const cached = localStorage.getItem(`mmpos_user_${tenantId}`);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed && parsed.id) return parsed;
@@ -154,7 +154,8 @@ export default function PosApp({ tenantGlobalInfo }) {
   }, [users, user]);
 
   useEffect(() => {
-    if (!authUid || user) return;
+    if (!authUid) return;
+    if (user && String(user.id) === String(authUid)) return;
 
     let isCancelled = false;
 
@@ -195,7 +196,7 @@ export default function PosApp({ tenantGlobalInfo }) {
             profile = { ...staffDocSnap.value.data(), id: authUid };
           } else if (globalDocSnap.status === 'fulfilled' && globalDocSnap.value.exists()) {
             const ownerData = globalDocSnap.value.data();
-            if (ownerData.tenantId === tenantId || !ownerData.tenantId) {
+            if (ownerData.role === 'superadmin' || ownerData.tenantId === tenantId) {
               profile = {
                 id: authUid,
                 name: ownerData.name || auth.currentUser?.displayName || "Pemilik Usaha",
@@ -257,15 +258,20 @@ export default function PosApp({ tenantGlobalInfo }) {
         return;
       }
 
-      // JIKA BELUM KETEMU DAN KOLEKSI DATA MASIH LOADING:
-      // Jangan buru-buru logout, beri kesempatan listener users selesai memuat!
-      if (loading) {
-        return;
-      }
-
-      // JIKA LOADING SUDAH SELESAI DAN MEMANG BENAR-BENAR TIDAK DITEMUKAN
-      showToast('Akun ini belum didaftarkan sebagai Staf di toko. Hubungi Admin/Pemilik.', 'error');
-      signOut(auth).catch(() => {});
+      // JIKA TIDAK DITEMUKAN / TIDAK TERDAFTAR DI TENANT INI:
+      const userEmail = auth.currentUser?.email || '';
+      console.warn("Akses ditolak: User", authUid, userEmail, "tidak terdaftar di tenant", tenantId);
+      const storeName = storeInfo?.name || (tenantId === 'monikamulya' ? 'MONIKA MULYA' : tenantId.toUpperCase());
+      try {
+        localStorage.removeItem(`mmpos_user_${tenantId}`);
+        localStorage.removeItem('mmpos_user');
+        sessionStorage.setItem('mmpos_login_error', `Akun Google (${userEmail}) belum terdaftar sebagai staf atau pemilik toko ${storeName}. Hubungi Admin untuk didaftarkan.`);
+      } catch(e) {}
+      setUser(null);
+      setAuthUid(null);
+      setLoading(false);
+      showToast(`Akses Ditolak: ${userEmail} belum terdaftar di toko ${storeName}.`, 'error');
+      await signOut(auth).catch(() => {});
     };
     
     resolveUser();
@@ -573,6 +579,9 @@ export default function PosApp({ tenantGlobalInfo }) {
       } else {
         setAuthUid(null);
         setUser(null);
+        hasInitialized = false;
+        unsubs.forEach(u => u());
+        unsubs = [];
         try {
           localStorage.removeItem(`mmpos_user_${tenantId}`);
           localStorage.removeItem('mmpos_user');

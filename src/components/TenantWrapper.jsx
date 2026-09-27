@@ -17,7 +17,7 @@ export default function TenantWrapper() {
       if (cachedStr) return JSON.parse(cachedStr);
     } catch(e) {}
     if (tenantId === 'monikamulya') {
-      return { name: 'MONIKA MULYA', storeName: 'MONIKA MULYA' };
+      return { name: 'MONIKA MULYA', storeName: 'MONIKA MULYA', ownerEmail: 'monikamulya@gmail.com' };
     }
     return null;
   });

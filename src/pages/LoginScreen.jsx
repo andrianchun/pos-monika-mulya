@@ -1,14 +1,24 @@
 import React, { useState } from 'react';
 import { ShoppingCart, AlertCircle, User, Lock, Moon, Sun, ShieldAlert, Mail, CheckCircle2, Eye, EyeOff, Smartphone } from 'lucide-react';
 import { playSound } from '../utils/helpers';
-import { auth, usernameToEmail, resolveLoginEmailFn, AUTH_EMAIL_DOMAIN, googleProvider } from '../firebase';
-import { signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence, signInWithPopup } from 'firebase/auth';
+import { auth, db, usernameToEmail, resolveLoginEmailFn, AUTH_EMAIL_DOMAIN, googleProvider } from '../firebase';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence, signInWithPopup, signOut } from 'firebase/auth';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import PwaInstallButton from '../components/ui/PwaInstallButton';
 
 export default function LoginScreen({ onLogin, users, colors, theme, setTheme, isSoundOn, showToast, storeInfo, tenantId, installPrompt }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    try {
+      const err = sessionStorage.getItem('mmpos_login_error');
+      if (err) {
+        sessionStorage.removeItem('mmpos_login_error');
+        return err;
+      }
+    } catch(e) {}
+    return '';
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -71,12 +81,66 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
     setIsLoggingIn(true);
     try {
       await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      const loggedUser = result?.user;
+      const userEmail = (loggedUser?.email || '').toLowerCase().trim();
+      const userUid = loggedUser?.uid;
+
+      if (!userEmail) {
+        throw new Error('Akun Google tidak memiliki alamat email yang valid.');
+      }
+
+      // 1. Verifikasi instan: Owner email di storeInfo
+      const isOwnerEmail = storeInfo?.ownerEmail && storeInfo.ownerEmail.toLowerCase().trim() === userEmail;
+
+      // 2. Verifikasi instan: Daftar users yang sudah termuat di memori
+      const isStaffInMem = Array.isArray(users) && users.some(u => {
+        const uEmail = (u.email || '').toLowerCase().trim();
+        const uUsername = (u.username || '').toLowerCase().trim();
+        return (uEmail && uEmail === userEmail) ||
+               (u.id && String(u.id) === String(userUid)) ||
+               (uUsername && `${uUsername}@${tenantId}.com` === userEmail);
+      });
+
+      let isAllowed = isOwnerEmail || isStaffInMem;
+
+      // 3. Verifikasi Firestore langsung (jika belum pasti di cache)
+      if (!isAllowed) {
+        const [staffDocSnap, globalDocSnap, staffEmailSnap] = await Promise.allSettled([
+          getDoc(doc(db, "tenants", tenantId, "users", userUid)),
+          getDoc(doc(db, "global_users", userUid)),
+          getDocs(query(collection(db, "tenants", tenantId, "users"), where("email", "==", userEmail)))
+        ]);
+
+        if (staffDocSnap.status === 'fulfilled' && staffDocSnap.value.exists()) {
+          isAllowed = true;
+        } else if (staffEmailSnap.status === 'fulfilled' && !staffEmailSnap.value.empty) {
+          isAllowed = true;
+        } else if (globalDocSnap.status === 'fulfilled' && globalDocSnap.value.exists()) {
+          const gData = globalDocSnap.value.data();
+          if (gData.role === 'superadmin' || gData.tenantId === tenantId) {
+            isAllowed = true;
+          }
+        }
+      }
+
+      // JIKA TIDAK DIIZINKAN / TIDAK TERDAFTAR:
+      if (!isAllowed) {
+        await signOut(auth);
+        setIsLoggingIn(false);
+        playSound('pop', isSoundOn);
+        const storeName = storeInfo?.name || (tenantId === 'monikamulya' ? 'MONIKA MULYA' : tenantId.toUpperCase());
+        const errorMsg = `Akun Google (${userEmail}) belum terdaftar sebagai staf atau pemilik toko ${storeName}. Hubungi Admin untuk didaftarkan.`;
+        setError(errorMsg);
+        if (showToast) showToast(`Akses Ditolak: Akun belum terdaftar di toko ini`, 'error');
+        return;
+      }
+
+      // JIKA LOLOS OTORISASI:
       playSound('success', isSoundOn);
       localStorage.setItem('mmpos_last_active', Date.now().toString());
       if (onLogin) onLogin();
       // Jangan set isLoggingIn(false) di sini karena PosApp butuh waktu untuk transisi.
-      // Jika di set false, tombol akan kembali aktif dan user bisa mengkliknya lagi.
     } catch (err) {
       setIsLoggingIn(false);
       playSound('pop', isSoundOn);
@@ -215,7 +279,12 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
           <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-wide ${colors.gold}`}>{storeInfo.name || (tenantId === 'monikamulya' ? 'MONIKA MULYA' : tenantId)}</h1>
         </div>
 
-        {error && <div className="mb-4 p-3 rounded-lg bg-red-100 text-red-600 text-sm font-semibold flex items-center gap-2"><AlertCircle size={18} /> {error}</div>}
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 dark:text-red-400 text-xs sm:text-sm font-semibold flex items-start gap-2.5">
+            <AlertCircle size={18} className="shrink-0 mt-0.5 text-red-500" />
+            <span className="leading-snug">{error}</span>
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="space-y-3.5 sm:space-y-4">
           <div>
