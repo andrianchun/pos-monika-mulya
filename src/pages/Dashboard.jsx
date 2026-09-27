@@ -15,6 +15,11 @@ export default function Dashboard({ products, sales, purchases, customers, color
     semua: 'Semua (Per Tahun)'
   };
 
+  const getRangeLabel = (tr) => {
+    if (tr && tr.startsWith('tahun_')) return `Tahun ${tr.replace('tahun_', '')}`;
+    return baseRanges[tr] || 'Bulan Ini';
+  };
+
   const availableYears = useMemo(() => {
     const years = new Set(sales.map(s => new Date(s.date).getFullYear()).filter(Boolean));
     const currentYr = new Date().getFullYear();
@@ -382,9 +387,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
                 onClick={() => setShowRangeDropdown(!showRangeDropdown)}
                 className={`flex items-center gap-2 ${colors.panel} border ${colors.border} px-3.5 py-2 rounded-xl text-xs sm:text-sm ${colors.text} hover:border-[#D4AF37] transition-all shadow-sm font-bold h-[38px]`}
               >
-                {timeRange.startsWith('tahun_') 
-                  ? `Tahun ${timeRange.replace('tahun_', '')}` 
-                  : baseRanges[timeRange] || 'Bulan Ini'} <ChevronDown size={15} className={showRangeDropdown ? 'rotate-180' : ''} />
+                {getRangeLabel(timeRange)} <ChevronDown size={15} className={showRangeDropdown ? 'rotate-180' : ''} />
               </button>
               {showRangeDropdown && (
                 <>
@@ -455,7 +458,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
          <div className={`col-span-1 lg:col-span-2 p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm flex flex-col`}>
             <div className="flex justify-between items-center mb-6">
-               <h3 className={`font-black text-base ${colors.text}`}>Grafik {ranges[timeRange]}</h3>
+               <h3 className={`font-black text-base ${colors.text}`}>Grafik {getRangeLabel(timeRange)}</h3>
                <div className={`flex bg-gray-100 dark:bg-[#121212] rounded-xl p-1 border ${colors.border}`}>
                   <button onClick={() => setGlobalChartMode('bar')} className={`px-4 py-1.5 rounded-lg transition-all ${globalChartMode === 'bar' ? 'bg-white dark:bg-[#27272A] shadow-sm text-[#D4AF37]' : 'text-gray-400'}`}><BarChart2 size={16}/></button>
                   <button onClick={() => setGlobalChartMode('line')} className={`px-4 py-1.5 rounded-lg transition-all ${globalChartMode === 'line' ? 'bg-white dark:bg-[#27272A] shadow-sm text-[#D4AF37]' : 'text-gray-400'}`}><Activity size={16}/></button>
