@@ -1,8 +1,29 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Store, TrendingUp, ShieldCheck, Zap, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function LandingPage() {
+  const isStandalone = typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true ||
+    (document.referrer && document.referrer.includes('android-app://'))
+  );
+
+  const lastTenant = typeof window !== 'undefined' 
+    ? (localStorage.getItem('tokoto_last_tenant') || localStorage.getItem('mmpos_last_tenant') || 'monikamulya')
+    : 'monikamulya';
+
+  // 1. Jika aplikasi dibuka sebagai PWA yang terinstal (Desktop / Android / iOS Standalone App),
+  // kasir PASTI ingin langsung masuk ke toko mereka, bukan melihat brosur landing page!
+  if (isStandalone) {
+    return <Navigate to={`/${lastTenant}`} replace />;
+  }
+
+  // 2. Jika user di peramban web sudah memiliki sesi login aktif:
+  const cachedUser = typeof window !== 'undefined' ? localStorage.getItem('mmpos_user') : null;
+  if (cachedUser && lastTenant) {
+    return <Navigate to={`/${lastTenant}`} replace />;
+  }
   return (
     <div className="min-h-screen bg-slate-900 text-white font-sans selection:bg-orange-500 selection:text-white overflow-x-hidden">
       {/* Background Ornaments (Glassmorphism) */}

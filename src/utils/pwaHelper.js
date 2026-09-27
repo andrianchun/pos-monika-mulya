@@ -109,20 +109,29 @@ export async function generateDynamicManifest(tenantId = null, directStoreInfo =
     }
   }
 
+  // Simpan tenant yang aktif ke localStorage agar PWA standalone tahu toko mana yang dibuka
+  if (tenantId) {
+    try {
+      localStorage.setItem('tokoto_last_tenant', tenantId);
+      localStorage.setItem('mmpos_last_tenant', tenantId);
+    } catch (e) {}
+  }
+
   // Set Apple Touch Icon
   const appleIcon = document.getElementById('dynamic-apple-icon');
   if (appleIcon && iconDataUrl) {
     appleIcon.href = iconDataUrl;
   }
 
-  // Generate Manifest JSON with proper tenant start_url and scope
+  // Generate Manifest JSON with proper tenant start_url, id, and root scope
   const startUrl = tenantId ? `/${tenantId}` : "/";
   const manifest = {
+    id: tenantId ? `/${tenantId}` : "/",
     name: appName,
     short_name: shortName,
     description: storeData.tagline || `Aplikasi Kasir POS ${rawName} - Didukung oleh Tokoto.id`,
     start_url: startUrl,
-    scope: tenantId ? `/${tenantId}` : "/",
+    scope: "/",
     display: "standalone",
     orientation: "any",
     background_color: "#18181b",
@@ -145,17 +154,19 @@ export async function generateDynamicManifest(tenantId = null, directStoreInfo =
 
   try {
     const stringManifest = JSON.stringify(manifest);
-    const blob = new Blob([stringManifest], { type: 'application/manifest+json' });
-    const manifestUrl = URL.createObjectURL(blob);
+    // Data URI bekerja 100% mandiri tanpa ketergantungan sesi memori blob URL
+    const dataUriManifest = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(stringManifest);
     
-    const manifestLink = document.getElementById('dynamic-manifest');
-    if (manifestLink) {
-      const oldUrl = manifestLink.href;
-      manifestLink.href = manifestUrl;
-      if (oldUrl && oldUrl.startsWith('blob:')) {
-         URL.revokeObjectURL(oldUrl);
-      }
+    // Hapus dan pasang kembali elemen link agar peramban (Chrome/Edge) dipaksa memuat ulang konfigurasi manifest
+    const oldLink = document.getElementById('dynamic-manifest');
+    if (oldLink) {
+      oldLink.remove();
     }
+    const newLink = document.createElement('link');
+    newLink.id = 'dynamic-manifest';
+    newLink.rel = 'manifest';
+    newLink.href = dataUriManifest;
+    document.head.appendChild(newLink);
   } catch (manifestErr) {
     console.warn('Gagal memperbarui dynamic manifest link:', manifestErr);
   }

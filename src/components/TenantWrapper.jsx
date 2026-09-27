@@ -27,6 +27,12 @@ export default function TenantWrapper() {
       return;
     }
     
+    // Simpan tenant yang aktif agar saat PWA diluncurkan langsung masuk ke toko ini
+    try {
+      localStorage.setItem('tokoto_last_tenant', tenantId);
+      localStorage.setItem('mmpos_last_tenant', tenantId);
+    } catch(e) {}
+    
     // 1. Ambil info toko secara instan dari Cache Lokal (Offline First)
     try {
         const cachedStr = localStorage.getItem(`mmpos_storeInfo_${tenantId}`) || localStorage.getItem('mmpos_storeInfo');

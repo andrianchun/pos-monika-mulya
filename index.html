@@ -3,10 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#18181b" />
+    <script>
+      (function() {
+        try {
+          var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || (document.referrer && document.referrer.includes('android-app://'));
+          var path = window.location.pathname;
+          var segments = path.split('/').filter(Boolean);
+          var tenant = segments[0];
+          var reserved = ['login', 'register', 'superadmin', 'ota', 'assets', 'apk'];
+          if (tenant && reserved.indexOf(tenant) === -1) {
+            localStorage.setItem('tokoto_last_tenant', tenant);
+            localStorage.setItem('mmpos_last_tenant', tenant);
+          } else if (path === '/' || path === '') {
+            var saved = localStorage.getItem('tokoto_last_tenant') || localStorage.getItem('mmpos_last_tenant') || 'monikamulya';
+            if (isStandalone && saved) {
+              window.location.replace('/' + saved);
+            }
+          }
+        } catch(e) {}
+      })();
+    </script>
     <link rel="manifest" id="dynamic-manifest" href="" />
     <link rel="apple-touch-icon" id="dynamic-apple-icon" href="" />
-    <title>POS Monika Mulya</title>
+    <title>Tokoto POS</title>
   </head>
   <body>
     <div id="root"></div>
