@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogIn, Coins, X, RotateCcw } from 'lucide-react';
+import { LogIn, Coins, X } from 'lucide-react';
 import { formatIDR, parseIDR } from '../../utils/helpers';
 
 export default function ShiftOpenModal({ colors, onClose, setActiveShift, user, lastShiftRemaining = 0 }) {
@@ -93,10 +93,10 @@ export default function ShiftOpenModal({ colors, onClose, setActiveShift, user, 
                         <button
                            type="button"
                            onClick={() => setStartingCashStr('0')}
-                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
-                           title="Reset Rp 0"
+                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 p-1 transition-colors"
+                           title="Kosongkan (Rp 0)"
                         >
-                           <RotateCcw size={14} />
+                           <X size={16} />
                         </button>
                      )}
                   </div>
