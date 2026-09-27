@@ -260,7 +260,7 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
           <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
             <span>Didukung oleh platform</span>
             <span className="text-orange-500 font-bold tracking-wide flex items-center gap-1.5">
-              <img src="/icon.png" alt="tokoto" className="w-4 h-4 object-contain inline-block rounded" />
+              <img src="/logo-icon.webp" alt="tokoto" className="w-4 h-4 object-contain inline-block" />
               tokoto.id
             </span>
           </div>

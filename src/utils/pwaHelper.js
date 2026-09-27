@@ -66,7 +66,7 @@ export async function generateDynamicManifest(tenantId = null, directStoreInfo =
     await new Promise((resolve, reject) => {
       tokotoIcon.onload = resolve;
       tokotoIcon.onerror = reject;
-      tokotoIcon.src = '/icon.png';
+      tokotoIcon.src = '/logo-icon.webp';
     });
 
     const badgeCenterX = 405;

@@ -267,7 +267,7 @@ export default function UpdaterAlert() {
           <div className="flex flex-col items-center gap-2 pt-2">
             <div className="size-20 rounded-3xl border border-white/20 p-2 bg-gradient-to-br from-orange-500/20 to-amber-500/10 backdrop-blur-md flex items-center justify-center shadow-lg shadow-orange-500/20">
               <img
-                src="/icon.png"
+                src="/logo-icon.webp"
                 alt="Tokoto POS"
                 className="size-16 object-contain"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -336,7 +336,7 @@ export default function UpdaterAlert() {
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="size-11 rounded-xl shadow-md border border-white/20 p-1 bg-gradient-to-br from-orange-500/20 to-amber-500/10 flex items-center justify-center shrink-0">
               <img
-                src="/icon.png"
+                src="/logo-icon.webp"
                 alt="Tokoto"
                 className="size-8 object-contain"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}

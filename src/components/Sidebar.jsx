@@ -27,22 +27,23 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
         
 
         {/* ======================================================== */}
-        {/* 🔥 LOGO HXPOS BRANDING (BISA DIKLIK BUAT BUKA/TUTUP!) 🔥  */}
+        {/* 🔥 LOGO TOKOTO BRANDING (BISA DIKLIK BUAT BUKA/TUTUP!) 🔥  */}
         {/* ======================================================== */}
         <div className={`h-16 flex items-center justify-center border-b ${colors.border} shrink-0 mt-4 lg:mt-0 transition-all`}>
           {isOpen ? (
               <div 
                  onClick={() => setIsOpen(!isOpen)} 
-                 className="flex items-center justify-between w-full pl-5 pr-3 cursor-pointer group"
+                 className="flex items-center justify-between w-full pl-4 pr-3 cursor-pointer group select-none"
                  title="Tutup Menu (Minimize)"
               >
-                {/* Teks Brand Dua Warna */}
+                {/* Banner Brand WebP & Copyright */}
                 <div className="flex flex-col justify-center transition-transform group-hover:scale-[1.02]">
-                  <span className="text-2xl font-black tracking-tighter leading-none flex items-center">
-                    <span className={colors.gold}>TOKO</span>
-                    <span className="text-gray-800 dark:text-white">TO</span>
-                  </span>
-                  <span className="text-[10px] text-gray-500 font-medium mt-0.5 whitespace-nowrap">
+                  <img 
+                    src="/logo-banner.webp" 
+                    alt="TOKOTO" 
+                    className="h-7 w-auto max-w-[145px] object-contain object-left pointer-events-none drop-shadow-sm" 
+                  />
+                  <span className="text-[9px] text-gray-500 dark:text-gray-400 font-medium mt-0.5 tracking-tight whitespace-nowrap">
                     by andrianchun © 2026
                   </span>
                 </div>
@@ -54,12 +55,14 @@ export default function Sidebar({ colors,  isOpen, setIsOpen, activeMenu, handle
               /* Logo Mode Minimalis (Saat sidebar mengecil / ditutup) */
               <div 
                  onClick={() => setIsOpen(!isOpen)} 
-                 className="flex flex-col items-center justify-center w-full cursor-pointer group transition-transform hover:scale-110"
+                 className="flex flex-col items-center justify-center w-full cursor-pointer group transition-transform hover:scale-110 select-none py-1"
                  title="Buka Menu (Expand)"
               >
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 ${colors.goldHoverText} border border-transparent ${colors.goldHoverBorder} transition-all shadow-sm`}>
-                    <ChevronRight size={16} />
-                  </div>
+                  <img 
+                    src="/logo-icon.webp" 
+                    alt="TOKOTO" 
+                    className="w-8 h-8 object-contain pointer-events-none drop-shadow-sm" 
+                  />
               </div>
             )}
         </div>
