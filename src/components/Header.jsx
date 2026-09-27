@@ -291,53 +291,54 @@ export default function Header({
                          <div className="p-8 text-center text-xs text-gray-500 font-bold">Semua sistem aman. Tidak ada pemberitahuan baru. 🛡️</div>
                       ) : (
                          <>
-                           /* 1. KELOMPOK PIUTANG JATUH TEMPO */
-                            <CollapsibleNotifGroup title="Piutang Pelanggan" count={incomingReceivables.length} icon={Calendar} colorClass="text-red-500" colors={colors}>
+                           <CollapsibleNotifGroup title="Piutang Pelanggan" count={incomingReceivables.length} icon={Calendar} colorClass="text-red-500" colors={colors}>
                                {incomingReceivables.map(s => {
                                   const daysLeft = Math.ceil((new Date(s.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
                                   const isLate = daysLeft < 0;
-                                    return (
-                                       <div key={`rec-${s.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('riwayat', s.id, 'penjualan'); } }} className="p-2.5 rounded-xl hover:bg-gray-100/70 dark:hover:bg-white/5 flex flex-col gap-0.5 min-w-0 cursor-pointer transition-all border border-transparent hover:border-gray-200/50 dark:hover:border-gray-700/50">
-                                          <div className="flex justify-between items-start gap-2">
-                                             <p className={`text-xs font-bold ${colors.text} truncate`}>Customer: {s.customer}</p>
-                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${isLate ? 'bg-red-500/15 text-red-500' : 'bg-[#D4AF37]/15 text-[#D4AF37]'}`}>
-                                                {isLate ? `TELAT ${Math.abs(daysLeft)} HARI` : `TEMPO: ${formatDate(s.dueDate)}`}
-                                             </span>
-                                          </div>
-                                          <p className="text-[10px] text-gray-400">Nota: {s.nota}</p>
-                                          <p className={`text-xs font-bold ${isLate ? 'text-red-500' : 'text-[#D4AF37]'} mt-0.5`}>
-                                             Tagihan: Rp {formatIDR(s.total - s.paid)}
-                                          </p>
-                                       </div>
+                                  return (
+                                     <div key={`rec-${s.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('riwayat', s.id, 'penjualan'); } }} className="py-2 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-between gap-2 cursor-pointer transition-colors">
+                                        <div className="min-w-0 flex-1">
+                                           <div className="flex items-center gap-1.5 truncate">
+                                              <span className={`text-xs font-bold ${colors.text} truncate`}>{s.customer}</span>
+                                              <span className="text-[10px] text-gray-500 font-mono">#{s.nota}</span>
+                                           </div>
+                                           <p className={`text-[11px] font-bold ${isLate ? 'text-red-500' : 'text-[#D4AF37]'} mt-0.5`}>
+                                              Tagihan: Rp {formatIDR(s.total - s.paid)}
+                                           </p>
+                                        </div>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${isLate ? 'bg-red-500/15 text-red-500' : 'bg-[#D4AF37]/15 text-[#D4AF37]'}`}>
+                                           {isLate ? `Telat ${Math.abs(daysLeft)} hr` : `Tempo: ${formatDate(s.dueDate)}`}
+                                        </span>
+                                     </div>
                                   );
                                })}
                             </CollapsibleNotifGroup>
 
-                           /* 2. KELOMPOK UTANG JATUH TEMPO */
                             <CollapsibleNotifGroup title="Utang Toko" count={incomingDebts.length} icon={Calendar} colorClass="text-orange-500" colors={colors}>
                                {incomingDebts.map(p => {
                                   const daysLeft = Math.ceil((new Date(p.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
                                   const isLate = daysLeft < 0;
-                                    return (
-                                       <div key={`debt-${p.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('riwayat', p.id, 'pembelian'); } }} className="p-2.5 rounded-xl hover:bg-gray-100/70 dark:hover:bg-white/5 flex flex-col gap-0.5 min-w-0 cursor-pointer transition-all border border-transparent hover:border-gray-200/50 dark:hover:border-gray-700/50">
-                                          <div className="flex justify-between items-start gap-2">
-                                             <p className={`text-xs font-bold ${colors.text} truncate`}>Supplier: {p.supplier}</p>
-                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${isLate ? 'bg-red-500/15 text-red-500' : 'bg-[#D4AF37]/15 text-[#D4AF37]'}`}>
-                                                {isLate ? `TELAT ${Math.abs(daysLeft)} HARI` : `TEMPO: ${formatDate(p.dueDate)}`}
-                                             </span>
-                                          </div>
-                                          <p className="text-[10px] text-gray-400">Nota: {p.nota}</p>
-                                          <p className={`text-xs font-bold ${isLate ? 'text-red-500' : 'text-[#D4AF37]'} mt-0.5`}>
-                                             Kurang Bayar: Rp {formatIDR(p.total - p.paid)}
-                                          </p>
-                                       </div>
+                                  return (
+                                     <div key={`debt-${p.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('riwayat', p.id, 'pembelian'); } }} className="py-2 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-between gap-2 cursor-pointer transition-colors">
+                                        <div className="min-w-0 flex-1">
+                                           <div className="flex items-center gap-1.5 truncate">
+                                              <span className={`text-xs font-bold ${colors.text} truncate`}>{p.supplier}</span>
+                                              <span className="text-[10px] text-gray-500 font-mono">#{p.nota}</span>
+                                           </div>
+                                           <p className={`text-[11px] font-bold ${isLate ? 'text-red-500' : 'text-[#D4AF37]'} mt-0.5`}>
+                                              Kurang: Rp {formatIDR(p.total - p.paid)}
+                                           </p>
+                                        </div>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${isLate ? 'bg-red-500/15 text-red-500' : 'bg-[#D4AF37]/15 text-[#D4AF37]'}`}>
+                                           {isLate ? `Telat ${Math.abs(daysLeft)} hr` : `Tempo: ${formatDate(p.dueDate)}`}
+                                        </span>
+                                     </div>
                                   );
                                })}
                             </CollapsibleNotifGroup>
 
-                           {/* 3. KELOMPOK BARANG HABIS (BY SUPPLIER) */}
-                           <CollapsibleNotifGroup title="Stok Menipis" count={lowStockItems.length} icon={Package} colorClass="text-blue-500" colors={colors}>
-                              {groupedLowStock.map((group, idx) => (
+                            <CollapsibleNotifGroup title="Stok Menipis" count={lowStockItems.length} icon={Package} colorClass="text-blue-500" colors={colors}>
+                               {groupedLowStock.map((group, idx) => (
                                   <div key={`stock-${idx}`} className="py-2 border-b border-gray-100 dark:border-gray-800/60 last:border-b-0 space-y-1.5">
                                      <div className="flex justify-between items-center px-1">
                                         <span className={`text-xs font-bold ${colors.text} truncate`}>Order ke: {group.supplier.name}</span>
@@ -357,59 +358,59 @@ export default function Header({
                                ))}
                             </CollapsibleNotifGroup>
 
-                           {/* 4. KELOMPOK KEDALUWARSA */}
-                           <CollapsibleNotifGroup title="Kedaluwarsa" count={expiringItems.length} icon={AlertTriangle} colorClass="text-red-500" colors={colors}>
-                              {expiringItems.map(item => {
-                                  const isExpired = new Date(item.expiryDate) <= new Date();
-                                  return (
-                                      <div key={`exp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className={`p-3 rounded-xl ${isExpired ? 'bg-red-500/5 border-red-500/20' : 'bg-orange-500/5 border-orange-500/20'} border flex flex-col gap-1 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity`}>
-                                          <div className="flex justify-between items-start gap-2">
-                                              <span className={`font-bold text-[11px] truncate ${colors.text}`}>{item.name}</span>
-                                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isExpired ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'} whitespace-nowrap`}>{isExpired ? 'EXPIRED' : 'Segera Habis'}</span>
-                                          </div>
-                                          <span className="text-[10px] text-gray-500">Exp: {formatDate(item.expiryDate)}</span>
-                                      </div>
-                                  );
-                              })}
-                           </CollapsibleNotifGroup>
+                            <CollapsibleNotifGroup title="Kedaluwarsa" count={expiringItems.length} icon={AlertTriangle} colorClass="text-red-500" colors={colors}>
+                               {expiringItems.map(item => {
+                                   const isExpired = new Date(item.expiryDate) <= new Date();
+                                   return (
+                                       <div key={`exp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className="py-2 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-between gap-2 cursor-pointer transition-colors">
+                                           <div className="min-w-0 flex-1">
+                                               <span className={`text-xs font-bold truncate block ${colors.text}`}>{item.name}</span>
+                                               <span className="text-[10px] text-gray-500">Exp: {formatDate(item.expiryDate)}</span>
+                                           </div>
+                                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${isExpired ? 'bg-red-500/20 text-red-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                                               {isExpired ? 'EXPIRED' : 'Segera Habis'}
+                                           </span>
+                                       </div>
+                                   );
+                               })}
+                            </CollapsibleNotifGroup>
 
-                           <CollapsibleNotifGroup 
-                              title="Harga Beli (HPP) Berubah" 
-                              count={hppChangedItems.length} 
-                              icon={AlertTriangle} 
-                              colorClass="text-blue-500" 
-                              colors={colors} 
-                              defaultOpen={true}
-                              action={
-                                 <button 
-                                    onClick={handleDismissAllHpp}
-                                    title="Bersihkan semua notifikasi HPP"
-                                    className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors flex items-center gap-1"
-                                 >
-                                    <CheckCheck size={12} /> Bersihkan
-                                 </button>
-                              }
-                           >
-                              {hppChangedItems.map(item => (
-                                  <div key={`hpp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className={`p-3 rounded-xl bg-blue-500/5 border-blue-500/20 border flex flex-col gap-1 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity relative group`}>
-                                      <div className="flex justify-between items-start gap-2">
-                                          <span className={`font-bold text-[11px] truncate ${colors.text}`}>{item.name}</span>
-                                          <div className="flex items-center gap-1 shrink-0">
-                                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 whitespace-nowrap`}>HPP Berubah</span>
-                                             <button 
-                                                onClick={(e) => handleDismissSingleHpp(e, item.id)} 
-                                                className="text-gray-400 hover:text-white p-0.5 rounded transition-colors"
-                                                title="Abaikan notifikasi ini"
-                                             >
-                                                <X size={12} />
-                                             </button>
-                                          </div>
-                                      </div>
-                                      <span className="text-[10px] text-gray-500">Dari: Rp{formatIDR(item.lastHpp || item.cost || 0)} → Rp{formatIDR(item.cost || item.basePrice || 0)}</span>
-                                      <span className="text-[9px] text-blue-600 dark:text-blue-400 font-semibold mt-1">Klik untuk sesuaikan Harga Jual</span>
-                                  </div>
-                              ))}
-                           </CollapsibleNotifGroup>
+                            <CollapsibleNotifGroup 
+                               title="Harga Beli (HPP) Berubah" 
+                               count={hppChangedItems.length} 
+                               icon={AlertTriangle} 
+                               colorClass="text-blue-500" 
+                               colors={colors} 
+                               defaultOpen={true}
+                               action={
+                                  <button 
+                                     onClick={handleDismissAllHpp}
+                                     title="Bersihkan semua notifikasi HPP"
+                                     className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors flex items-center gap-1"
+                                  >
+                                     <CheckCheck size={12} /> Bersihkan
+                                  </button>
+                               }
+                            >
+                               {hppChangedItems.map(item => (
+                                   <div key={`hpp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className="py-2 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-between gap-2 cursor-pointer transition-colors">
+                                       <div className="min-w-0 flex-1">
+                                           <span className={`text-xs font-bold truncate block ${colors.text}`}>{item.name}</span>
+                                           <span className="text-[10px] text-gray-400">Dari Rp{formatIDR(item.lastHpp || item.cost || 0)} → <span className="text-blue-400 font-semibold">Rp{formatIDR(item.cost || item.basePrice || 0)}</span></span>
+                                       </div>
+                                       <div className="flex items-center gap-1.5 shrink-0">
+                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">HPP Naik</span>
+                                          <button 
+                                             onClick={(e) => handleDismissSingleHpp(e, item.id)} 
+                                             className="text-gray-400 hover:text-white p-0.5 rounded hover:bg-white/10 transition-colors"
+                                             title="Abaikan notifikasi ini"
+                                          >
+                                             <X size={13} />
+                                          </button>
+                                       </div>
+                                   </div>
+                               ))}
+                            </CollapsibleNotifGroup>
                          </>
                       )}
                    </div>
