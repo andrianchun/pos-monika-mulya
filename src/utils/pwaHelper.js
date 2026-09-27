@@ -36,6 +36,10 @@ export async function generateDynamicManifest(tenantId = null, directStoreInfo =
   if (logoBase64) {
     try {
       const img = new Image();
+      // Only set crossOrigin if loading from remote URL to avoid CORS taint
+      if (logoBase64.startsWith('http://') || logoBase64.startsWith('https://')) {
+        img.crossOrigin = 'anonymous';
+      }
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
@@ -63,6 +67,7 @@ export async function generateDynamicManifest(tenantId = null, directStoreInfo =
   // 2. Draw Tokoto Co-Branding Badge in the bottom-right corner
   try {
     const tokotoIcon = new Image();
+    tokotoIcon.crossOrigin = 'anonymous';
     await new Promise((resolve, reject) => {
       tokotoIcon.onload = resolve;
       tokotoIcon.onerror = reject;
@@ -96,7 +101,7 @@ export async function generateDynamicManifest(tenantId = null, directStoreInfo =
     ctx.drawImage(tokotoIcon, badgeCenterX - (iconSize / 2), badgeCenterY - (iconSize / 2), iconSize, iconSize);
     ctx.restore();
   } catch (badgeErr) {
-    // Fallback badge with text if /icon.png is not loaded
+    // Fallback badge with text if /logo-icon.webp is not loaded
     const badgeCenterX = 405;
     const badgeCenterY = 405;
     const badgeRadius = 70;
@@ -118,11 +123,20 @@ export async function generateDynamicManifest(tenantId = null, directStoreInfo =
     ctx.restore();
   }
 
-  iconDataUrl = canvas.toDataURL('image/png');
+  // 3. Export Canvas to DataURL with Tainted Canvas Protection
+  try {
+    iconDataUrl = canvas.toDataURL('image/png');
+  } catch (canvasErr) {
+    // Jika canvas terkena security taint akibat gambar logo lintas-domain tanpa CORS:
+    console.warn('Canvas terkena proteksi CORS (tainted), beralih ke icon fallback standar:', canvasErr);
+    iconDataUrl = '/logo-icon.webp';
+  }
 
   // Set Apple Touch Icon
   const appleIcon = document.getElementById('dynamic-apple-icon');
-  if (appleIcon) appleIcon.href = iconDataUrl;
+  if (appleIcon && iconDataUrl) {
+    appleIcon.href = iconDataUrl;
+  }
 
   // Generate Manifest JSON with proper tenant start_url and scope
   const startUrl = tenantId ? `/${tenantId}` : "/";
@@ -138,31 +152,35 @@ export async function generateDynamicManifest(tenantId = null, directStoreInfo =
     theme_color: "#18181b",
     icons: [
       {
-        src: iconDataUrl,
+        src: iconDataUrl || "/logo-icon.webp",
         sizes: "512x512",
         type: "image/png",
         purpose: "any maskable"
       },
       {
-        src: iconDataUrl,
+        src: "/logo-icon.webp",
         sizes: "192x192",
-        type: "image/png",
+        type: "image/webp",
         purpose: "any maskable"
       }
     ]
   };
 
-  const stringManifest = JSON.stringify(manifest);
-  const blob = new Blob([stringManifest], { type: 'application/manifest+json' });
-  const manifestUrl = URL.createObjectURL(blob);
-  
-  const manifestLink = document.getElementById('dynamic-manifest');
-  if (manifestLink) {
-    const oldUrl = manifestLink.href;
-    manifestLink.href = manifestUrl;
-    if (oldUrl && oldUrl.startsWith('blob:')) {
-       URL.revokeObjectURL(oldUrl);
+  try {
+    const stringManifest = JSON.stringify(manifest);
+    const blob = new Blob([stringManifest], { type: 'application/manifest+json' });
+    const manifestUrl = URL.createObjectURL(blob);
+    
+    const manifestLink = document.getElementById('dynamic-manifest');
+    if (manifestLink) {
+      const oldUrl = manifestLink.href;
+      manifestLink.href = manifestUrl;
+      if (oldUrl && oldUrl.startsWith('blob:')) {
+         URL.revokeObjectURL(oldUrl);
+      }
     }
+  } catch (manifestErr) {
+    console.warn('Gagal memperbarui dynamic manifest link:', manifestErr);
   }
 }
 

@@ -96,7 +96,7 @@ export default function PosApp({ tenantGlobalInfo }) {
 
   useEffect(() => {
     // Generate dynamic manifest with user's logo on load
-    generateDynamicManifest(tenantId, storeInfo);
+    generateDynamicManifest(tenantId, storeInfo).catch(err => console.warn('PWA Manifest non-fatal error:', err));
 
     // Catch PWA install prompt
     const handleBeforeInstallPrompt = (e) => {
@@ -113,7 +113,7 @@ export default function PosApp({ tenantGlobalInfo }) {
   // Update dynamic manifest whenever store info / logo changes
   useEffect(() => {
     if (storeInfo && (storeInfo.name || storeInfo.logo || storeInfo.logoNota)) {
-      generateDynamicManifest(tenantId, storeInfo);
+      generateDynamicManifest(tenantId, storeInfo).catch(err => console.warn('PWA Manifest non-fatal error:', err));
     }
   }, [storeInfo?.name, storeInfo?.logo, storeInfo?.logoNota, tenantId]);
   
