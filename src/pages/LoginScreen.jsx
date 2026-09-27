@@ -261,13 +261,16 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
           </button>
         </form>
 
-        {/* Watermark Co-Branding Tokoto */}
+        {/* Footer Branding Tokoto */}
         <div className="mt-6 pt-3 sm:mt-8 sm:pt-4 border-t border-gray-200 dark:border-gray-800/80 flex flex-col items-center justify-center gap-1 text-center select-none">
-          <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400">
-            <span>Didukung oleh</span>
-            <span className="text-orange-500 font-bold tracking-wide flex items-center gap-1">
-              <img src="/logo-icon.webp" alt="tokoto" className="w-3.5 h-3.5 object-contain inline-block" />
-              tokoto.id
+          <div className="flex flex-col items-center justify-center gap-1">
+            <img 
+              src="/logo-banner.webp" 
+              alt="Tokoto" 
+              className="h-5 sm:h-6 w-auto max-w-[125px] object-contain drop-shadow-sm opacity-90" 
+            />
+            <span className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400 font-medium tracking-tight">
+              oleh andrianchun &copy; 2026
             </span>
           </div>
           <p className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500">
