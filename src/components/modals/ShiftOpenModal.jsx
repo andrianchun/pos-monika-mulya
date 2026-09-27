@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { LogIn, DollarSign, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { LogIn, Coins, X, RotateCcw } from 'lucide-react';
 import { formatIDR, parseIDR } from '../../utils/helpers';
 
-export default function ShiftOpenModal({ colors,  onClose, setActiveShift, user, lastShiftRemaining = 0 }) {
+export default function ShiftOpenModal({ colors, onClose, setActiveShift, user, lastShiftRemaining = 0 }) {
    const [startingCashStr, setStartingCashStr] = useState(formatIDR(lastShiftRemaining || 0));
 
    const handleOpenShift = (e) => {
@@ -13,7 +13,7 @@ export default function ShiftOpenModal({ colors,  onClose, setActiveShift, user,
          startTime: new Date().toISOString(),
          cashierId: user?.uid || 'unknown',
          cashierName: user?.displayName || user?.name || (user?.email ? user.email.split('@')[0] : '(anonim)'),
-         startingCash: parseIDR(startingCashStr),
+         startingCash,
          expectedCash: startingCash,
          salesCash: 0,
          salesQRIS: 0,
@@ -26,70 +26,120 @@ export default function ShiftOpenModal({ colors,  onClose, setActiveShift, user,
       if (onClose) onClose();
    };
 
+   const cashierName = user?.displayName || user?.name || (user?.email ? user.email.split('@')[0] : 'Kasir');
+
+   const presets = [
+      ...(lastShiftRemaining > 0 ? [{ label: `Sisa Shift (Rp ${formatIDR(lastShiftRemaining)})`, val: lastShiftRemaining }] : []),
+      { label: 'Rp 50.000', val: 50000 },
+      { label: 'Rp 100.000', val: 100000 },
+      { label: 'Rp 200.000', val: 200000 },
+      { label: 'Rp 0', val: 0 }
+   ];
+
+   const currentVal = parseIDR(startingCashStr);
+
    return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-         <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden ${colors.panel} border ${colors.border}`}>
-            <div className={`p-4 flex justify-between items-center border-b ${colors.border}`}>
-               <div className="flex items-center gap-2">
-                  <LogIn size={20} className={colors.gold} />
-                  <h3 className={`font-bold text-lg ${colors.text}`}>Buka Shift Kasir</h3>
+         <div className={`w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden ${colors.panel} border ${colors.border} animate-in fade-in zoom-in-95 duration-200`}>
+            {/* Header Modal Ringkas */}
+            <div className={`px-5 py-4 flex justify-between items-center border-b ${colors.border}`}>
+               <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                     <Coins size={18} />
+                  </div>
+                  <div>
+                     <h3 className={`font-bold text-base leading-tight ${colors.text}`}>Buka Shift Kasir</h3>
+                     <p className={`text-[11px] ${colors.textMuted} font-medium`}>Kasir: <span className="font-semibold text-gray-700 dark:text-gray-300">{cashierName}</span></p>
+                  </div>
                </div>
                {onClose && (
-                  <button onClick={onClose} className="text-red-500 hover:scale-110 transition-transform">
-                     <X size={24} />
+                  <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                     <X size={18} />
                   </button>
                )}
             </div>
             
-            <div className="p-4 sm:p-6">
-               <div className="text-center mb-6">
-                  <div className={`w-16 h-16 ${colors.goldBg}/20 rounded-full flex items-center justify-center mx-auto mb-3`}>
-                     <DollarSign size={32} className={colors.gold} />
-                  </div>
-                  <h4 className={`font-semibold ${colors.text}`}>Hitung Modal Awal Laci</h4>
-                  <p className="text-sm text-gray-500 mt-1">
-                     Silakan hitung uang fisik (receh/kembalian) yang ada di dalam laci kasir saat ini.
-                  </p>
-               </div>
-
-               <form onSubmit={handleOpenShift}>
-                  <div className="mb-6">
-                     <label className={`block text-sm font-medium ${colors.text} mb-1`}>
-                        Modal Awal (Rp)
+            <form onSubmit={handleOpenShift} className="p-5 space-y-4">
+               <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                     <label className={`text-xs font-semibold ${colors.textMuted}`}>
+                        Modal Awal di Laci
                      </label>
-                     <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rp</span>
-                        <input
-                           type="text"
-                           required
-                           className={`w-full pl-10 p-3 bg-transparent border ${colors.border} rounded-xl focus:ring-1 focus:ring-[#D4AF37] focus:border-transparent outline-none transition-all ${colors.text} font-semibold text-lg`}
-                           value={startingCashStr}
-                           onChange={(e) => setStartingCashStr(formatIDR(e.target.value))}
-                           placeholder="0"
-                           autoFocus
-                        />
-                     </div>
                      {lastShiftRemaining > 0 && (
-                        <button 
+                        <button
                            type="button"
                            onClick={() => setStartingCashStr(formatIDR(lastShiftRemaining))}
-                           className="w-full text-xs text-green-600 dark:text-green-400 mt-2 flex justify-between items-center bg-green-500/10 hover:bg-green-500/20 p-2.5 rounded-lg transition-colors border border-green-500/20 cursor-pointer active:scale-[0.98]"
+                           className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                           title="Gunakan sisa saldo shift sebelumnya"
                         >
-                           <span>Sisa dari shift sebelumnya (klik untuk isi):</span>
-                           <span className="font-bold">Rp {formatIDR(lastShiftRemaining)}</span>
+                           Sisa lalu: Rp {formatIDR(lastShiftRemaining)}
                         </button>
                      )}
                   </div>
 
-                  <button
-                     type="submit"
-                     className={`w-full p-4 ${colors.goldBg} text-[#18181B] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform active:scale-[0.98] flex justify-center items-center gap-2`}
-                  >
-                     <LogIn size={20} />
-                     Buka Shift & Mulai Jualan
-                  </button>
-               </form>
-            </div>
+                  {/* Input Angka Besar */}
+                  <div className="relative">
+                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">Rp</span>
+                     <input
+                        type="text"
+                        required
+                        className={`w-full pl-11 pr-10 py-3 bg-gray-50/50 dark:bg-black/20 border ${colors.border} rounded-xl focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] outline-none transition-all ${colors.text} font-bold text-xl tracking-tight`}
+                        value={startingCashStr}
+                        onChange={(e) => setStartingCashStr(formatIDR(e.target.value))}
+                        placeholder="0"
+                        autoFocus
+                     />
+                     {currentVal > 0 && (
+                        <button
+                           type="button"
+                           onClick={() => setStartingCashStr('0')}
+                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
+                           title="Reset Rp 0"
+                        >
+                           <RotateCcw size={14} />
+                        </button>
+                     )}
+                  </div>
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
+                     Hitung uang tunai fisik yang ada di laci saat ini sebagai modal kembalian.
+                  </p>
+               </div>
+
+               {/* Pilihan Cepat Nominal */}
+               <div className="space-y-1.5">
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider ${colors.textMuted}`}>
+                     Pilihan Cepat
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                     {presets.map((preset) => {
+                        const isActive = currentVal === preset.val;
+                        return (
+                           <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => setStartingCashStr(formatIDR(preset.val))}
+                              className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
+                                 isActive
+                                    ? 'bg-[#D4AF37]/15 border-[#D4AF37] text-[#D4AF37] font-bold shadow-sm'
+                                    : `bg-transparent ${colors.border} ${colors.textMuted} hover:${colors.text} hover:bg-gray-100 dark:hover:bg-gray-800`
+                              }`}
+                           >
+                              {preset.label}
+                           </button>
+                        );
+                     })}
+                  </div>
+               </div>
+
+               {/* Tombol Eksekusi Buka Shift */}
+               <button
+                  type="submit"
+                  className={`w-full py-3 px-4 ${colors.goldBg} text-[#18181B] rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all transform active:scale-[0.98] flex justify-center items-center gap-2 mt-2`}
+               >
+                  <LogIn size={18} />
+                  Buka Shift &amp; Mulai Transaksi
+               </button>
+            </form>
          </div>
       </div>
    );
