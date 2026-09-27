@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, query, where, getDocsFromServer } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import PosApp from '../PosApp';
 
@@ -10,29 +10,65 @@ export default function TenantWrapper() {
   const navigate = useNavigate();
 
   const [tenantValid, setTenantValid] = useState('checking'); 
-  const [tenantGlobalInfo, setTenantGlobalInfo] = useState(null);
+  const [tenantGlobalInfo, setTenantGlobalInfo] = useState(() => {
+    try {
+      const cachedStr = localStorage.getItem(`mmpos_storeInfo_${tenantId}`) || localStorage.getItem('mmpos_storeInfo');
+      if (cachedStr) return JSON.parse(cachedStr);
+    } catch(e) {}
+    if (tenantId === 'monikamulya') {
+      return { name: 'MONIKA MULYA', storeName: 'MONIKA MULYA' };
+    }
+    return null;
+  });
 
   useEffect(() => {
     if (!tenantId) {
       setTenantValid('invalid');
       return;
     }
-    const checkTenant = async () => {
-      try {
-        const q = query(collection(db, "global_users"), where("tenantId", "==", tenantId));
-        const snap = await getDocsFromServer(q);
-        if (snap.empty) {
-          setTenantValid('invalid');
-        } else {
-          setTenantValid('valid');
-          setTenantGlobalInfo(snap.docs[0].data());
+    
+    // 1. Ambil info toko secara instan dari Cache Lokal (Offline First)
+    try {
+        const cachedStr = localStorage.getItem(`mmpos_storeInfo_${tenantId}`) || localStorage.getItem('mmpos_storeInfo');
+        if (cachedStr) {
+            const cachedObj = JSON.parse(cachedStr);
+            setTenantGlobalInfo(prev => ({ ...(prev || {}), ...cachedObj }));
         }
-      } catch (e) {
-        // Jika error jaringan atau permission (misal aturan diubah), asumsikan valid sementara
-        setTenantValid('valid');
+    } catch(e) {}
+
+    // 2. Fetch data toko terbaru dari server secara asinkron tanpa memblokir UI
+    const fetchOnlineTenant = async () => {
+      try {
+        // Coba baca dokumen settings/storeInfo tenant
+        const storeInfoSnap = await getDoc(doc(db, "tenants", tenantId, "settings", "storeInfo"));
+        if (storeInfoSnap.exists()) {
+          const storeData = storeInfoSnap.data();
+          setTenantGlobalInfo(prev => ({ ...(prev || {}), ...storeData }));
+          localStorage.setItem(`mmpos_storeInfo_${tenantId}`, JSON.stringify(storeData));
+          return;
+        }
+
+        // Fallback: cari di global_users
+        const q = query(collection(db, "global_users"), where("tenantId", "==", tenantId));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const gData = snap.docs[0].data();
+          const info = { 
+            name: gData.storeName || gData.name, 
+            storeName: gData.storeName || gData.name,
+            ownerEmail: gData.email || '',
+            ownerId: gData.id || ''
+          };
+          setTenantGlobalInfo(prev => ({ ...(prev || {}), ...info }));
+          localStorage.setItem(`mmpos_storeInfo_${tenantId}`, JSON.stringify({ ...(tenantGlobalInfo || {}), ...info }));
+        }
+      } catch(err) {
+        // Abaikan jika offline / permission rule
       }
     };
-    checkTenant();
+
+    fetchOnlineTenant();
+    setTenantValid('valid');
   }, [tenantId]);
 
   if (tenantValid === 'checking') {

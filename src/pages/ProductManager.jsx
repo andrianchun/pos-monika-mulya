@@ -80,7 +80,7 @@ export default function ProductManager({ products, setProducts, categories, unit
     }));
   }, [products, sales]);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (parseIDR(form.price) < parseIDR(form.cost)) {
       playSound('pop', isSoundOn);
@@ -99,8 +99,29 @@ export default function ProductManager({ products, setProducts, categories, unit
     }
 
     playSound('success', isSoundOn);
+    
+    let finalImg = form.img;
+    // Jika gambar diedit dan berupa base64, unggah ke Storage
+    if (finalImg && finalImg.startsWith('data:image')) {
+       showToast('Memproses & Mengunggah Gambar...', 'info');
+       try {
+           const { base64ToBlob, uploadImageToStorage } = await import('../utils/helpers');
+           const blob = base64ToBlob(finalImg);
+           if (blob) {
+               const tenantId = window.location.pathname.split('/')[1] || 'default';
+               const prodId = editingId || Date.now();
+               const url = await uploadImageToStorage(blob, `tenants/${tenantId}/products/${prodId}.webp`, showToast, 600, 0.8);
+               finalImg = url;
+           }
+       } catch (err) {
+           console.error("Gagal mengunggah gambar ke Storage:", err);
+       }
+    }
+
+    const formToSave = { ...form, img: finalImg };
+
     if (editingId) {
-      setProducts(products.map(p => p.id === editingId ? { ...p, ...form, hppChanged: false } : p));
+      setProducts(products.map(p => p.id === editingId ? { ...p, ...formToSave, hppChanged: false } : p));
       const oldProd = products.find(p => p.id === editingId);
       const changes = [];
       if (oldProd?.price !== form.price) changes.push(`harga jual dari Rp${formatIDR(oldProd?.price || 0)} ke Rp${formatIDR(form.price)}`);
@@ -110,7 +131,7 @@ export default function ProductManager({ products, setProducts, categories, unit
       if (recordActivity) recordActivity('Edit Produk', `Mengubah data produk "${form.name}"${changeStr}`);
       showToast('Produk diperbarui', 'success');
     } else {
-      setProducts([{ ...form, id: Date.now(), promo: {active: false, type: 'percent', value: 0, endDate: ''}, wholesale: {minQty: 0, price: 0} }, ...products]);
+      setProducts([{ ...formToSave, id: Date.now(), promo: {active: false, type: 'percent', value: 0, endDate: ''}, wholesale: {minQty: 0, price: 0} }, ...products]);
       if (recordActivity) recordActivity('Tambah Produk', `Menambahkan produk baru "${form.name}" (Stok: ${form.stock})`);
       showToast('Produk ditambahkan', 'success');
     }
@@ -319,7 +340,7 @@ export default function ProductManager({ products, setProducts, categories, unit
                     <form id="productForm" onSubmit={handleSave} className="space-y-5">
               <div className="flex flex-col items-center mb-4">
                  <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group shrink-0`} title="Upload Thumbnail Produk">
-                    {form.img && form.img.startsWith('data:image') ? <img src={form.img} className="w-full h-full object-cover" alt="Thumb" /> : <span className="text-4xl">{form.img}</span>}
+                    {form.img && (form.img.startsWith('data:image') || form.img.startsWith('http')) ? <img src={form.img} className="w-full h-full object-cover" alt="Thumb" /> : <span className="text-4xl">{form.img}</span>}
                     <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-xs text-white text-center p-2 font-bold">Ubah Gambar</div>
                     <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, (res) => setForm({...form, img: res}), showToast)} />
                  </label>

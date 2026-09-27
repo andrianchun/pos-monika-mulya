@@ -58,6 +58,76 @@ export default function SettingsPage({
   const [deleteUsr, setDeleteUsr] = useState(null);
   const [deleteFin, setDeleteFin] = useState(null);
 
+  const [isMigratingImages, setIsMigratingImages] = useState(false);
+  const migrateBase64ToStorage = async () => {
+       setIsMigratingImages(true);
+       showToast("Memulai proses sapu bersih gambar...", "info");
+       
+       let count = 0;
+       try {
+           const { base64ToBlob, uploadImageToStorage } = await import('../utils/helpers');
+           const tenantId = window.location.pathname.split('/')[1] || 'default';
+           
+           const prods = [...products];
+           let prodChanged = false;
+           for (let i = 0; i < prods.length; i++) {
+               let p = prods[i];
+               if (p.img && p.img.startsWith('data:image')) {
+                   const blob = base64ToBlob(p.img);
+                   if (blob) {
+                       const url = await uploadImageToStorage(blob, `tenants/${tenantId}/products/${p.id}.webp`, null, 600, 0.8);
+                       prods[i] = { ...p, img: url };
+                       prodChanged = true;
+                       count++;
+                   }
+               }
+           }
+           if (prodChanged && setProducts) {
+               setProducts(prods);
+           }
+           
+           let newInfo = { ...storeInfo };
+           let infoChanged = false;
+           
+           if (newInfo.logo && newInfo.logo.startsWith('data:image')) {
+               const blob = base64ToBlob(newInfo.logo);
+               if (blob) {
+                   newInfo.logo = await uploadImageToStorage(blob, `tenants/${tenantId}/assets/logo_${Date.now()}.webp`, null, 400, 0.8);
+                   infoChanged = true; count++;
+               }
+           }
+           if (newInfo.logoNota && newInfo.logoNota.startsWith('data:image')) {
+               const blob = base64ToBlob(newInfo.logoNota);
+               if (blob) {
+                   newInfo.logoNota = await uploadImageToStorage(blob, `tenants/${tenantId}/assets/logoNota_${Date.now()}.webp`, null, 300, 0.8);
+                   infoChanged = true; count++;
+               }
+           }
+           if (newInfo.banner && newInfo.banner.startsWith('data:image')) {
+               const blob = base64ToBlob(newInfo.banner);
+               if (blob) {
+                   newInfo.banner = await uploadImageToStorage(blob, `tenants/${tenantId}/assets/banner_${Date.now()}.webp`, null, 800, 0.8);
+                   infoChanged = true; count++;
+               }
+           }
+           
+           if (infoChanged) {
+               setStoreInfo(newInfo);
+           }
+           
+           if(count > 0) {
+               playSound('success', isSoundOn);
+               showToast(`Selesai! ${count} gambar Base64 telah dipindahkan ke Storage.`, "success");
+           } else {
+               showToast("Tidak ada gambar Base64 yang perlu disapu.", "info");
+           }
+       } catch (err) {
+           console.error(err);
+           showToast("Terjadi kesalahan saat migrasi: " + (err.message || String(err)), "error");
+       }
+       setIsMigratingImages(false);
+  };
+
   // --- STATE INTEGRASI (harus top-level, Rules of Hooks) ---
   const _integrations = storeInfo.integrations || {};
   const [webhookUrl, setWebhookUrl] = useState(_integrations.financeWebhookUrl || '');
@@ -176,11 +246,43 @@ export default function SettingsPage({
      showToast('Pengaturan poin & ongkir diperbarui.', 'success');
   };
 
-  const saveStoreInfo = (e) => {
+  const saveStoreInfo = async (e) => {
      e.preventDefault(); 
      playSound('success', isSoundOn);
+     showToast('Menyimpan pengaturan toko...', 'info');
+
+     let finalLogo = sLogo;
+     let finalLogoNota = sLogoNota;
+     let finalBanner = sBanner;
+
+     try {
+         const { base64ToBlob, uploadImageToStorage } = await import('../utils/helpers');
+         const tenantId = window.location.pathname.split('/')[1] || 'default';
+         
+         if (finalLogo && finalLogo.startsWith('data:image')) {
+             showToast('Mengunggah Logo Toko...', 'info');
+             const blob = base64ToBlob(finalLogo);
+             if(blob) finalLogo = await uploadImageToStorage(blob, `tenants/${tenantId}/assets/logo_${Date.now()}.webp`, showToast, 400, 0.8);
+         }
+         
+         if (finalLogoNota && finalLogoNota.startsWith('data:image')) {
+             showToast('Mengunggah Logo Nota...', 'info');
+             const blob = base64ToBlob(finalLogoNota);
+             if(blob) finalLogoNota = await uploadImageToStorage(blob, `tenants/${tenantId}/assets/logoNota_${Date.now()}.webp`, showToast, 300, 0.8);
+         }
+
+         if (finalBanner && finalBanner.startsWith('data:image')) {
+             showToast('Mengunggah Banner...', 'info');
+             const blob = base64ToBlob(finalBanner);
+             if(blob) finalBanner = await uploadImageToStorage(blob, `tenants/${tenantId}/assets/banner_${Date.now()}.webp`, showToast, 800, 0.8);
+         }
+     } catch(err) {
+         console.error("Gagal mengunggah profil toko ke Storage:", err);
+     }
+
      setStoreInfo({ 
-       ...storeInfo, name: sName, tagline: sTagline, address: sAddress, phone: sPhone, logo: sLogo, logoNota: sLogoNota, banner: sBanner,
+       ...storeInfo, name: sName, tagline: sTagline, address: sAddress, phone: sPhone, 
+       logo: finalLogo, logoNota: finalLogoNota, banner: finalBanner,
        ongkirPerKm: Number(sOngkir) || 0, prefixSales: sPrefSales, prefixPurchase: sPrefPurch
      });
      
@@ -606,21 +708,24 @@ export default function SettingsPage({
                        <div className="flex flex-wrap gap-4 items-end mb-2">
                          <div className="flex flex-col items-start">
                            <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
-                              {sLogo ? <img src={sLogo} className="w-full h-full object-cover" alt="Logo" /> : <Store size={32} />}
+                              {sLogo && (sLogo.startsWith('data:image') || sLogo.startsWith('http')) ? <img src={sLogo} className="w-full h-full object-cover" alt="Logo" /> : <Store className="text-gray-300" size={32}/>}
+                              <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-[10px] text-white text-center p-1 font-bold">Ubah Logo</div>
                               <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSLogo, showToast, 600, 0.85)} />
                            </label>
                            <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase w-full text-center">Logo Aplikasi</span>
                          </div>
                          <div className="flex flex-col items-start">
                            <label className={`relative w-24 h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
-                              {sLogoNota ? <img src={sLogoNota} className="w-full h-full object-cover" alt="Logo Nota" /> : <Store size={32} />}
+                              {sLogoNota && (sLogoNota.startsWith('data:image') || sLogoNota.startsWith('http')) ? <img src={sLogoNota} className="w-full h-full object-cover filter grayscale" alt="Logo Nota" /> : <span className="text-[10px] text-gray-400 font-bold px-2 text-center">B/W Logo <br/> (Max 300px)</span>}
+                              <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-[10px] text-white text-center p-1 font-bold">Ubah Logo Nota</div>
                               <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSLogoNota, showToast, 600, 0.85)} />
                            </label>
                            <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase w-full text-center">Logo Nota</span>
                          </div>
                          <div className="flex flex-col items-start flex-1">
                            <label className={`relative w-full h-24 rounded-xl ${colors.creamBg} border-2 border-dashed ${colors.border} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors overflow-hidden group`}>
-                              {sBanner ? <img src={sBanner} className="w-full h-full object-cover" alt="Banner" /> : <Image size={32} />}
+                              {sBanner && (sBanner.startsWith('data:image') || sBanner.startsWith('http')) ? <img src={sBanner} className="w-full h-full object-cover" alt="Banner" /> : <Image className="text-gray-300" size={32}/>}
+                              <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-[10px] text-white text-center p-1 font-bold">Ubah Banner</div>
                               <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setSBanner, showToast, 1920, 0.85)} />
                            </label>
                            <span className="text-[10px] mt-2 text-gray-400 font-bold uppercase w-full text-center">Banner Latar</span>
@@ -1004,6 +1109,21 @@ export default function SettingsPage({
                      <input type="file" accept=".json" className="hidden" ref={importDbRef} onChange={handleImportDB} />
                      <button type="button" onClick={() => { playSound('pop', isSoundOn); importDbRef.current.click(); }} className="px-4 py-2.5 bg-blue-500 text-white font-black rounded-xl text-xs w-full shadow-sm hover:bg-blue-600 transition-colors">Pilih File Backup</button>
                   </div>
+               </div>
+
+               {/* TOOL MIGRASI GAMBAR STORAGE */}
+               <div className="mt-6 p-5 rounded-xl border border-teal-200 dark:border-teal-900 bg-teal-50 dark:bg-teal-900/10">
+                  <h4 className={`font-black text-sm mb-2 text-teal-600 dark:text-teal-400`}>Sapu Bersih: Migrasi Gambar ke Storage</h4>
+                  <p className="text-xs text-teal-800/70 dark:text-teal-200/70 mb-4">Ubah seluruh gambar lama berformat teks (Base64) di database menjadi format file Storage yang sangat ringan.</p>
+                  
+                  <button 
+                     type="button"
+                     disabled={isMigratingImages}
+                     onClick={migrateBase64ToStorage}
+                     className={`w-full py-3 rounded-xl font-bold text-white shadow-md flex items-center justify-center gap-2 transition-transform hover:scale-[1.01] ${isMigratingImages ? 'bg-teal-400 cursor-not-allowed' : 'bg-teal-600 hover:bg-teal-700'}`}
+                  >
+                     <Zap size={18}/> {isMigratingImages ? 'Sedang Memigrasi...' : 'Bersihkan Gambar Sekarang'}
+                  </button>
                </div>
 
                {/* TOOL MIGRASI LAMA */}
@@ -1484,13 +1604,21 @@ export default function SettingsPage({
                      
                      {uForm.id ? (
                         <div className="p-3 mt-1 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-3">
-                           <div>
-                              <label className={`block text-xs font-bold mb-1 ${colors.text} flex items-center gap-1`}><KeyRound size={12}/> Reset Password Staff (Opsional)</label>
-                              <input type="text" className={`w-full p-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-400 bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.newPassword || ''} onChange={e=>setUForm({...uForm, newPassword: e.target.value})} placeholder="Ketik sandi baru (min. 6)..." />
-                           </div>
-                           <p className="text-[10px] text-blue-700 dark:text-blue-300">
-                              ℹ️ Pengaturan keamanan <b>email login & verifikasi</b> hanya bisa diubah oleh masing-masing user dari perangkat mereka sendiri melalui menu <b>Profil</b> (Pojok kanan atas Header). Admin hanya memiliki akses untuk me-reset password.
-                           </p>
+                           {uForm.isFirebaseAuth ? (
+                              <p className="text-xs text-blue-700 dark:text-blue-300 font-bold mb-1">
+                                 ℹ️ Ini adalah akun Pemilik (Owner) yang didaftarkan menggunakan Firebase Auth. Keamanan, Password, dan Email hanya bisa diubah lewat pengaturan keamanan Firebase.
+                              </p>
+                           ) : (
+                              <>
+                                 <div>
+                                    <label className={`block text-xs font-bold mb-1 ${colors.text} flex items-center gap-1`}><KeyRound size={12}/> Reset Password Staff (Opsional)</label>
+                                    <input type="text" className={`w-full p-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-400 bg-transparent ${colors.text} ${colors.border} outline-none`} value={uForm.newPassword || ''} onChange={e=>setUForm({...uForm, newPassword: e.target.value})} placeholder="Ketik sandi baru (min. 6)..." />
+                                 </div>
+                                 <p className="text-[10px] text-blue-700 dark:text-blue-300">
+                                    ℹ️ Pengaturan keamanan <b>email login & verifikasi</b> hanya bisa diubah oleh masing-masing user dari perangkat mereka sendiri melalui menu <b>Profil</b> (Pojok kanan atas Header). Admin hanya memiliki akses untuk me-reset password.
+                                 </p>
+                              </>
+                           )}
                         </div>
                      ) : (
                         <div className="grid grid-cols-2 gap-3">

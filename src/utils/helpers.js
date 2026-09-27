@@ -1,5 +1,6 @@
 import html2canvas from 'html2canvas';
-
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { storage } from "../firebase";
 export const parseIDR = (val) => {
   if (val === null || val === undefined || val === '') return 0;
   let str = val.toString();
@@ -107,6 +108,7 @@ export const handleImageUpload = (e, callback, showToast, customMaxWidth = 300, 
   const file = e.target.files[0];
   if (file) {
     if (file.size > 20 * 1024 * 1024) { showToast('Ukuran maksimal gambar 20MB!', 'error'); return; }
+    // Maintain old behavior for non-storage implementations if any
     const reader = new FileReader();
       reader.onload = (evt) => {
          const img = new Image();
@@ -132,6 +134,69 @@ export const handleImageUpload = (e, callback, showToast, customMaxWidth = 300, 
       };
     reader.readAsDataURL(file);
   }
+};
+
+export const base64ToBlob = (base64) => {
+  try {
+    const parts = base64.split(';base64,');
+    const contentType = parts[0].split(':')[1];
+    const raw = window.atob(parts[1]);
+    const rawLength = raw.length;
+    const uInt8Array = new Uint8Array(rawLength);
+    for (let i = 0; i < rawLength; ++i) {
+      uInt8Array[i] = raw.charCodeAt(i);
+    }
+    return new Blob([uInt8Array], { type: contentType });
+  } catch (err) {
+    return null;
+  }
+};
+
+export const uploadImageToStorage = async (fileOrBlob, storagePath, showToast, customMaxWidth = 600, customQuality = 0.8) => {
+  return new Promise((resolve, reject) => {
+     if (!fileOrBlob) { reject("No file"); return; }
+     
+     const reader = new FileReader();
+     reader.onload = (evt) => {
+        const img = new Image();
+        img.onload = () => {
+           const canvas = document.createElement('canvas');
+           let scaleSize = 1;
+           if (img.width > customMaxWidth) scaleSize = customMaxWidth / img.width;
+           canvas.width = img.width * scaleSize;
+           canvas.height = img.height * scaleSize;
+           const ctx = canvas.getContext('2d');
+           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+           
+           // Convert canvas to WebP Blob for ultra-small size
+           canvas.toBlob((blob) => {
+               if(!blob) { reject("Canvas toBlob failed"); return; }
+               
+               // Upload to Firebase Storage
+               const storageRef = ref(storage, storagePath);
+               const uploadTask = uploadBytesResumable(storageRef, blob);
+               
+               uploadTask.on('state_changed', 
+                  (snapshot) => {
+                      // Optional: Progress logic here
+                  }, 
+                  (error) => {
+                      if(showToast) showToast('Gagal mengunggah gambar ke Storage: ' + error.message, 'error');
+                      reject(error);
+                  }, 
+                  async () => {
+                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                     resolve(downloadURL);
+                  }
+               );
+           }, 'image/webp', customQuality);
+        };
+        img.onerror = (e) => reject(e);
+        img.src = evt.target.result;
+     };
+     reader.onerror = (e) => reject(e);
+     reader.readAsDataURL(fileOrBlob);
+  });
 };
 
 export const playSound = (type, isSoundOn) => {

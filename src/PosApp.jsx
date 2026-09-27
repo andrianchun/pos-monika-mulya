@@ -25,13 +25,14 @@ import { db, auth } from './firebase';
 import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, getDocsFromServer, writeBatch, onSnapshot, query, where, limit } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
-const defaultStoreInfo = { name: 'Memuat Toko...', tagline: 'Bismillah', address: 'Memuat...', phone: 'Memuat...', logo: null, banner: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
+const defaultStoreInfo = { name: '', tagline: 'Aplikasi Kasir Cerdas', address: '-', phone: '-', logo: null, banner: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
 const getInitialStoreInfo = (tenantId) => {
     try {
-        const cached = localStorage.getItem(`mmpos_storeInfo_${tenantId}`);
+        const cached = localStorage.getItem(`mmpos_storeInfo_${tenantId}`) || localStorage.getItem('mmpos_storeInfo');
         if (cached) return JSON.parse(cached);
     } catch(e) {}
-    return defaultStoreInfo;
+    const fallbackName = tenantId === 'monikamulya' ? 'MONIKA MULYA' : (tenantId ? tenantId.toUpperCase() : 'TOKOTO POS');
+    return { ...defaultStoreInfo, name: fallbackName };
 };
 
 import { useParams, useNavigate } from 'react-router-dom';
@@ -41,7 +42,16 @@ export default function PosApp({ tenantGlobalInfo }) {
   
   // Pastikan URL tenant valid
   if (!tenantId) return <div>Invalid Tenant URL</div>;
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem(`mmpos_user_${tenantId}`) || localStorage.getItem('mmpos_user');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.id) return parsed;
+      }
+    } catch(e) {}
+    return null;
+  });
 
   const getTenantCollection = (colName) => {
     // Koleksi users dan settings sekarang pindah ke tenant
@@ -59,10 +69,21 @@ export default function PosApp({ tenantGlobalInfo }) {
   const [loading, setLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [purchases, setPurchases] = useState([]);
+  const [accounting, setAccounting] = useState([]);
+  const [financialAccounts, setFinancialAccounts] = useState([]);
+  const [storeInfo, setStoreInfo] = useState(() => getInitialStoreInfo(tenantId));
+  const [categories, setCategories] = useState(['Sembako', 'Makanan', 'Minuman']);
+  const [units, setUnits] = useState(['Pcs', 'Kg', 'Sak']);
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
     // Generate dynamic manifest with user's logo on load
-    generateDynamicManifest();
+    generateDynamicManifest(tenantId, storeInfo);
 
     // Catch PWA install prompt
     const handleBeforeInstallPrompt = (e) => {
@@ -75,27 +96,32 @@ export default function PosApp({ tenantGlobalInfo }) {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
+
+  // Update dynamic manifest whenever store info / logo changes
+  useEffect(() => {
+    if (storeInfo && (storeInfo.name || storeInfo.logo || storeInfo.logoNota)) {
+      generateDynamicManifest(tenantId, storeInfo);
+    }
+  }, [storeInfo?.name, storeInfo?.logo, storeInfo?.logoNota, tenantId]);
   
+  const navigateMenu = (menu) => {
+     setActiveMenu(menu);
+     if (menu === 'laporan') {
+         setGlobalMode('neraca');
+     } else {
+         setGlobalMode(prev => (prev !== 'penjualan' && prev !== 'pembelian' ? 'penjualan' : prev));
+     }
+  };
+
   const [editIntent, setEditIntent] = useState(null);
   const handleNavigateAndEdit = (menu, id, mode = null) => {
-     setActiveMenu(menu);
+     navigateMenu(menu);
      if (mode) setGlobalMode(mode);
      setEditIntent({ menu, id, clearIntent: () => setEditIntent(null) });
   };
   
   const [syncCount, setSyncCount] = useState(0); 
   
-  const [products, setProducts] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [sales, setSales] = useState([]);
-  const [purchases, setPurchases] = useState([]);
-  const [accounting, setAccounting] = useState([]);
-  const [financialAccounts, setFinancialAccounts] = useState([]);
-  const [storeInfo, setStoreInfo] = useState(() => getInitialStoreInfo(tenantId));
-  const [categories, setCategories] = useState(['Sembako', 'Makanan', 'Minuman']);
-  const [units, setUnits] = useState(['Pcs', 'Kg', 'Sak']);
-  const [users, setUsers] = useState([]);
 
   // Sync logged in user profile changes instantly
   useEffect(() => {
@@ -114,82 +140,24 @@ export default function PosApp({ tenantGlobalInfo }) {
     }
   }, [users, user]);
 
-  // Resolusi profil: setelah Firebase Auth berhasil
   useEffect(() => {
-    if (!authUid || user || loading) return;
-    
+    if (!authUid || user) return;
+
+    let isCancelled = false;
+
     const resolveUser = async () => {
-      // 1. Cek apakah ini Owner Global?
-      let ownerData = null;
-      try {
-        const docRef = doc(db, "global_users", authUid);
-        const snap = await getDoc(docRef);
-        
-        if (snap.exists() && snap.data().tenantId === tenantId) {
-            ownerData = snap.data();
-        } else if (auth.currentUser?.email) {
-            // AUTO RECOVERY HANTU UID: Jika akun Firebase pernah dihapus manual tapi email sama
-            const q = query(collection(db, "global_users"), where("email", "==", auth.currentUser.email));
-            const qs = await getDocs(q);
-            if (!qs.empty) {
-                const oldDoc = qs.docs[0];
-                if (oldDoc.data().tenantId === tenantId) {
-                    ownerData = oldDoc.data();
-                    // Migrate data ke UID baru
-                    try {
-                        await setDoc(docRef, { ...ownerData, id: authUid });
-                        await deleteDoc(doc(db, "global_users", oldDoc.id));
-                        console.log("Global Owner UID di-recovery secara otomatis!");
-                    } catch (err) {
-                        console.warn("Auto-recovery DB gagal (Firestore Rules), tapi bypass tetap berjalan.", err);
-                    }
-                }
-            }
-        }
+      // 1. FAST PATH: Cek memori users & cache lokal (0ms)
+      let allUsers = users || [];
+      let profile = allUsers.find(u => String(u.id) === String(authUid));
 
-        if (ownerData) {
-          const ownerProfile = {
-            id: authUid,
-            name: ownerData.name || auth.currentUser?.displayName || "Pemilik Usaha",
-            username: "owner",
-            email: auth.currentUser?.email || "",
-            role: "admin",
-            permissions: ['dashboard', 'pos', 'riwayat_penjualan', 'riwayat_pembelian', 'kontak_customer', 'kontak_supplier', 'produk', 'laporan_keuangan', 'laporan_barang', 'aktivitas', 'pengaturan'],
-            isFirebaseAuth: true
-          };
-          
-          // Pastikan Owner tampil di Tabel Akun & Akses (users lokal tenant)
-          const localProfile = (users || []).find(u => String(u.id) === String(authUid));
-          if (!localProfile) {
-             setDoc(doc(getTenantCollection("users"), authUid), ownerProfile).catch(e => console.warn("Gagal mirror owner ke lokal tenant", e));
-          } else if (localProfile.name !== ownerProfile.name && !localProfile.isFirebaseAuth) {
-             // Opsional: update lokal jika ada deviasi ekstrem, tapi biarkan dulu untuk menghormati edit lokal
-          }
-
-          setUser(ownerProfile);
-          setActiveMenu('dashboard');
-          return; // Langsung bypass layar Emas!
-        }
-      } catch(e) {
-        console.warn("Bukan owner global atau gagal baca", e);
-        alert(`DEBUG ERROR BACA DB: ${e.message}`);
-      }
-
-
-
-      // 2. Jika bukan Owner, maka cek Karyawan Lokal
-      let profile = (users || []).find(u => String(u.id) === String(authUid));
-
-      // Fallback: Jika pakai UID auth tidak ketemu, cari berdasarkan email atau tebakan username legacy
       if (!profile && auth.currentUser?.email) {
-         profile = (users || []).find(u => {
-            if (u.email && u.email === auth.currentUser.email) return true;
-            if (u.username && `${String(u.username).trim().toLowerCase()}@monikamulya.com` === auth.currentUser.email) return true;
+         profile = allUsers.find(u => {
+            if (u.email && u.email.toLowerCase() === auth.currentUser.email.toLowerCase()) return true;
+            if (u.username && `${String(u.username).trim().toLowerCase()}@monikamulya.com` === auth.currentUser.email.toLowerCase()) return true;
             return false;
          });
       }
 
-      // Fallback Darurat
       if (!profile && auth.currentUser?.email && typeof initialUsers !== 'undefined') {
          const initialProfile = initialUsers.find(u => {
             if (u.email === auth.currentUser.email) return true;
@@ -202,8 +170,54 @@ export default function PosApp({ tenantGlobalInfo }) {
          }
       }
 
+      // 2. PARALLEL LOOKUP: Jika belum ada di memori, query langsung dokumen spesifik (100-200ms)
+      if (!profile) {
+        try {
+          const [staffDocSnap, globalDocSnap] = await Promise.allSettled([
+            getDoc(doc(db, "tenants", tenantId, "users", authUid)),
+            getDoc(doc(db, "global_users", authUid))
+          ]);
+
+          if (staffDocSnap.status === 'fulfilled' && staffDocSnap.value.exists()) {
+            profile = { ...staffDocSnap.value.data(), id: authUid };
+          } else if (globalDocSnap.status === 'fulfilled' && globalDocSnap.value.exists()) {
+            const ownerData = globalDocSnap.value.data();
+            if (ownerData.tenantId === tenantId || !ownerData.tenantId) {
+              profile = {
+                id: authUid,
+                name: ownerData.name || auth.currentUser?.displayName || "Pemilik Usaha",
+                username: auth.currentUser?.email || ownerData.email || "owner",
+                email: auth.currentUser?.email || ownerData.email || "",
+                role: "admin",
+                permissions: ['dashboard', 'pos', 'riwayat_penjualan', 'riwayat_pembelian', 'kontak_customer', 'kontak_supplier', 'produk', 'laporan_keuangan', 'laporan_barang', 'aktivitas', 'pengaturan'],
+                isFirebaseAuth: true
+              };
+              setDoc(doc(getTenantCollection("users"), authUid), profile).catch(e => console.warn("Gagal mirror owner ke lokal", e));
+            }
+          }
+        } catch(err) {
+          console.warn("Gagal direct lookup user:", err);
+        }
+      }
+
+      if (isCancelled) return;
+
+      // JIKA PROFIL LOKAL/GLOBAL DITEMUKAN:
       if (profile) {
+        if (String(profile.id) !== String(authUid)) {
+            const oldId = profile.id;
+            profile = { ...profile, id: authUid, email: auth.currentUser?.email || profile.email };
+            try {
+                await setDoc(doc(db, "tenants", tenantId, "users", authUid), profile);
+                if (oldId) await deleteDoc(doc(db, "tenants", tenantId, "users", oldId));
+            } catch (err) { console.warn("Gagal auto-migrasi UID", err); }
+        }
+        
         setUser(profile);
+        try {
+          localStorage.setItem(`mmpos_user_${tenantId}`, JSON.stringify(profile));
+          localStorage.setItem('mmpos_user', JSON.stringify(profile));
+        } catch(e) {}
         setActiveMenu(profile.role === 'kasir' ? 'pos' : 'dashboard');
         
         if (auth.currentUser?.email && auth.currentUser.email !== profile.email) {
@@ -214,22 +228,34 @@ export default function PosApp({ tenantGlobalInfo }) {
           justLoggedInRef.current = false;
           (async () => {
             try {
-              const res = await fetch('https://ipapi.co/json/');
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 1500);
+              const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+              clearTimeout(timer);
               const data = await res.json();
               const location = `${data.city || 'Unknown City'}, ${data.country_name || 'Unknown Country'} (IP: ${data.ip || 'Unknown'})`;
               recordActivity('Login Sistem', `Akun diakses dari ${location}`, profile);
             } catch (e) {
-              recordActivity('Login Sistem', `Akun diakses (Gagal melacak lokasi/IP)`, profile);
+              recordActivity('Login Sistem', `Akun diakses`, profile);
             }
           })();
         }
-      } else {
-        showToast('Akun Google ini belum didaftarkan sebagai Staf di toko ini. Hubungi Admin.', 'error');
-        signOut(auth).catch(() => {});
+        return;
       }
+
+      // JIKA BELUM KETEMU DAN KOLEKSI DATA MASIH LOADING:
+      // Jangan buru-buru logout, beri kesempatan listener users selesai memuat!
+      if (loading) {
+        return;
+      }
+
+      // JIKA LOADING SUDAH SELESAI DAN MEMANG BENAR-BENAR TIDAK DITEMUKAN
+      showToast('Akun ini belum didaftarkan sebagai Staf di toko. Hubungi Admin/Pemilik.', 'error');
+      signOut(auth).catch(() => {});
     };
     
     resolveUser();
+    return () => { isCancelled = true; };
   }, [authUid, users, user, loading, tenantId]);
 
   const [activeShift, setActiveShift] = useState(() => {
@@ -365,7 +391,7 @@ export default function PosApp({ tenantGlobalInfo }) {
   useEffect(() => {
     let unsubs = []; 
     let loadedCount = 0;
-    const safetyTimer = setTimeout(() => { setLoading(false); }, 3000);
+    const safetyTimer = setTimeout(() => { setLoading(false); }, 1500);
     const checkLoaded = () => { 
         loadedCount++; 
         setLoadProgress(Math.min(100, Math.floor((loadedCount / 8) * 100)));
@@ -376,36 +402,8 @@ export default function PosApp({ tenantGlobalInfo }) {
     };
 
     const initializeAndListen = async () => {
-      try {
-        // PENTING: cek WAJIB langsung ke server (bukan cache lokal).
-        // getDocs biasa menjawab dari cache saat offline — di perangkat baru cache
-        // masih kosong, aplikasi mengira database baru, lalu menimpa pengaturan &
-        // akun dengan setelan pabrik begitu koneksi kembali. getDocsFromServer
-        // melempar error saat offline sehingga seeding otomatis dibatalkan.
-        const usersSnap = await getDocsFromServer(query(getTenantCollection("users"), limit(1)));
-        const settingsSnap = await getDocsFromServer(query(getTenantCollection("settings"), limit(1)));
-        if (usersSnap.empty && settingsSnap.empty) {
-            const seed = async (colName, dataArr) => {
-               if(!dataArr || dataArr.length === 0) return;
-               let batch = writeBatch(db);
-               dataArr.forEach(item => batch.set(doc(getTenantCollection(colName), String(item.id)), JSON.parse(JSON.stringify(item))));
-               await batch.commit();
-            };
-            await seed("products", initialProducts);
-            await seed("customers", initialCustomers);
-            await seed("suppliers", initialSuppliers);
-            await seed("accounting", initialAccounting);
-            await seed("financialAccounts", initialFinancialAccounts);
-            // CATATAN: users TIDAK di-seed lagi — akun dibuat via Firebase
-            // Authentication (script migrate-auth.cjs / menu Pengaturan Akun),
-            // password tidak pernah disimpan di Firestore.
-
-            const defInfo = { name: 'MONIKA MULYA', tagline: 'Bismillah', address: 'Jl. Raya Blitar No. 1', phone: '081234567890', logo: null, ongkirPerKm: 2500, prefixSales: 'INV', prefixPurchase: 'PO', nextSeqSales: 1, nextSeqPurchase: 1 };
-            await setDoc(doc(getTenantCollection("settings"), "storeInfo"), defInfo);
-            await setDoc(doc(getTenantCollection("settings"), "categories"), { values: [] });
-            await setDoc(doc(getTenantCollection("settings"), "units"), { values: ['Pcs'] });
-        }
-      } catch (e) {}
+      // Blok seeding data awal (getDocsFromServer) telah dihapus karena memperlambat proses
+      // login secara signifikan dan tidak lagi relevan untuk produksi (sudah ada data).
 
       const normalizeObj = (colName, obj) => {
          if (obj.name === 'Umum (Tanpa Data)') obj.name = '(anonim)';
@@ -466,7 +464,7 @@ export default function PosApp({ tenantGlobalInfo }) {
              q = query(q, where(dateField, '>=', cutoffISO));
          }
 
-         return withRetryOnDenied((onError) => onSnapshot(q, (snap) => {
+         return withRetryOnDenied((onError) => onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
              let data = snap.docs.map(d => normalizeObj(colName, d.data()));
             if (sortDesc) sortDescById(data);
             setter(data);
@@ -494,13 +492,13 @@ export default function PosApp({ tenantGlobalInfo }) {
             setter(data);
          };
 
-         unsubs.push(withRetryOnDenied((onError) => onSnapshot(query(getTenantCollection(colName), where('date', '>=', cutoffISO)), (snap) => {
+         unsubs.push(withRetryOnDenied((onError) => onSnapshot(query(getTenantCollection(colName), where('date', '>=', cutoffISO)), { includeMetadataChanges: true }, (snap) => {
             recentMap = new Map(snap.docs.map(d => [d.id, normalizeObj(colName, d.data())]));
             publish();
             checkLoaded();
          }, onError)));
 
-         unsubs.push(withRetryOnDenied((onError) => onSnapshot(query(getTenantCollection(colName), where('status', '==', 'Tempo')), (snap) => {
+         unsubs.push(withRetryOnDenied((onError) => onSnapshot(query(getTenantCollection(colName), where('status', '==', 'Tempo')), { includeMetadataChanges: true }, (snap) => {
             tempoMap = new Map(snap.docs.map(d => [d.id, normalizeObj(colName, d.data())]));
             publish();
          }, (error) => { if (error?.code !== 'permission-denied') return; onError(error); })));
@@ -519,12 +517,12 @@ export default function PosApp({ tenantGlobalInfo }) {
       unsubs.push(setupRealtime("shiftHistory", setShiftHistory, true, true));
       unsubs.push(setupRealtime("activityLogs", setActivityLogs, true, true));
 
-      unsubs.push(withRetryOnDenied((onError) => onSnapshot(getTenantCollection("settings"), (snap) => {
+      unsubs.push(withRetryOnDenied((onError) => onSnapshot(getTenantCollection("settings"), { includeMetadataChanges: true }, (snap) => {
+         storeInfoLoadedRef.current = true;
          if (!snap.empty) {
             snap.docs.forEach(d => {
                if(d.id === 'storeInfo') {
                   const dData = d.data();
-                  storeInfoLoadedRef.current = true;
                   setStoreInfo(prev => {
                      const n = {...prev, ...dData};
                      localStorage.setItem(`mmpos_storeInfo_${tenantId}`, JSON.stringify(n));
@@ -564,6 +562,10 @@ export default function PosApp({ tenantGlobalInfo }) {
       } else {
         setAuthUid(null);
         setUser(null);
+        try {
+          localStorage.removeItem(`mmpos_user_${tenantId}`);
+          localStorage.removeItem('mmpos_user');
+        } catch(e) {}
         setLoading(false); // tidak ada sesi tersimpan → langsung tampilkan layar login
       }
     });
@@ -575,20 +577,30 @@ export default function PosApp({ tenantGlobalInfo }) {
   }, []);
 
   useEffect(() => {
-    // Sesi login sekarang dikelola Firebase Auth (persistence). Di sini hanya
-    // cek idle: kalau terakhir aktif > 5 jam lalu, paksa keluar dari sesi tersimpan.
-    const lastActive = localStorage.getItem('mmpos_last_active');
-    if (lastActive && Date.now() - parseInt(lastActive, 10) > 5 * 60 * 60 * 1000) {
-      localStorage.removeItem('mmpos_user');
-      localStorage.removeItem('mmpos_last_active');
-      signOut(auth).catch(() => {});
-    } else {
-      localStorage.setItem('mmpos_last_active', Date.now().toString());
-    }
+    // Sesi login sekarang dikelola Firebase Auth (persistence).
+    // Mekanisme Idle: jika terakhir aktif > 5 jam lalu, auto logout.
+    const checkIdle = () => {
+        const lastActive = localStorage.getItem('mmpos_last_active');
+        if (lastActive && Date.now() - parseInt(lastActive, 10) > 5 * 60 * 60 * 1000) {
+            localStorage.removeItem('mmpos_user');
+            localStorage.removeItem('mmpos_last_active');
+            signOut(auth).catch(() => {});
+        }
+    };
+    
+    checkIdle(); // Cek sekali saat load
+    const intervalId = setInterval(checkIdle, 5 * 60 * 1000); // Cek ulang setiap 5 menit
+    
     const updateActivity = () => { localStorage.setItem('mmpos_last_active', Date.now().toString()); };
-    window.addEventListener('mousemove', updateActivity); window.addEventListener('keydown', updateActivity);
+    window.addEventListener('mousemove', updateActivity); 
+    window.addEventListener('keydown', updateActivity);
     window.addEventListener('click', () => { if(window.audioCtx && window.audioCtx.state === 'suspended') window.audioCtx.resume(); });
-    return () => { window.removeEventListener('mousemove', updateActivity); window.removeEventListener('keydown', updateActivity); };
+    
+    return () => { 
+        clearInterval(intervalId);
+        window.removeEventListener('mousemove', updateActivity); 
+        window.removeEventListener('keydown', updateActivity); 
+    };
   }, []);
 
   // ====================================================================================
@@ -675,6 +687,46 @@ export default function PosApp({ tenantGlobalInfo }) {
   const customSetFinancialAccounts = (next) => { const cur = stateRef.current.financialAccounts; const res = typeof next === 'function' ? next(cur) : next; setFinancialAccounts(res); syncCollection("financialAccounts", res, cur); };
   const customSetUsers = (next) => { const cur = stateRef.current.users; const res = typeof next === 'function' ? next(cur) : next; setUsers(res); syncCollection("users", res, cur); };
   const customSetShiftHistory = (next) => { const cur = stateRef.current.shiftHistory; const res = typeof next === 'function' ? next(cur) : next; setShiftHistory(res); syncCollection("shiftHistory", res, cur); };
+
+  // ============================================================================
+  // ATOMIC CHECKOUT BATCH WRITER
+  // ============================================================================
+  const atomicCheckout = async (payload) => {
+     const batch = writeBatch(db);
+     
+     if (payload.storeInfo) {
+         setStoreInfo(payload.storeInfo);
+         batch.set(doc(getTenantCollection("settings"), "storeInfo"), JSON.parse(JSON.stringify(payload.storeInfo)));
+     }
+     
+     const processCol = (colName, newArr, oldArr) => {
+         const oldMap = new Map(oldArr.map(i => [String(i.id), i]));
+         newArr.forEach(item => {
+             const oldItem = oldMap.get(String(item.id));
+             if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(item)) {
+                 batch.set(doc(getTenantCollection(colName), String(item.id)), JSON.parse(JSON.stringify(item)));
+             }
+         });
+     };
+
+     if (payload.products) { processCol("products", payload.products, stateRef.current.products); setProducts(payload.products); }
+     if (payload.customers) { processCol("customers", payload.customers, stateRef.current.customers); setCustomers(payload.customers); }
+     if (payload.accounting) { processCol("accounting", payload.accounting, stateRef.current.accounting); setAccounting(payload.accounting); }
+     if (payload.sales) { processCol("sales", payload.sales, stateRef.current.sales); setSales(payload.sales); }
+     if (payload.purchases) { processCol("purchases", payload.purchases, stateRef.current.purchases); setPurchases(payload.purchases); }
+     
+     setSyncCount(p => p + 1);
+     try {
+         await batch.commit();
+     } catch (e) {
+         console.error("Atomic Checkout Failed", e);
+         showToast("Gagal menyimpan transaksi (Koneksi bermasalah). Coba lagi.", "error");
+         throw e;
+     } finally {
+         setSyncCount(p => Math.max(0, p - 1));
+     }
+  };
+
 
   const customSetStoreInfo = (next) => {
      const res = typeof next === 'function' ? next(stateRef.current.storeInfo) : next;
@@ -906,25 +958,45 @@ export default function PosApp({ tenantGlobalInfo }) {
                <p className="text-xs font-bold font-mono tracking-wider">{progressText}</p>
             </div>
          </div>
-         <div className="absolute bottom-8 text-center text-[10px] text-gray-500 font-medium tracking-wide">
-            <span className="text-[#D4AF37]">TOKOTO</span> by andrian chun &copy; 2026
+         <div className="absolute bottom-8 flex flex-col items-center gap-1 text-center text-xs text-gray-500 font-medium tracking-wide">
+            <div className="flex items-center gap-1.5">
+               <img src="/icon.png" alt="Tokoto" className="w-3.5 h-3.5 object-contain" />
+               <span className="text-orange-500 font-bold">TOKOTO.ID</span>
+               <span className="text-gray-400">&bull; Cloud POS Platform</span>
+            </div>
+            <span className="text-[10px] text-gray-600">&copy; 2026 Tokoto. All rights reserved.</span>
          </div>
       </div>
     );
   }
   if (!user) {
+     const tenantName = (storeInfo?.name && storeInfo.name !== 'TOKOTO POS' && storeInfo.name !== '') 
+         ? storeInfo.name 
+         : (tenantGlobalInfo?.name || tenantGlobalInfo?.storeName || (tenantId === 'monikamulya' ? 'MONIKA MULYA' : (tenantId ? tenantId.toUpperCase() : 'TOKOTO POS')));
      const displayStoreInfo = { 
-         name: storeInfo?.name || tenantGlobalInfo?.storeName || tenantGlobalInfo?.name || 'Memuat Toko...',
+         ...defaultStoreInfo,
+         ...tenantGlobalInfo,
+         ...storeInfo,
+         name: tenantName,
          logo: storeInfo?.logo || tenantGlobalInfo?.logo || null,
          banner: storeInfo?.banner || tenantGlobalInfo?.banner || null,
-         ...tenantGlobalInfo,
-         ...storeInfo
      };
      
      return (
         <div className="relative w-full h-screen">
            <div className="absolute inset-0 z-10">
-              <LoginScreen onLogin={handleLogin} users={users} colors={themeColors} theme={theme} setTheme={setTheme} isSoundOn={true} storeInfo={displayStoreInfo} showToast={showToast} tenantId={tenantId} />
+              <LoginScreen 
+                onLogin={handleLogin} 
+                users={users} 
+                colors={themeColors} 
+                theme={theme} 
+                setTheme={setTheme} 
+                isSoundOn={true} 
+                storeInfo={displayStoreInfo} 
+                showToast={showToast} 
+                tenantId={tenantId}
+                installPrompt={installPrompt}
+              />
            </div>
            
            {/* Render Toast di layar Login */}
@@ -953,7 +1025,7 @@ export default function PosApp({ tenantGlobalInfo }) {
               }}>
          </div>
       )}
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} activeMenu={activeMenu} handleMenuClick={(menu) => { setActiveMenu(menu); if (menu === 'laporan') setGlobalMode('neraca'); }} colors={themeColors} user={user} storeInfo={storeInfo} />
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} activeMenu={activeMenu} handleMenuClick={navigateMenu} colors={themeColors} user={user} storeInfo={storeInfo} />
       <div className="flex-1 flex flex-col min-w-0 relative">
          <Header activeMenu={activeMenu} user={user} setUser={setUser} 
             isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}
@@ -971,11 +1043,11 @@ export default function PosApp({ tenantGlobalInfo }) {
          <main className="flex-1 overflow-auto p-4 pb-0 md:p-6 md:pb-0 custom-scrollbar relative">
              <ErrorBoundary key={activeMenu}>
                <div className={activeMenu === 'pos' ? 'block h-full' : 'hidden'}>
-                  <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} activeShift={activeShift} setActiveShift={setActiveShift} setShowShiftOpenModal={setShowShiftOpenModal} recordActivity={recordActivity} />
+                  <POS products={products} setProducts={customSetProducts} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} colors={themeColors} user={user} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} activeShift={activeShift} setActiveShift={setActiveShift} setShowShiftOpenModal={setShowShiftOpenModal} recordActivity={recordActivity} atomicCheckout={atomicCheckout} />
                </div>
              
              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white"></div></div>}>
-                 {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={setActiveMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
+                 {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={navigateMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
              {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} sales={sales} colors={baseThemeColors} user={user} isSoundOn={true} showToast={showToast} editIntent={editIntent} recordActivity={recordActivity} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} />}
              {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} editIntent={editIntent} user={user} recordActivity={recordActivity} />}
                {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} handleNavigateAndEdit={handleNavigateAndEdit} user={user} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} />}

@@ -252,7 +252,7 @@ export default function Header({
              <button onClick={() => { playSound('pop', isSoundOn); setShowNotifDropdown(!showNotifDropdown); }} className={`p-2 rounded-full border ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors relative`}>
                 <Bell size={18} className={colors.text} />
                 {totalNotifCount > 0 && (
-                   <span className="absolute -top-1 -right-1 bg-red-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-pulse shadow-md">{totalNotifCount}</span>
+                   <span className="absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-[#131927] shadow-md animate-pulse">{totalNotifCount}</span>
                 )}
              </button>
 
@@ -351,7 +351,7 @@ export default function Header({
                               })}
                            </CollapsibleNotifGroup>
 
-                           <CollapsibleNotifGroup title="HPP Naik/Turun" count={hppChangedItems.length} icon={AlertTriangle} colorClass="text-blue-500" colors={colors} defaultOpen={true}>
+                           <CollapsibleNotifGroup title="Harga Beli (HPP) Berubah" count={hppChangedItems.length} icon={AlertTriangle} colorClass="text-blue-500" colors={colors} defaultOpen={true}>
                               {hppChangedItems.map(item => (
                                   <div key={`hpp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className={`p-3 rounded-xl bg-blue-500/5 border-blue-500/20 border flex flex-col gap-1 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity`}>
                                       <div className="flex justify-between items-start gap-2">

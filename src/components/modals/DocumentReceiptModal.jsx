@@ -118,7 +118,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
      
      const isSales = doc.type !== 'pembelian';
      let text = `*NOTA TRANSAKSI - ${storeInfo.name}*\n`;
-     text += `No: ${doc.nota}\n`;
+     text += `No: ${doc.nota.toUpperCase()}\n`;
      text += `Tgl: ${new Date(doc.date).toLocaleString('id-ID')}\n`;
      text += `Kasir: ${doc.kasir || '-'}\n`;
      text += `${isSales ? 'Cust' : 'Sup'}: ${isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}\n\n`;
@@ -135,7 +135,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
      text += `Bayar: Rp ${formatIDR(doc.paid)}\n`;
      text += `Kembali: Rp ${formatIDR(doc.paid - doc.total)}\n\n`;
      
-     text += `Terima kasih telah berbelanja di ${storeInfo.name}!\n`;
+     text += `Terima kasih telah berbelanja di ${storeInfo.name}!\n\n_Powered by tokoto.id — Solusi Kasir Cloud_\n`;
 
      let currentBlob = null;
      try {
@@ -175,7 +175,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
      
      if (isMobile && currentBlob && navigator.share) {
          try {
-             const file = new File([currentBlob], `Nota_${doc.nota}.png`, { type: 'image/png' });
+             const file = new File([currentBlob], `Nota_${doc.nota.toUpperCase()}.png`, { type: 'image/png' });
              await navigator.share({
                  title: `Nota Transaksi`,
                  text: text,
@@ -246,12 +246,12 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                  <div id="receipt-print-area" style={{ position: 'relative', color: '#000', backgroundColor: '#fff', fontSize: '10px', lineHeight: '1.2', fontFamily: 'Arial, sans-serif', width: '100%', maxWidth: '48mm', margin: '0 auto', padding: '16px', boxSizing: 'border-box', overflow: 'hidden' }}>
                     
                     <div style={{ position: 'relative', zIndex: 1 }}>
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', fontSize: '38px', fontWeight: '900', color: 'transparent', WebkitTextStroke: '1px #000', zIndex: -1, whiteSpace: 'pre-line', textAlign: 'center', lineHeight: '1', pointerEvents: 'none' }}>
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', fontSize: '38px', fontWeight: '900', color: 'rgba(0,0,0,0.4)', WebkitTextStroke: 'none', zIndex: -1, whiteSpace: 'pre-line', textAlign: 'center', lineHeight: '1', pointerEvents: 'none' }}>
                             {watermarkText}
                         </div>
                         {(storeInfo.logoNota || storeInfo.logo) && (
                           <div style={{ textAlign: 'center', marginBottom: '4px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-                            <img src={storeInfo.logoNota || storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '35mm', maxHeight: '12mm', objectFit: 'contain', filter: 'grayscale(100%) contrast(1000%)', display: 'block', margin: '0 auto' }}/>
+                            <img src={storeInfo.logoNota || storeInfo.logo} alt="logo" style={{ maxWidth: '35mm', maxHeight: '12mm', objectFit: 'contain', filter: 'grayscale(100%) contrast(1000%)', display: 'block', margin: '0 auto' }}/>
                           </div>
                         )}
 
@@ -262,7 +262,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                         
                         <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse', marginBottom: '4px' }}>
                            <tbody>
-                              <tr><td style={{ width: '30px', padding: '1px 0' }}>Nota</td><td style={{ padding: '1px 0' }}>: <strong>{doc.nota}</strong></td></tr>
+                              <tr><td style={{ width: '30px', padding: '1px 0' }}>Nota</td><td style={{ padding: '1px 0' }}>: <strong>{doc.nota.toUpperCase()}</strong></td></tr>
                               <tr><td style={{ padding: '1px 0' }}>Tgl</td><td style={{ padding: '1px 0' }}>: {new Date(doc.date).toLocaleString('id-ID')}</td></tr>
                               <tr><td style={{ padding: '1px 0' }}>Kasir</td><td style={{ padding: '1px 0' }}>: {doc.kasir}</td></tr>
                               <tr><td style={{ padding: '1px 0' }}>{isSales ? 'Cust' : 'Sup'}</td><td style={{ padding: '1px 0' }}>: {isSales ? (doc.customer || 'Umum') : (doc.supplier || '-')}</td></tr>
@@ -299,6 +299,11 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                               <tr><td style={{ fontWeight: 'bold', paddingBottom: '2px' }}>KEMBALI</td><td style={{ textAlign: 'right', fontWeight: 'bold', paddingBottom: '2px' }}>Rp {formatIDR(doc.paid - doc.total)}</td></tr>
                            </tbody>
                         </table>
+                        <div style={{ borderTop: '1px dashed #000', margin: '6px 0 4px 0' }}></div>
+                        <div style={{ textAlign: 'center', fontSize: '9px', color: '#000', lineHeight: '1.3' }}>
+                           <div>Terima kasih atas kunjungan Anda!</div>
+                           <div style={{ fontWeight: 'bold', marginTop: '2px', fontSize: '8.5px' }}>Powered by tokoto.id</div>
+                        </div>
                     </div>
                  </div>
 
@@ -308,13 +313,13 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                      <div id="invoice-print-area" style={{ position: 'relative', color: '#000', backgroundColor: '#fff', fontSize: '12px', lineHeight: '1.4', fontFamily: 'Arial, sans-serif', width: '100%', boxSizing: 'border-box' }}>
                          
                          <div style={{ position: 'relative', zIndex: 1 }}>
-                             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', fontSize: '110px', fontWeight: '900', color: 'transparent', WebkitTextStroke: '3px #000', zIndex: -1, whiteSpace: 'pre-line', textAlign: 'center', lineHeight: '1', pointerEvents: 'none' }}>
+                             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-45deg)', fontSize: '110px', fontWeight: '900', color: 'rgba(0,0,0,0.15)', WebkitTextStroke: 'none', zIndex: -1, whiteSpace: 'pre-line', textAlign: 'center', lineHeight: '1', pointerEvents: 'none' }}>
                                  {watermarkText}
                              </div>
                              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '15px' }}>
                                  <div style={{ width: '50%' }}>
                                      {(storeInfo.logoNota || storeInfo.logo) && (
-                                         <img src={storeInfo.logoNota || storeInfo.logo} crossOrigin="anonymous" alt="logo" style={{ maxWidth: '60mm', maxHeight: '25mm', objectFit: 'contain', marginBottom: '8px' }}/>
+                                         <img src={storeInfo.logoNota || storeInfo.logo} alt="logo" style={{ maxWidth: '60mm', maxHeight: '25mm', objectFit: 'contain', marginBottom: '8px' }}/>
                                      )}
                                      <div style={{ fontWeight: '900', fontSize: '16px' }}>{storeInfo.name}</div>
                                      <div style={{ fontSize: '12px', color: '#333', marginTop: '4px' }}>
@@ -326,7 +331,7 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                                      <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
                                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                              <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>No Nota</span>
-                                             <span style={{ fontWeight: 'bold' }}>: {doc.nota}</span>
+                                             <span style={{ fontWeight: 'bold' }}>: {doc.nota.toUpperCase()}</span>
                                          </div>
                                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                              <span style={{ width: '80px', textAlign: 'left', color: '#666' }}>Tanggal</span>
@@ -396,7 +401,10 @@ export default function DocumentReceiptModal({ doc, onClose, storeInfo, colors, 
                              </div>
                              
                              <div style={{ textAlign: 'center', marginTop: '30px', fontSize: '11px', color: '#666', fontStyle: 'italic', pageBreakInside: 'avoid' }}>
-                                Terima kasih telah berbelanja di {storeInfo.name}
+                                <div>Terima kasih telah berbelanja di {storeInfo.name}</div>
+                                <div style={{ fontSize: '10px', color: '#888', marginTop: '4px', fontStyle: 'normal' }}>
+                                   Powered by <strong>tokoto.id</strong> &bull; Aplikasi Kasir &amp; Bisnis Cloud
+                                </div>
                              </div>
                          </div>
                      </div>

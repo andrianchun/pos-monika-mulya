@@ -19,7 +19,7 @@ function ModeToggle({ mode, setMode, colors, isSoundOn, canViewPembelian }) {
   );
 }
 
-export default function POS({ products, setProducts, customers, setCustomers, suppliers, sales, setSales, purchases, setPurchases, colors, showToast, user, isSoundOn, theme, storeInfo, setStoreInfo, accounting, setAccounting, financialAccounts, globalMode, setGlobalMode, activeShift, setActiveShift, setShowShiftOpenModal, recordActivity }) {
+export default function POS({ products, setProducts, customers, setCustomers, suppliers, sales, setSales, purchases, setPurchases, colors, showToast, user, isSoundOn, theme, storeInfo, setStoreInfo, accounting, setAccounting, financialAccounts, globalMode, setGlobalMode, activeShift, setActiveShift, setShowShiftOpenModal, recordActivity, atomicCheckout }) {
   const posMode = globalMode;
   const setPosMode = setGlobalMode;
 
@@ -314,7 +314,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const isCustomerUmum = String(selectedCustomer) === '1' || selectedCustomer === '';
   const earnedPoints = posMode === 'penjualan' && !isCustomerUmum ? Math.floor(total / ptMultiplier) * ptReward : 0;
 
-  const handleCheckout = (e, action, depositUsed = 0, depositAdded = 0, pointsRedeemed = 0) => {
+  const handleCheckout = async (e, action, depositUsed = 0, depositAdded = 0, pointsRedeemed = 0) => {
     if(e) e.preventDefault();
     try {
       const pointDiscount = pointsRedeemed * (storeInfo.pointValue || 100);
@@ -399,20 +399,19 @@ export default function POS({ products, setProducts, customers, setCustomers, su
       setSelectedCustomer(customers[0]?.id || '');
       setSelectedSupplier(1);
 
-      if (action === 'simpan') {
-         setCompletedDoc(null);
-         showToast(`Transaksi Berhasil! ${earnedPoints > 0 ? `(+${earnedPoints} Poin)` : ''}`, 'success');
-      } else if (action === 'cetak') {
-         setCompletedDoc({ ...newRecord });
-      } else if (action === 'wa') {
-         setCompletedDoc({ ...newRecord, autoAction: 'wa', source: 'POS' });
-      }
-
+      // Hapus blok setCompletedDoc dari sini karena akan dipanggil setelah commit sukses
       try {
-        if(posMode === 'penjualan') setStoreInfo(prev => ({...prev, nextSeqSales: (prev?.nextSeqSales || 1) + 1}));
-        else setStoreInfo(prev => ({...prev, nextSeqPurchase: (prev?.nextSeqPurchase || 1) + 1}));
+        let nextStoreInfo = undefined;
+        let nextProducts = undefined;
+        let nextCustomers = undefined;
+        let nextAccounting = undefined;
+        let nextSales = undefined;
+        let nextPurchases = undefined;
 
-        setProducts(prevProducts => prevProducts.map(p => {
+        if(posMode === 'penjualan') nextStoreInfo = {...storeInfo, nextSeqSales: (storeInfo?.nextSeqSales || 1) + 1};
+        else nextStoreInfo = {...storeInfo, nextSeqPurchase: (storeInfo?.nextSeqPurchase || 1) + 1};
+
+        nextProducts = products.map(p => {
           const cartItemsForProduct = cart.filter(c => c.id === p.id);
           if (cartItemsForProduct.length > 0) {
               const totalQtyImpact = cartItemsForProduct.reduce((sum, cItem) => {
@@ -455,25 +454,53 @@ export default function POS({ products, setProducts, customers, setCustomers, su
               };
           }
           return p;
-        }));
+        });
         
         if (posMode === 'penjualan' && (!isCustomerUmum || depositUsed > 0 || depositAdded > 0 || pointsRedeemed > 0)) {
-           setCustomers(prevCusts => prevCusts.map(c => {
+           nextCustomers = customers.map(c => {
              if (String(c.id) === String(selectedCustomer)) {
                  const updatedPoints = (c.points || 0) + earnedPoints - pointsRedeemed;
                  const updatedDeposit = (c.deposit || 0) - depositUsed + depositAdded;
                  return { ...c, points: updatedPoints, deposit: updatedDeposit };
              }
              return c;
-           }));
+           });
         }
 
         if (actualCashToKas > 0 && activeAccount) {
-            setAccounting(prev => [...prev, { id: Date.now()+1, type: 'kas', accountId: activeAccount.id, name: posMode === 'penjualan' ? `Penerimaan Nota ${genNota}` : `Pembayaran Nota ${genNota}`, amount: posMode === 'penjualan' ? actualCashToKas : -actualCashToKas, date: docDate.toISOString() }]);
+            nextAccounting = [...accounting, { id: Date.now()+1, type: 'kas', accountId: activeAccount.id, name: posMode === 'penjualan' ? `Penerimaan Nota ${genNota}` : `Pembayaran Nota ${genNota}`, amount: posMode === 'penjualan' ? actualCashToKas : -actualCashToKas, date: docDate.toISOString() }];
         }
 
-        if(posMode === 'penjualan') setSales(prev => [newRecord, ...prev]); 
-        else setPurchases(prev => [newRecord, ...prev]);
+        if(posMode === 'penjualan') nextSales = [newRecord, ...sales]; 
+        else nextPurchases = [newRecord, ...purchases];
+        
+        if (atomicCheckout) {
+            await atomicCheckout({
+               storeInfo: nextStoreInfo,
+               products: nextProducts,
+               customers: nextCustomers,
+               accounting: nextAccounting,
+               sales: nextSales,
+               purchases: nextPurchases
+            });
+        } else {
+            if (nextStoreInfo) setStoreInfo(nextStoreInfo);
+            if (nextProducts) setProducts(nextProducts);
+            if (nextCustomers) setCustomers(nextCustomers);
+            if (nextAccounting) setAccounting(nextAccounting);
+            if (nextSales) setSales(nextSales);
+            if (nextPurchases) setPurchases(nextPurchases);
+        }
+
+        // TAMPILKAN NOTA SETELAH SEMUA PROSES ATOMIC BERHASIL DISIMPAN KE SERVER!
+        if (action === 'simpan') {
+           setCompletedDoc(null);
+           showToast(`Transaksi Berhasil! ${earnedPoints > 0 ? `(+${earnedPoints} Poin)` : ''}`, 'success');
+        } else if (action === 'cetak') {
+           setCompletedDoc({ ...newRecord });
+        } else if (action === 'wa') {
+           setCompletedDoc({ ...newRecord, autoAction: 'wa', source: 'POS' });
+        }
       } catch (innerErr) {
         console.error("HandleCheckout Error:", innerErr);
         showToast(`Error Update State: ${innerErr.message}`, 'error');
@@ -540,7 +567,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                        
                        {/* Background Image Layer */}
                        <div className="absolute inset-0 z-0 bg-white/10 dark:bg-[#1e1e1e]/40 flex items-center justify-center overflow-hidden">
-                          {p.img && p.img.startsWith('data:image') ? (
+                          {p.img && (p.img.startsWith('data:image') || p.img.startsWith('http')) ? (
                              <img src={p.img} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 dark:opacity-75" alt={p.name} />
                           ) : (
                              <Package size={80} className="text-gray-300 dark:text-gray-600/50 transform -rotate-12 group-hover:scale-110 transition-transform duration-700" />

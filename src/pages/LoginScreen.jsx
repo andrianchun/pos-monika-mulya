@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { ShoppingCart, AlertCircle, User, Lock, Moon, Sun, ShieldAlert, Mail, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { ShoppingCart, AlertCircle, User, Lock, Moon, Sun, ShieldAlert, Mail, CheckCircle2, Eye, EyeOff, Smartphone } from 'lucide-react';
 import { playSound } from '../utils/helpers';
 import { auth, usernameToEmail, resolveLoginEmailFn, AUTH_EMAIL_DOMAIN, googleProvider } from '../firebase';
 import { signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence, signInWithPopup } from 'firebase/auth';
 
-export default function LoginScreen({ onLogin, users, colors, theme, setTheme, isSoundOn, showToast, storeInfo, tenantId }) {
+export default function LoginScreen({ onLogin, users, colors, theme, setTheme, isSoundOn, showToast, storeInfo, tenantId, installPrompt }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotUsername, setForgotUsername] = useState('');
@@ -18,19 +19,50 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
   const [forgotEmailSentTo, setForgotEmailSentTo] = useState('');
 
   const resolveEmailForUsername = async (uname) => {
-    // Jika input sudah berupa format email (mengandung @), langsung gunakan
-    if (uname.includes('@')) {
-       return uname.trim();
+    const clean = String(uname || '').trim();
+    if (!clean) return '';
+
+    // Jika input sudah berupa format email (mengandung @), langsung gunakan (0ms)
+    if (clean.includes('@')) {
+       return clean;
     }
-    
+
+    // 1. Cek dari daftar users lokal jika tersedia (0ms)
+    if (users && users.length > 0) {
+      const match = users.find(u => u.username && u.username.toLowerCase() === clean.toLowerCase());
+      if (match && match.email) return match.email;
+    }
+
+    // 2. Cek apakah ini Owner Toko (misal ketik 'monikamulya', 'admin', atau 'owner')
+    const lowerClean = clean.toLowerCase();
+    if (storeInfo?.ownerEmail) {
+      if (
+        lowerClean === tenantId?.toLowerCase() ||
+        lowerClean === 'admin' ||
+        lowerClean === 'owner' ||
+        lowerClean === storeInfo?.ownerEmail.split('@')[0].toLowerCase()
+      ) {
+        return storeInfo.ownerEmail;
+      }
+    }
+
+    // 3. Panggil Cloud Function dengan perlindungan timeout 1.2 detik
+    // Cegah tombol login hang bermenit-menit jika Cloud Function cold-start atau offline
     try {
-      const res = await resolveLoginEmailFn({ username: uname, tenantId });
-      return res.data.email;
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('resolve timeout')), 1200)
+      );
+      const res = await Promise.race([
+        resolveLoginEmailFn({ username: clean, tenantId }),
+        timeoutPromise
+      ]);
+      if (res?.data?.email) return res.data.email;
     } catch (e) {
-      // Cloud Function belum terjangkau (offline dsb) — jatuh ke tebakan
-      // email sintetis lama, cukup untuk akun yang belum pernah ganti email.
-      return usernameToEmail(uname);
+      // Timeout atau error functions -> langsung fallback ke usernameToEmail
     }
+
+    // 4. Fallback ke email sintetis
+    return usernameToEmail(clean);
   };
 
   const handleGoogleLogin = async () => {
@@ -50,6 +82,20 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
       if (err?.code !== 'auth/popup-closed-by-user') {
          setError('Gagal login Google: ' + (err?.message || 'Error tidak dikenal'));
       }
+    }
+  };
+
+  const handleInstallApp = async () => {
+    if (!installPrompt) return;
+    playSound('pop', isSoundOn);
+    try {
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted' && showToast) {
+        showToast('Aplikasi berhasil dipasang di perangkat Anda!', 'success');
+      }
+    } catch (e) {
+      console.error("Install PWA error:", e);
     }
   };
 
@@ -136,14 +182,21 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
 
       <div className={`w-full max-w-md p-8 rounded-2xl shadow-2xl z-10 ${colors.panel} border ${colors.border}`}>
         <div className="text-center mb-8">
-          {storeInfo.logo ? (
-            <img src={storeInfo.logo} className="w-24 h-24 mx-auto object-contain mb-4 drop-shadow-md" alt="logo"/>
+          {storeInfo.logo && !logoError ? (
+            <img 
+              src={storeInfo.logo} 
+              className="w-24 h-24 mx-auto object-contain mb-4 drop-shadow-md" 
+              alt="logo"
+              onError={() => setLogoError(true)}
+            />
           ) : (
             <div className={`w-24 h-24 mx-auto rounded-2xl ${colors.goldBg} flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.3)] mb-4`}>
-              <span className="text-4xl font-black text-[#121212]">{storeInfo.name ? storeInfo.name.charAt(0).toUpperCase() : 'T'}</span>
+              <span className="text-4xl font-black text-[#121212]">
+                {storeInfo.name ? storeInfo.name.charAt(0).toUpperCase() : (tenantId ? tenantId.charAt(0).toUpperCase() : 'M')}
+              </span>
             </div>
           )}
-          <h1 className={`text-3xl font-extrabold ${colors.gold}`}>{storeInfo.name}</h1>
+          <h1 className={`text-3xl font-extrabold ${colors.gold}`}>{storeInfo.name || (tenantId === 'monikamulya' ? 'MONIKA MULYA' : tenantId)}</h1>
         </div>
 
         {error && <div className="mb-4 p-3 rounded-lg bg-red-100 text-red-600 text-sm font-semibold flex items-center gap-2"><AlertCircle size={18} /> {error}</div>}
@@ -190,7 +243,31 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
              </svg>
              Masuk dengan Google
           </button>
+           {installPrompt && (
+              <button 
+                type="button" 
+                onClick={handleInstallApp}
+                className="w-full mt-3 py-2.5 px-4 rounded-xl border border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm"
+              >
+                <Smartphone size={16} className="text-orange-500 shrink-0" />
+                <span>Pasang Aplikasi {storeInfo?.name || 'Kasir'}</span>
+              </button>
+           )}
         </form>
+
+        {/* Watermark Co-Branding Tokoto */}
+        <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-800/80 flex flex-col items-center justify-center gap-1.5 text-center select-none">
+          <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+            <span>Didukung oleh platform</span>
+            <span className="text-orange-500 font-bold tracking-wide flex items-center gap-1.5">
+              <img src="/icon.png" alt="tokoto" className="w-4 h-4 object-contain inline-block rounded" />
+              tokoto.id
+            </span>
+          </div>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500">
+            Solusi Kasir Cloud &amp; Multi-Cabang Modern
+          </p>
+        </div>
       </div>
 
       {showForgotModal && (

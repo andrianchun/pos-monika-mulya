@@ -8,10 +8,12 @@ import TenantWrapper from './components/TenantWrapper';
 import SuperAdminApp from './SuperAdminApp';
 
 import GlobalLogin from './pages/GlobalLogin';
+import UpdaterAlert from './components/UpdaterAlert';
 
 export default function App() {
   return (
     <BrowserRouter>
+      <UpdaterAlert />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<RegisterSaaS />} />

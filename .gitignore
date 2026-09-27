@@ -4,3 +4,5 @@ dist
 .DS_Store
 serviceAccountKey.json
 dev-dist
+.ota-archive
+.firebase

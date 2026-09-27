@@ -1,8 +1,7 @@
 rules_version = '2';
 
 // ============================================================================
-// SECURITY RULES — POS MONIKA MULYA (VERSI SAAS MULTI-TENANT)
-// Tempel isi file ini di: Firebase Console → Firestore Database → Rules → Publish
+// SECURITY RULES — TOKOTO POS (SAAS MULTI-TENANT ENTERPRISE)
 // ============================================================================
 
 service cloud.firestore {
@@ -12,33 +11,70 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Cek apakah user adalah SuperAdmin
+    function isSuperAdmin() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/global_users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/global_users/$(request.auth.uid)).data.role == 'superadmin';
+    }
+
+    // Cek apakah user adalah owner toko di global_users
+    function isTenantOwner(tenantId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/global_users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/global_users/$(request.auth.uid)).data.tenantId == tenantId;
+    }
+
+    // Cek apakah user terdaftar sebagai staf aktif di dalam kamar tenant
+    function isTenantStaff(tenantId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/tenants/$(tenantId)/users/$(request.auth.uid));
+    }
+
+    // Keanggotaan resmi tenant (Superadmin, Owner, atau Staf toko tersebut)
+    function isTenantMember(tenantId) {
+      return isSuperAdmin() || isTenantOwner(tenantId) || isTenantStaff(tenantId);
+    }
+
     // 1. DATA GLOBAL (Akses Root)
     // Profil user global yang mengikat login ke sistem SaaS.
     match /global_users/{uid} {
-      allow read: if true; 
-      allow write: if signedIn(); 
+      allow read: if signedIn();
+      allow create: if signedIn() && (request.auth.uid == uid || isSuperAdmin());
+      allow update, delete: if signedIn() && (request.auth.uid == uid || isSuperAdmin());
     }
 
     // 2. DATA KAMAR TENANT (Arsitektur SaaS)
-    // Semua aktivitas operasional (kasir, barang, transaksi) dikerjakan di dalam sini.
-    match /tenants/{tenantId} {
-      allow read, write: if signedIn();
+    // Profil toko publik (nama toko, logo, banner) diizinkan dibaca publik untuk layar login & manifest
+    match /tenants/{tenantId}/settings/storeInfo {
+      allow read: if true;
+      allow write: if isTenantMember(tenantId);
     }
-    
+
+    // Dokumen Root Tenant
+    match /tenants/{tenantId} {
+      // Izinkan pembacaan nama tenant untuk verifikasi ketersediaan slug/URL saat registrasi
+      allow read: if true;
+      // Izinkan pembuatan tenant baru oleh user yang sudah terautentikasi
+      allow create: if signedIn();
+      // Modifikasi/penghapusan tenant hanya oleh anggota resmi
+      allow update, delete: if isTenantMember(tenantId);
+    }
+
+    // Seluruh subkoleksi operasional toko (produk, penjualan, pembelian, kontak, kas, aktivitas, staf)
+    // MUTLAK TERISOLASI! Toko lain TIDAK BISA membaca atau memodifikasi data ini.
     match /tenants/{tenantId}/{document=**} {
-      allow read, write: if signedIn(); // Operasional POS SaaS berlangsung di sini
+      allow read, write: if isTenantMember(tenantId);
     }
 
     // 3. PROTEKSI DATA LAMA (hxpos2)
-    // Ini mengunci seluruh koleksi root lama (Sistem Single Tenant sebelumnya).
-    // DIJAMIN 100% AMAN! Data lama hanya diizinkan untuk DIBACA (Read-Only) saat proses 
-    // migrasi nanti, dan DITOLAK KERAS jika ada yang mencoba mengubah/menghapus!
+    // Koleksi root lama (Single Tenant) dikunci read-only saat proses migrasi
     match /{legacyCollection}/{docId} {
       allow read: if signedIn() && legacyCollection in [
         'users', 'products', 'sales', 'purchases', 'customers', 'suppliers',
         'accounting', 'financialAccounts', 'shiftHistory', 'settings', 'activityLogs'
       ];
-      allow write: if false; // PENGUNCIAN MUTLAK! Data HXPOS2 tidak bisa diubah!
+      allow write: if false; // PENGUNCIAN MUTLAK! Data lama tidak bisa diubah/dihapus
     }
 
   }
