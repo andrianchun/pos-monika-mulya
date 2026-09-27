@@ -45,7 +45,7 @@ export default function SettingsPage({
   
   const [sPrefSales, setSPrefSales] = useState(storeInfo.prefixSales || 'INV');
   const [sPrefPurch, setSPrefPurch] = useState(storeInfo.prefixPurchase || 'PO');
-  const [sHistoryLimit, setSHistoryLimit] = useState(localStorage.getItem('mmpos_historyLimitMonths') || '6');
+  const [sHistoryLimit, setSHistoryLimit] = useState(localStorage.getItem('mmpos_historyLimitMonths') || storeInfo?.historyLimitMonths || '36');
   const [sPointMult, setSPointMult] = useState(storeInfo.pointMultiplier || 10000);
   const [sPointMultStr, setSPointMultStr] = useState(formatIDR(storeInfo.pointMultiplier || 10000));
   const [sPointRew, setSPointRew] = useState(storeInfo.pointReward || 1);
@@ -185,7 +185,7 @@ export default function SettingsPage({
      sBanner !== (storeInfo.banner || null) ||
      sPrefSales !== (storeInfo.prefixSales || 'INV') ||
      sPrefPurch !== (storeInfo.prefixPurchase || 'PO') ||
-     sHistoryLimit !== (localStorage.getItem('mmpos_historyLimitMonths') || '6');
+     sHistoryLimit !== String(localStorage.getItem('mmpos_historyLimitMonths') || storeInfo?.historyLimitMonths || '36');
 
   const isHargaChanged = 
      Number(sPointMult) !== (storeInfo.pointMultiplier || 10000) ||
@@ -204,7 +204,7 @@ export default function SettingsPage({
      setSBanner(storeInfo.banner || null);
      setSPrefSales(storeInfo.prefixSales || 'INV');
      setSPrefPurch(storeInfo.prefixPurchase || 'PO');
-     setSHistoryLimit(localStorage.getItem('mmpos_historyLimitMonths') || '6');
+     setSHistoryLimit(localStorage.getItem('mmpos_historyLimitMonths') || storeInfo?.historyLimitMonths || '36');
   };
 
   const resetHargaState = () => {
@@ -280,14 +280,17 @@ export default function SettingsPage({
          console.error("Gagal mengunggah profil toko ke Storage:", err);
      }
 
+     const limitNum = Number(sHistoryLimit) || 36;
      setStoreInfo({ 
        ...storeInfo, name: sName, tagline: sTagline, address: sAddress, phone: sPhone, 
        logo: finalLogo, logoNota: finalLogoNota, banner: finalBanner,
-       ongkirPerKm: Number(sOngkir) || 0, prefixSales: sPrefSales, prefixPurchase: sPrefPurch
+       ongkirPerKm: Number(sOngkir) || 0, prefixSales: sPrefSales, prefixPurchase: sPrefPurch,
+       historyLimitMonths: limitNum
      });
      
-     const limitChanged = sHistoryLimit !== (localStorage.getItem('mmpos_historyLimitMonths') || '6');
-     localStorage.setItem('mmpos_historyLimitMonths', sHistoryLimit);
+     const prevLimit = localStorage.getItem('mmpos_historyLimitMonths') || storeInfo?.historyLimitMonths || '36';
+     const limitChanged = String(sHistoryLimit) !== String(prevLimit);
+     localStorage.setItem('mmpos_historyLimitMonths', String(limitNum));
      
      if (limitChanged) {
         showToast('Menyinkronkan data histori baru. Harap tunggu...', 'success');
@@ -772,11 +775,29 @@ export default function SettingsPage({
                           <h4 className="text-sm font-extrabold mb-4 text-[#D4AF37] flex items-center gap-2"><Zap size={16} /> Optimasi Performa & Sinkronisasi</h4>
                           <div>
                              <label className={`block text-xs font-bold mb-1 ${colors.text}`}>Batas Tarikan Data Histori (Bulan)</label>
-                             <div className="flex items-center gap-3">
+                             <div className="flex items-center gap-3 flex-wrap">
                                <input type="number" min="1" max="120" className={`w-32 p-3 rounded-xl border ${colors.border} bg-transparent ${colors.text} font-mono outline-none focus:ring-1 focus:ring-[#D4AF37]`} value={sHistoryLimit} onChange={e => setSHistoryLimit(e.target.value)} />
                                <span className={`text-xs ${colors.textMuted}`}>bulan terakhir</span>
+                               <button 
+                                 type="button" 
+                                 onClick={async () => {
+                                   playSound('pop', isSoundOn);
+                                   const limitNum = Number(sHistoryLimit) || 36;
+                                   localStorage.setItem('mmpos_historyLimitMonths', String(limitNum));
+                                   try {
+                                     await setStoreInfo(prev => ({ ...prev, historyLimitMonths: limitNum }));
+                                   } catch(e) {
+                                     console.warn("Gagal update historyLimitMonths ke cloud:", e);
+                                   }
+                                   showToast(`Batas tarikan data diset ke ${limitNum} bulan. Memuat ulang data...`, 'success');
+                                   setTimeout(() => window.location.reload(), 1000);
+                                 }}
+                                 className="px-4 py-2.5 rounded-xl bg-[#D4AF37] text-[#18181B] font-bold text-xs hover:opacity-90 shadow-sm flex items-center gap-1.5 transition-all"
+                               >
+                                 <RefreshCw size={14} /> Terapkan & Muat Ulang
+                               </button>
                              </div>
-                             <p className="text-[11px] text-gray-500 mt-2">Membatasi penarikan transaksi dan log lama agar PC/HP kentang tidak berat. Disarankan 3-6 bulan. Jika Anda ubah nilainya, halaman akan otomatis <i>reload</i> untuk menarik data.</p>
+                             <p className="text-[11px] text-gray-500 mt-2">Membatasi penarikan transaksi dan log lama agar PC/HP tidak berat. Disarankan 24-36 bulan agar seluruh data 2025 & 2026 termuat lengkap. Klik tombol di atas untuk langsung menerapkan dan memuat ulang data.</p>
                           </div>
                        </div>
 

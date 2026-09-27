@@ -11,8 +11,10 @@ export default function Dashboard({ products, sales, purchases, customers, color
     hari: 'Hari Ini',
     minggu: 'Minggu Ini',
     bulan: 'Bulan Ini',
-    tahun: 'Tahun Ini',
-    semua: 'Semua'
+    tahun: '1 Tahun Terakhir',
+    tahun_2026: 'Tahun 2026',
+    tahun_2025: 'Tahun 2025',
+    semua: 'Semua (Per Tahun)'
   };
 
   const filteredSales = useMemo(() => {
@@ -36,6 +38,12 @@ export default function Dashboard({ products, sales, purchases, customers, color
         const yearAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
         yearAgo.setHours(0,0,0,0);
         return d >= yearAgo;
+      }
+      if (timeRange === 'tahun_2026') {
+        return d.getFullYear() === 2026;
+      }
+      if (timeRange === 'tahun_2025') {
+        return d.getFullYear() === 2025;
       }
       if (timeRange === 'semua') return true;
       return true;
@@ -74,6 +82,12 @@ export default function Dashboard({ products, sales, purchases, customers, color
         const yearAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
         twoYearsAgo.setHours(0,0,0,0); yearAgo.setHours(0,0,0,0);
         return d >= twoYearsAgo && d < yearAgo;
+      }
+      if (timeRange === 'tahun_2026') {
+        return d.getFullYear() === 2025;
+      }
+      if (timeRange === 'tahun_2025') {
+        return d.getFullYear() === 2024;
       }
       return false; 
     });
@@ -176,16 +190,42 @@ export default function Dashboard({ products, sales, purchases, customers, color
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const name = monthNames[d.getMonth()];
+        const yr = String(d.getFullYear()).slice(2);
+        const name = `${monthNames[d.getMonth()]} '${yr}`;
         labels.push(name);
         tempMap[name] = { penjualan: 0, transaksi: 0, customer: new Set() };
       }
       filteredSales.forEach(s => {
-        const name = monthNames[new Date(s.date).getMonth()];
+        const d = new Date(s.date);
+        const yr = String(d.getFullYear()).slice(2);
+        const name = `${monthNames[d.getMonth()]} '${yr}`;
         if (tempMap[name]) {
           tempMap[name].penjualan += s.total;
           tempMap[name].transaksi += 1;
           if(s.customer) tempMap[name].customer.add(s.customer);
+        }
+      });
+      dataMap = tempMap;
+    } else if (timeRange === 'tahun_2026' || timeRange === 'tahun_2025') {
+      const targetYear = timeRange === 'tahun_2026' ? 2026 : 2025;
+      const yrShort = String(targetYear).slice(2);
+      labels = [];
+      const tempMap = {};
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+      for (let i = 0; i < 12; i++) {
+        const name = `${monthNames[i]} '${yrShort}`;
+        labels.push(name);
+        tempMap[name] = { penjualan: 0, transaksi: 0, customer: new Set() };
+      }
+      filteredSales.forEach(s => {
+        const d = new Date(s.date);
+        if (d.getFullYear() === targetYear) {
+          const name = `${monthNames[d.getMonth()]} '${yrShort}`;
+          if (tempMap[name]) {
+            tempMap[name].penjualan += s.total;
+            tempMap[name].transaksi += 1;
+            if(s.customer) tempMap[name].customer.add(s.customer);
+          }
         }
       });
       dataMap = tempMap;

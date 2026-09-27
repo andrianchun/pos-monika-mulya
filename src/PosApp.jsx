@@ -441,8 +441,13 @@ export default function PosApp({ tenantGlobalInfo }) {
       };
 
       const sortDescById = (data) => data.sort((a, b) => {
-         if (typeof a.id === 'string' && typeof b.id === 'string') return b.id.localeCompare(a.id);
-         return b.id - a.id;
+         const timeA = a.date ? new Date(a.date).getTime() : 0;
+         const timeB = b.date ? new Date(b.date).getTime() : 0;
+         if (timeB !== timeA) return timeB - timeA;
+         const numA = Number(a.id) || 0;
+         const numB = Number(b.id) || 0;
+         if (numA && numB) return numB - numA;
+         return String(b.id || '').localeCompare(String(a.id || ''));
       });
 
       const withRetryOnDenied = (attach) => {
@@ -465,7 +470,7 @@ export default function PosApp({ tenantGlobalInfo }) {
       const setupRealtime = (colName, setter, sortDesc = false, limitDate = false) => {
          let q = getTenantCollection(colName);
          if (limitDate) {
-             const historyLimitMonths = parseInt(localStorage.getItem('mmpos_historyLimitMonths') || '6', 10);
+             const historyLimitMonths = parseInt(localStorage.getItem('mmpos_historyLimitMonths') || storeInfo?.historyLimitMonths || '36', 10);
              const limitDateObj = new Date();
              limitDateObj.setMonth(limitDateObj.getMonth() - historyLimitMonths);
              const cutoffISO = limitDateObj.toISOString();
@@ -492,7 +497,7 @@ export default function PosApp({ tenantGlobalInfo }) {
       // (1) transaksi terbaru sesuai limit riwayat, DAN
       // (2) SEMUA nota berstatus Tempo berapapun umurnya.
       const setupTransactionRealtime = (colName, setter) => {
-         const historyLimitMonths = parseInt(localStorage.getItem('mmpos_historyLimitMonths') || '6', 10);
+         const historyLimitMonths = parseInt(localStorage.getItem('mmpos_historyLimitMonths') || storeInfo?.historyLimitMonths || '36', 10);
          const limitDateObj = new Date();
          limitDateObj.setMonth(limitDateObj.getMonth() - historyLimitMonths);
          const cutoffISO = limitDateObj.toISOString();
