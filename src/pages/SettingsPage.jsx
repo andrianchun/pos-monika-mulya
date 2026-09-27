@@ -824,6 +824,33 @@ export default function SettingsPage({
                                     Simulasikan Banner Update
                                  </button>
                               </div>
+                              <div className="flex items-center justify-between border-t border-black/5 dark:border-white/5 pt-2 text-[11px]">
+                                 <span className="text-gray-500">Kirim sinyal realtime ke seluruh kasir:</span>
+                                 <button
+                                    type="button"
+                                    onClick={async () => {
+                                       playSound('pop', isSoundOn);
+                                       if (!window.confirm('Siarkan sinyal update ke SEMUA layar kasir yang sedang aktif sekarang?')) return;
+                                       showToast('Menyiarkan sinyal pembaruan...', 'info');
+                                       try {
+                                          const { doc, setDoc } = await import('firebase/firestore');
+                                          const { db } = await import('../firebase');
+                                          await setDoc(doc(db, 'system', 'app_version'), {
+                                             version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0',
+                                             buildTime: Date.now(),
+                                             releaseNotes: 'Pembaruan sistem Tokoto disiarkan oleh Admin.'
+                                          }, { merge: true });
+                                          playSound('success', isSoundOn);
+                                          showToast('Sinyal pembaruan sukses disiarkan ke seluruh kasir!', 'success');
+                                       } catch (err) {
+                                          showToast('Gagal menyiarkan update: ' + err.message, 'error');
+                                       }
+                                    }}
+                                    className="text-emerald-500 dark:text-emerald-400 hover:underline font-bold cursor-pointer flex items-center gap-1"
+                                 >
+                                    <Send size={11} /> Siarkan ke Semua Kasir
+                                 </button>
+                              </div>
                            </div>
                         </div>
                     </div>

@@ -6,9 +6,10 @@ import fs from 'fs'
 const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'))
 
 export default defineConfig({
-  // Dibaca App / UpdaterAlert untuk membandingkan versi bundle aktif vs /ota/version.json
+  // Dibaca App / UpdaterAlert / ReloadPrompt untuk membandingkan versi & waktu build aktif
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_TIME__: JSON.stringify(Date.now()),
   },
   server: {
     headers: {

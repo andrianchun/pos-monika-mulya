@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { RefreshCw, X } from 'lucide-react';
+import { RefreshCw, X, Sparkles } from 'lucide-react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 export default function ReloadPrompt() {
-  const [forceShow, setForceShow] = React.useState(false);
+  const [forceShow, setForceShow] = useState(false);
+  const [serverReleaseNotes, setServerReleaseNotes] = useState('');
+  const [serverVersion, setServerVersion] = useState('');
 
   // Hook bawaan vite-plugin-pwa untuk bereaksi terhadap pembaruan Service Worker
   const sw = useRegisterSW({
@@ -11,14 +15,7 @@ export default function ReloadPrompt() {
       if (registration) {
         window.__tokoto_sw_reg = registration;
 
-        // 1. Cek pembaruan berkala di background tiap 15 menit
-        const intervalId = setInterval(() => {
-          if (navigator.onLine) {
-            registration.update().catch(() => {});
-          }
-        }, 15 * 60 * 1000);
-
-        // 2. Cek seketika saat kasir kembali membuka tab/aplikasi Tokoto
+        // Cek seketika saat kasir kembali membuka tab/aplikasi Tokoto (fallback)
         const onVisibilityChange = () => {
           if (document.visibilityState === 'visible' && navigator.onLine) {
             registration.update().catch(() => {});
@@ -26,16 +23,8 @@ export default function ReloadPrompt() {
         };
         document.addEventListener('visibilitychange', onVisibilityChange);
 
-        // 3. Cek saat koneksi internet pulih kembali
-        const onOnline = () => {
-          registration.update().catch(() => {});
-        };
-        window.addEventListener('online', onOnline);
-
         return () => {
-          clearInterval(intervalId);
           document.removeEventListener('visibilitychange', onVisibilityChange);
-          window.removeEventListener('online', onOnline);
         };
       }
     },
@@ -48,8 +37,50 @@ export default function ReloadPrompt() {
   const updateServiceWorker = sw?.updateServiceWorker || (() => {});
   const [needRefresh, setNeedRefresh] = needRefreshArray;
 
+  // 🔥 MEKANISME REALTIME PUSH: Mendengarkan sinyal update dari Firestore secara realtime!
+  // Tanpa perlu polling interval tiap 15 menit yang membuang baterai dan kuota.
+  // Begitu versi baru dirilis/di-deploy, sinyal dikirim langsung via WebSocket Google Firestore (< 500ms).
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'system', 'app_version'), (snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.data();
+      const remoteVersion = data.version;
+      const remoteBuildTime = Number(data.buildTime) || 0;
+
+      const currentVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0';
+      const currentBuildTime = typeof __BUILD_TIME__ !== 'undefined' ? Number(__BUILD_TIME__) : 0;
+
+      const isNewVersion = remoteVersion && remoteVersion !== currentVersion;
+      const isNewBuild = remoteBuildTime && currentBuildTime && remoteBuildTime > currentBuildTime;
+
+      if (isNewVersion || isNewBuild) {
+        console.log('⚡ [Tokoto Push] Rilis baru terdeteksi via Firestore:', data);
+
+        // Langsung perintahkan browser untuk memperbarui Service Worker
+        if (window.__tokoto_sw_reg) {
+          window.__tokoto_sw_reg.update().catch(() => {});
+        }
+
+        // Tampilkan catatan rilis jika ada
+        if (data.releaseNotes) {
+          setServerReleaseNotes(data.releaseNotes);
+        }
+        if (remoteVersion) {
+          setServerVersion(remoteVersion);
+        }
+
+        // Munculkan banner pembaruan seketika ke layar kasir!
+        setNeedRefresh(true);
+      }
+    }, (err) => {
+      console.debug('Firestore app_version listener:', err);
+    });
+
+    return () => unsub();
+  }, [setNeedRefresh]);
+
   // Izinkan force show / simulasi banner kapan saja (untuk tes/demo)
-  React.useEffect(() => {
+  useEffect(() => {
     const handleForceShow = () => {
       setForceShow(true);
     };
@@ -66,7 +97,6 @@ export default function ReloadPrompt() {
     window.addEventListener('tokoto_test_update_banner', handleForceShow);
     window.addEventListener('tokoto_check_update', handleForceCheck);
 
-    // Ekspos fungsi global yang bisa dipanggil kapan saja di konsol atau komponen lain
     window.tokotoCheckUpdate = handleForceCheck;
     window.tokotoSimulateUpdate = handleForceShow;
 
@@ -82,24 +112,40 @@ export default function ReloadPrompt() {
   return (
     <div className="fixed bottom-4 right-4 z-[9999] p-4 bg-white dark:bg-[#18181B] rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] border border-[#D4AF37] max-w-sm w-[calc(100%-2rem)] flex flex-col gap-3 animate-in slide-in-from-bottom-5 duration-500">
       <div className="flex items-start gap-3">
-         <div className="bg-[#D4AF37]/20 p-2.5 rounded-full text-[#D4AF37] animate-pulse">
+         <div className="bg-[#D4AF37]/20 p-2.5 rounded-full text-[#D4AF37] animate-pulse shrink-0">
             <RefreshCw size={24} />
          </div>
-         <div className="flex-1 mt-1">
-            <h4 className="text-[13px] font-extrabold text-gray-900 dark:text-white mb-0.5 tracking-wide uppercase">Pembaruan Tersedia</h4>
+         <div className="flex-1 mt-0.5 min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+               <h4 className="text-[13px] font-extrabold text-gray-900 dark:text-white tracking-wide uppercase">
+                  Pembaruan Tersedia
+               </h4>
+               {serverVersion && (
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#D4AF37]/20 text-[#D4AF37]">
+                     v{serverVersion}
+                  </span>
+               )}
+            </div>
             <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed font-medium">
-               Versi terbaru aplikasi telah terunduh. Muat ulang aplikasi untuk mengaplikasikan fitur baru.
+               Versi terbaru aplikasi telah dirilis. Muat ulang sekarang untuk mengaplikasikan fitur & perbaikan terbaru.
             </p>
+            {serverReleaseNotes && (
+               <div className="mt-2 p-2 rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-[11px] text-gray-700 dark:text-gray-300 flex items-start gap-1.5">
+                  <Sparkles size={13} className="text-[#D4AF37] shrink-0 mt-0.5" />
+                  <span className="leading-tight">{serverReleaseNotes}</span>
+               </div>
+            )}
          </div>
-         <button onClick={() => { setNeedRefresh(false); setForceShow(false); }} className="text-gray-400 hover:text-white transition-colors bg-black/5 dark:bg-white/5 rounded-full p-1">
+         <button onClick={() => { setNeedRefresh(false); setForceShow(false); }} className="text-gray-400 hover:text-white transition-colors bg-black/5 dark:bg-white/5 rounded-full p-1 shrink-0">
             <X size={16} />
          </button>
       </div>
       <button 
-        className="w-full py-2.5 bg-[#D4AF37] hover:bg-[#C5A028] text-[#18181B] font-extrabold text-xs rounded-xl shadow-md transition-all hover:scale-[1.02]"
+        className="w-full py-2.5 bg-[#D4AF37] hover:bg-[#C5A028] text-[#18181B] font-extrabold text-xs rounded-xl shadow-md transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-1.5"
         onClick={() => updateServiceWorker(true)}
       >
-        Muat Ulang & Perbarui
+        <RefreshCw size={14} />
+        Muat Ulang & Perbarui Sekarang
       </button>
     </div>
   );
