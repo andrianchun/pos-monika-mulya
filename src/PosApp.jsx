@@ -69,17 +69,30 @@ export default function PosApp({ tenantGlobalInfo }) {
   const [loading, setLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
   const [installPrompt, setInstallPrompt] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [sales, setSales] = useState([]);
-  const [purchases, setPurchases] = useState([]);
-  const [accounting, setAccounting] = useState([]);
-  const [financialAccounts, setFinancialAccounts] = useState([]);
+
+  // Helper pemulihan instan cache lokal (0ms Boot seperti Doctoid & Logym)
+  const getCachedCollection = (colName, fallback = []) => {
+    try {
+      const cached = localStorage.getItem(`tokoto_cache_${colName}_${tenantId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return fallback;
+  };
+
+  const [products, setProducts] = useState(() => getCachedCollection('products'));
+  const [customers, setCustomers] = useState(() => getCachedCollection('customers'));
+  const [suppliers, setSuppliers] = useState(() => getCachedCollection('suppliers'));
+  const [sales, setSales] = useState(() => getCachedCollection('sales'));
+  const [purchases, setPurchases] = useState(() => getCachedCollection('purchases'));
+  const [accounting, setAccounting] = useState(() => getCachedCollection('accounting'));
+  const [financialAccounts, setFinancialAccounts] = useState(() => getCachedCollection('financialAccounts'));
   const [storeInfo, setStoreInfo] = useState(() => getInitialStoreInfo(tenantId));
   const [categories, setCategories] = useState(['Sembako', 'Makanan', 'Minuman']);
   const [units, setUnits] = useState(['Pcs', 'Kg', 'Sak']);
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState(() => getCachedCollection('users'));
 
   useEffect(() => {
     // Generate dynamic manifest with user's logo on load
@@ -391,7 +404,9 @@ export default function PosApp({ tenantGlobalInfo }) {
   useEffect(() => {
     let unsubs = []; 
     let loadedCount = 0;
-    const safetyTimer = setTimeout(() => { setLoading(false); }, 1500);
+    // Safety fallback 12 detik hanya aktif jika koneksi internet terputus total
+    // Tidak lagi memotong proses loading saat data masih diunduh dari cloud!
+    const safetyTimer = setTimeout(() => { setLoading(false); }, 12000);
     const checkLoaded = () => { 
         loadedCount++; 
         setLoadProgress(Math.min(100, Math.floor((loadedCount / 8) * 100)));
@@ -423,15 +438,6 @@ export default function PosApp({ tenantGlobalInfo }) {
          return b.id - a.id;
       });
 
-      // Firestore menganggap permission-denied sebagai error PERMANEN dan tidak
-      // pernah otomatis mencoba lagi — beda dari error jaringan yang di-retry
-      // sendiri. Di login pertama pada perangkat/tab yang benar-benar baru
-      // (tanpa cache IndexedDB), ada celah waktu singkat di mana listener
-      // pertama terpasang sebelum token auth sepenuhnya "nyantol" di SDK
-      // Firestore, sehingga sempat ditolak walau usernya valid. Karena semua
-      // user yang login selalu diizinkan baca (lihat firestore.rules), sebuah
-      // permission-denied di titik ini nyaris pasti kejadian sesaat itu —
-      // aman untuk dicoba ulang beberapa kali sebelum benar-benar menyerah.
       const withRetryOnDenied = (attach) => {
          let attempt = 0;
          let unsub = () => {};
@@ -465,9 +471,12 @@ export default function PosApp({ tenantGlobalInfo }) {
          }
 
          return withRetryOnDenied((onError) => onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
-             let data = snap.docs.map(d => normalizeObj(colName, d.data()));
+            let data = snap.docs.map(d => normalizeObj(colName, d.data()));
             if (sortDesc) sortDescById(data);
             setter(data);
+            try {
+              localStorage.setItem(`tokoto_cache_${colName}_${tenantId}`, JSON.stringify(data.slice(0, 1000)));
+            } catch(e) {}
             checkLoaded();
          }, onError));
       };
@@ -475,8 +484,6 @@ export default function PosApp({ tenantGlobalInfo }) {
       // Untuk sales & purchases: gabungkan 2 query —
       // (1) transaksi terbaru sesuai limit riwayat, DAN
       // (2) SEMUA nota berstatus Tempo berapapun umurnya.
-      // Dengan ini piutang/utang lama tidak pernah hilang dari Neraca,
-      // riwayat, dan profil kontak meski melewati limit riwayat.
       const setupTransactionRealtime = (colName, setter) => {
          const historyLimitMonths = parseInt(localStorage.getItem('mmpos_historyLimitMonths') || '6', 10);
          const limitDateObj = new Date();
@@ -490,6 +497,9 @@ export default function PosApp({ tenantGlobalInfo }) {
             const merged = new Map([...(tempoMap || new Map()), ...(recentMap || new Map())]);
             const data = sortDescById(Array.from(merged.values()));
             setter(data);
+            try {
+              localStorage.setItem(`tokoto_cache_${colName}_${tenantId}`, JSON.stringify(data.slice(0, 1000)));
+            } catch(e) {}
          };
 
          unsubs.push(withRetryOnDenied((onError) => onSnapshot(query(getTenantCollection(colName), where('date', '>=', cutoffISO)), { includeMetadataChanges: true }, (snap) => {
@@ -1047,7 +1057,7 @@ export default function PosApp({ tenantGlobalInfo }) {
                </div>
              
              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white"></div></div>}>
-                 {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={navigateMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} />}
+                 {activeMenu === 'dashboard' && <Dashboard products={products} sales={sales} purchases={purchases} customers={customers} colors={baseThemeColors} theme={theme} handleMenuClick={navigateMenu} isSoundOn={true} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} isDataLoading={loading} />}
              {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} sales={sales} colors={baseThemeColors} user={user} isSoundOn={true} showToast={showToast} editIntent={editIntent} recordActivity={recordActivity} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} />}
              {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} editIntent={editIntent} user={user} recordActivity={recordActivity} />}
                {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} handleNavigateAndEdit={handleNavigateAndEdit} user={user} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} />}

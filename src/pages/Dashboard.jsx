@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { TrendingUp, BarChart2, ShoppingCart, Users, ChevronDown, Activity, Package, Star, AlertTriangle, Wallet } from 'lucide-react';
 import { formatIDR, playSound } from '../utils/helpers';
 
-export default function Dashboard({ products, sales, purchases, customers, colors, theme, handleMenuClick, isSoundOn, globalChartMode, setGlobalChartMode }) {
+export default function Dashboard({ products, sales, purchases, customers, colors, theme, handleMenuClick, isSoundOn, globalChartMode, setGlobalChartMode, isDataLoading }) {
   const [timeRange, setTimeRange] = useState('bulan');
   const [chartTab, setChartTab] = useState('penjualan');
   const [listTab, setListTab] = useState('laris');
@@ -307,7 +307,11 @@ export default function Dashboard({ products, sales, purchases, customers, color
             <div className="flex justify-between items-start mb-2">
                <div>
                  <p className={`text-xs font-bold ${colors.textMuted} mb-1 opacity-70`}>{kpi.title}</p>
-                 <h3 className={`text-xl sm:text-2xl font-black ${colors.text}`}>{kpi.value}</h3>
+                 {isDataLoading && stats.totalPenjualan === 0 ? (
+                   <div className="h-7 w-28 bg-slate-700/40 rounded-lg animate-pulse my-1"></div>
+                 ) : (
+                   <h3 className={`text-xl sm:text-2xl font-black ${colors.text}`}>{kpi.value}</h3>
+                 )}
                </div>
                <div className="absolute -right-2 -bottom-2 opacity-[0.03] dark:opacity-[0.05] group-hover:opacity-10 group-hover:scale-110 transition-all pointer-events-none">
                    <kpi.icon size={100} className={colors.text} />
