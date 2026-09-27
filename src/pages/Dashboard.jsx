@@ -173,10 +173,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
       for (let i = 29; i >= 0; i--) {
         const d = new Date(now); d.setDate(now.getDate() - i);
         const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-        let displayLabel = String(d.getDate());
-        if (d.getDate() === 1 || i === 29) {
-           displayLabel = `${d.getDate()} ${monthNames[d.getMonth()]}`;
-        }
+        const displayLabel = `${d.getDate()} ${monthNames[d.getMonth()]}`;
         labels.push({ key, display: displayLabel });
         tempMap[key] = { penjualan: 0, transaksi: 0, customer: new Set() };
       }
@@ -310,6 +307,22 @@ export default function Dashboard({ products, sales, purchases, customers, color
       }
     });
     setHoveredPointIndex(nearestIdx);
+  };
+
+  // Menentukan label perwakilan pada sumbu X agar tidak berhimpitan di layar sempit / mobile
+  const shouldShowAxisLabel = (index, total) => {
+    if (total <= 6) return true;
+    if (total <= 8) return true; // 7 hari dalam seminggu tetap muat
+    const targetSteps = 4;
+    const step = (total - 1) / targetSteps;
+    const keyIndices = [
+      0,
+      Math.round(step * 1),
+      Math.round(step * 2),
+      Math.round(step * 3),
+      total - 1
+    ];
+    return keyIndices.includes(index);
   };
 
   const rankingLists = useMemo(() => {
@@ -533,6 +546,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
                   <div className="w-full h-[220px] flex items-end justify-between gap-1 sm:gap-3 relative z-10 pb-6">
                     {chartData.map((d, i) => {
                       const h = (d.value / maxChartVal) * 100;
+                      const showLabel = shouldShowAxisLabel(i, chartData.length);
                       return (
                         <div key={i} className="flex-1 flex flex-col items-center group h-full justify-end relative">
                           <div className="w-full max-w-[40px] bg-[#D4AF37] rounded-t-sm opacity-80 group-hover:opacity-100 transition-all cursor-pointer relative min-h-[4px]" style={{ height: `${h || 0}%` }}>
@@ -540,7 +554,9 @@ export default function Dashboard({ products, sales, purchases, customers, color
                                {chartTab === 'penjualan' ? `Rp ${formatIDR(d.value)}` : d.value}
                              </div>
                           </div>
-                          <span className={`absolute -bottom-6 text-[9px] sm:text-[10px] font-bold ${colors.textMuted} whitespace-nowrap`}>{d.label}</span>
+                          {showLabel && (
+                            <span className={`absolute -bottom-6 text-[9px] sm:text-[10px] font-bold ${colors.textMuted} whitespace-nowrap`}>{d.label}</span>
+                          )}
                         </div>
                       );
                     })}
@@ -650,13 +666,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
                         {/* X-Axis Labels aligned with the coordinates */}
                         <div className="absolute -bottom-6 w-full pointer-events-none">
                           {coords.map((pt, i) => {
-                            const total = coords.length;
-                            const shouldShow = total <= 10 
-                              || i === 0 
-                              || i === total - 1 
-                              || i % Math.ceil(total / 7) === 0;
-
-                            if (!shouldShow) return null;
+                            if (!shouldShowAxisLabel(i, coords.length)) return null;
                             return (
                               <span 
                                 key={i} 
