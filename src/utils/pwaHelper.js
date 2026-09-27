@@ -152,12 +152,21 @@ export async function generateDynamicManifest(tenantId = null, directStoreInfo =
     ]
   };
 
+  // Untuk toko utama (Monika Mulya), pastikan link manifest merujuk ke file statis resmi /manifest.json
+  // Chrome Android hanya memicu beforeinstallprompt jika manifest berasal dari URL HTTP/HTTPS yang valid
+  if (!tenantId || tenantId === 'monikamulya') {
+    const link = document.getElementById('dynamic-manifest');
+    if (link && link.getAttribute('href') !== '/manifest.json') {
+      link.href = '/manifest.json';
+    }
+    return;
+  }
+
   try {
     const stringManifest = JSON.stringify(manifest);
-    // Data URI bekerja 100% mandiri tanpa ketergantungan sesi memori blob URL
+    // Data URI hanya digunakan jika tenant lain memiliki branding custom
     const dataUriManifest = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(stringManifest);
     
-    // Hapus dan pasang kembali elemen link agar peramban (Chrome/Edge) dipaksa memuat ulang konfigurasi manifest
     const oldLink = document.getElementById('dynamic-manifest');
     if (oldLink) {
       oldLink.remove();

@@ -55,13 +55,12 @@ export default function PwaInstallButton({ installPrompt, storeName = 'Monika Mu
       }
     }
 
-    // 2. iOS (Safari): Panggil Web Share Sheet bawaan Apple langsung dalam 1 klik
-    // Safari akan langsung membuka lembar menu sistem iOS (di mana terdapat opsi "Tambahkan ke Layar Utama")
-    if (typeof navigator !== 'undefined' && navigator.share) {
+    // 2. iOS (Safari): Hanya jalankan Web Share jika perangkat benar-benar iPhone / iPad
+    const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS && typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
           title: `${storeName} POS`,
-          text: `Buka aplikasi kasir ${storeName}`,
           url: window.location.href,
         });
         return;
@@ -73,9 +72,20 @@ export default function PwaInstallButton({ installPrompt, storeName = 'Monika Mu
       }
     }
 
-    // 3. Fallback browser desktop / non-share: Notifikasi simpel 1 baris tanpa popup mengganggu
+    // 3. Android / Desktop: Cek apakah aplikasi sudah terpasang di perangkat
+    if (typeof navigator !== 'undefined' && navigator.getInstalledRelatedApps) {
+      try {
+        const apps = await navigator.getInstalledRelatedApps();
+        if (apps && apps.length > 0) {
+          if (showToast) showToast('Aplikasi sudah terpasang di HP Anda! Buka dari layar depan (Homescreen).', 'success');
+          return;
+        }
+      } catch (e) {}
+    }
+
+    // 4. Jika prompt belum siap di Chrome Android, berikan petunjuk ringkas tanpa sharing text
     if (showToast) {
-      showToast('Gunakan menu peramban untuk memasang aplikasi ke layar utama', 'info');
+      showToast('Tekan menu titik tiga (⋮) Chrome ➔ pilih "Install Aplikasi"', 'info');
     }
   };
 
