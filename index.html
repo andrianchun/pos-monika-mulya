@@ -6,23 +6,27 @@
     <script>
       (function() {
         try {
-          var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || (document.referrer && document.referrer.includes('android-app://'));
+          var search = window.location.search;
+          var isExplicitLanding = search.indexOf('landing=true') !== -1;
           var path = window.location.pathname;
           var segments = path.split('/').filter(Boolean);
           var tenant = segments[0];
-          var reserved = ['login', 'register', 'superadmin', 'ota', 'assets', 'apk'];
+          var reserved = ['login', 'register', 'superadmin', 'ota', 'assets', 'apk', 'landing'];
           if (tenant && reserved.indexOf(tenant) === -1) {
             localStorage.setItem('tokoto_last_tenant', tenant);
             localStorage.setItem('mmpos_last_tenant', tenant);
-          } else if (path === '/' || path === '') {
+          } else if ((path === '/' || path === '') && !isExplicitLanding) {
             var saved = localStorage.getItem('tokoto_last_tenant') || localStorage.getItem('mmpos_last_tenant') || 'monikamulya';
-            if (isStandalone && saved) {
-              window.location.replace('/' + saved);
-            }
+            window.location.replace('/' + saved);
           }
         } catch(e) {}
       })();
     </script>
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Monika Mulya" />
+    <meta name="theme-color" content="#18181b" />
     <link rel="manifest" id="dynamic-manifest" href="" />
     <link rel="apple-touch-icon" id="dynamic-apple-icon" href="" />
     <title>Tokoto POS</title>

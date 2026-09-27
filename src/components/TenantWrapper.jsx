@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import PosApp from '../PosApp';
+import { generateDynamicManifest } from '../utils/pwaHelper';
 
 export default function TenantWrapper() {
   const { tenantId } = useParams();
@@ -31,6 +32,7 @@ export default function TenantWrapper() {
     try {
       localStorage.setItem('tokoto_last_tenant', tenantId);
       localStorage.setItem('mmpos_last_tenant', tenantId);
+      generateDynamicManifest(tenantId, tenantGlobalInfo).catch(() => {});
     } catch(e) {}
     
     // 1. Ambil info toko secara instan dari Cache Lokal (Offline First)
@@ -51,6 +53,7 @@ export default function TenantWrapper() {
           const storeData = storeInfoSnap.data();
           setTenantGlobalInfo(prev => ({ ...(prev || {}), ...storeData }));
           localStorage.setItem(`mmpos_storeInfo_${tenantId}`, JSON.stringify(storeData));
+          generateDynamicManifest(tenantId, storeData).catch(() => {});
           return;
         }
 
@@ -67,6 +70,7 @@ export default function TenantWrapper() {
           };
           setTenantGlobalInfo(prev => ({ ...(prev || {}), ...info }));
           localStorage.setItem(`mmpos_storeInfo_${tenantId}`, JSON.stringify({ ...(tenantGlobalInfo || {}), ...info }));
+          generateDynamicManifest(tenantId, info).catch(() => {});
         }
       } catch(err) {
         // Abaikan jika offline / permission rule

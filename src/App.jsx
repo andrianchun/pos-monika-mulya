@@ -16,6 +16,7 @@ export default function App() {
       <UpdaterAlert />
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/register" element={<RegisterSaaS />} />
         <Route path="/login" element={<GlobalLogin />} />
         <Route path="/superadmin/*" element={<SuperAdminApp />} />

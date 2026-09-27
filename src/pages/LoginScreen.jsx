@@ -3,6 +3,7 @@ import { ShoppingCart, AlertCircle, User, Lock, Moon, Sun, ShieldAlert, Mail, Ch
 import { playSound } from '../utils/helpers';
 import { auth, usernameToEmail, resolveLoginEmailFn, AUTH_EMAIL_DOMAIN, googleProvider } from '../firebase';
 import { signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence, signInWithPopup } from 'firebase/auth';
+import PwaInstallButton from '../components/ui/PwaInstallButton';
 
 export default function LoginScreen({ onLogin, users, colors, theme, setTheme, isSoundOn, showToast, storeInfo, tenantId, installPrompt }) {
   const [username, setUsername] = useState('');
@@ -176,9 +177,18 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
       <div className={`absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 ${theme === 'dark' ? 'bg-amber-900' : 'bg-amber-200'} z-0`}></div>
       <div className={`absolute bottom-[-10%] right-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-200'} z-0`}></div>
 
-      <button onClick={() => { playSound('pop', isSoundOn); setTheme(theme === 'light' ? 'dark' : 'light'); }} className="absolute top-4 right-4 p-3 rounded-full hover:bg-black/10 dark:hover:bg-white/10 z-50">
-        {theme === 'light' ? <Moon size={24} /> : <Sun size={24} className="text-yellow-400" />}
-      </button>
+      <div className="absolute top-4 right-4 flex items-center gap-2 z-50">
+        <PwaInstallButton 
+          installPrompt={installPrompt} 
+          storeName={storeInfo?.name || (tenantId === 'monikamulya' ? 'Monika Mulya' : tenantId)} 
+          isSoundOn={isSoundOn} 
+          showToast={showToast} 
+          variant="icon" 
+        />
+        <button onClick={() => { playSound('pop', isSoundOn); setTheme(theme === 'light' ? 'dark' : 'light'); }} className="p-3 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
+          {theme === 'light' ? <Moon size={24} /> : <Sun size={24} className="text-yellow-400" />}
+        </button>
+      </div>
 
       <div className={`w-full max-w-md p-8 rounded-2xl shadow-2xl z-10 ${colors.panel} border ${colors.border}`}>
         <div className="text-center mb-8">
@@ -243,16 +253,13 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
              </svg>
              Masuk dengan Google
           </button>
-           {installPrompt && (
-              <button 
-                type="button" 
-                onClick={handleInstallApp}
-                className="w-full mt-3 py-2.5 px-4 rounded-xl border border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm"
-              >
-                <Smartphone size={16} className="text-orange-500 shrink-0" />
-                <span>Pasang Aplikasi {storeInfo?.name || 'Kasir'}</span>
-              </button>
-           )}
+           <PwaInstallButton 
+             installPrompt={installPrompt} 
+             storeName={storeInfo?.name || (tenantId === 'monikamulya' ? 'Monika Mulya' : tenantId)} 
+             isSoundOn={isSoundOn} 
+             showToast={showToast} 
+             variant="card" 
+           />
         </form>
 
         {/* Watermark Co-Branding Tokoto */}

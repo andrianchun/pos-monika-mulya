@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Sun, Moon, LogOut, Settings, Menu, Bell, AlertTriangle, Package, Calendar, Send, Loader2, ChevronDown, ChevronUp, CheckCheck, X, Cloud, CloudOff } from 'lucide-react';
 import ProfileModal from './modals/ProfileModal';
+import PwaInstallButton from './ui/PwaInstallButton';
 import { playSound, formatIDR, formatDate } from '../utils/helpers';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
@@ -212,28 +213,16 @@ export default function Header({
                <p className={`text-[10px] sm:text-xs font-semibold ${colors.textMuted} tracking-wider`}>{storeInfo.tagline || 'Point of Sale System'}</p>
              </div>
            </div>
-           
-           {installPrompt && (
-             <button onClick={async () => { 
-                playSound('pop', isSoundOn); 
-                installPrompt.prompt(); 
-                const { outcome } = await installPrompt.userChoice; 
-                if(outcome === 'accepted') { showToast('Terima kasih telah menginstal!', 'success'); } 
-             }} className={`hidden sm:flex ml-4 px-3 py-1.5 rounded-lg text-[10px] font-bold text-[#18181B] bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:opacity-90 shadow-sm animate-pulse items-center gap-1`}>
-                <Send size={12} className="rotate-45 -mt-0.5" /> Install App
-             </button>
-           )}
         </div>
 
         <div className="flex items-center gap-1 sm:gap-3">
-          {installPrompt && (
-             <button onClick={async () => { 
-                playSound('pop', isSoundOn); 
-                installPrompt.prompt(); 
-             }} className={`sm:hidden p-1.5 rounded-md text-[#18181B] bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:opacity-90 shadow-sm mr-1`} title="Install App">
-                <Send size={14} className="rotate-45 -mt-0.5 -ml-0.5" />
-             </button>
-           )}
+          <PwaInstallButton 
+            installPrompt={installPrompt} 
+            storeName={storeInfo?.name} 
+            isSoundOn={isSoundOn} 
+            showToast={showToast} 
+            variant="compact" 
+          />
           {syncCount > 0 ? (
              <div className="flex items-center justify-center p-1.5 select-none" title={`Sinkronisasi data Cloud (${syncCount} antrean)...`}>
                 <Cloud size={18} className="text-amber-400 animate-pulse shrink-0" />
