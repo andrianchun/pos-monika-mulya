@@ -7,6 +7,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
   const [chartTab, setChartTab] = useState('penjualan');
   const [listTab, setListTab] = useState('laris');
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
+  const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
   const baseRanges = {
     hari: 'Hari Ini',
     minggu: 'Minggu Ini',
@@ -266,6 +267,51 @@ export default function Dashboard({ products, sales, purchases, customers, color
 
   const maxChartVal = Math.max(...chartData.map(d => d.value), 1);
 
+  const coords = useMemo(() => {
+    if (!chartData || chartData.length === 0) return [];
+    const n = chartData.length;
+    return chartData.map((d, i) => {
+      const x = n === 1 ? 50 : 4 + (i / (n - 1)) * 92;
+      const y = 88 - ((d.value / maxChartVal) * 68);
+      return { ...d, x, y, index: i };
+    });
+  }, [chartData, maxChartVal]);
+
+  const activePoint = hoveredPointIndex !== null && coords[hoveredPointIndex] ? coords[hoveredPointIndex] : null;
+
+  const polylinePoints = useMemo(() => {
+    if (coords.length === 0) return '';
+    if (coords.length === 1) return `0,${coords[0].y} 100,${coords[0].y}`;
+    return coords.map(c => `${c.x},${c.y}`).join(' ');
+  }, [coords]);
+
+  const polygonPoints = useMemo(() => {
+    if (coords.length === 0) return '';
+    if (coords.length === 1) return `0,100 0,${coords[0].y} 100,${coords[0].y} 100,100`;
+    return `${coords[0].x},100 ${polylinePoints} ${coords[coords.length - 1].x},100`;
+  }, [coords, polylinePoints]);
+
+  const handleChartPointerMove = (e) => {
+    if (!coords || coords.length === 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+    if (clientX === undefined) return;
+    const xPos = clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, xPos / rect.width));
+    const currentXPercent = ratio * 100;
+
+    let nearestIdx = 0;
+    let minDiff = Infinity;
+    coords.forEach((pt, idx) => {
+      const diff = Math.abs(pt.x - currentXPercent);
+      if (diff < minDiff) {
+        minDiff = diff;
+        nearestIdx = idx;
+      }
+    });
+    setHoveredPointIndex(nearestIdx);
+  };
+
   const rankingLists = useMemo(() => {
     let prodMap = {};
     let catMap = {};
@@ -500,47 +546,130 @@ export default function Dashboard({ products, sales, purchases, customers, color
                     })}
                   </div>
                ) : (
-                  <div className="w-full h-[220px] relative z-10 pb-6">
-                    <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-                      <defs>
-                        <linearGradient id="lineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.3" />
-                          <stop offset="100%" stopColor="#D4AF37" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      
-                      <polygon 
-                        points={`0,100 ${chartData.map((d, i) => d.value > 0 ? `${(i / (chartData.length - 1 || 1)) * 100},${100 - ((d.value / maxChartVal) * 100)}` : '').filter(Boolean).join(' ')} 100,100`} 
-                        fill="url(#lineGrad)" 
-                      />
-                      
-                      <polyline 
-                        points={chartData.map((d, i) => d.value > 0 ? `${(i / (chartData.length - 1 || 1)) * 100},${100 - ((d.value / maxChartVal) * 100)}` : '').filter(Boolean).join(' ')} 
-                        fill="none" 
-                        stroke="#D4AF37" 
-                        strokeWidth="3" 
-                        vectorEffect="non-scaling-stroke" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                      />
-                    </svg>
+                  <div 
+                    className="w-full h-[220px] relative z-10 pb-6 cursor-crosshair touch-none"
+                    onMouseMove={handleChartPointerMove}
+                    onMouseLeave={() => setHoveredPointIndex(null)}
+                    onTouchMove={handleChartPointerMove}
+                    onTouchEnd={() => setHoveredPointIndex(null)}
+                  >
+                    {coords.length === 0 ? (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-bold">
+                        Belum ada data grafik di periode ini.
+                      </div>
+                    ) : (
+                      <>
+                        <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+                          <defs>
+                            <linearGradient id="lineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.02" />
+                            </linearGradient>
+                          </defs>
+                          
+                          {/* Gradient Area under Curve */}
+                          {polygonPoints && (
+                            <polygon points={polygonPoints} fill="url(#lineGrad)" />
+                          )}
+                          
+                          {/* Main Curve Line */}
+                          {polylinePoints && (
+                            <polyline 
+                              points={polylinePoints} 
+                              fill="none" 
+                              stroke="#D4AF37" 
+                              strokeWidth="2.5" 
+                              vectorEffect="non-scaling-stroke" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                            />
+                          )}
 
-                    <div className="absolute inset-0 pb-6 flex justify-between z-20">
-                      {chartData.map((d, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center justify-end group/tooltip relative">
-                           <div className="absolute top-0 bg-black text-white text-[10px] font-bold py-1 px-2 rounded opacity-0 group-hover/tooltip:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">
-                             {chartTab === 'penjualan' ? `Rp ${formatIDR(d.value)}` : d.value}
-                           </div>
-                           <div className="w-[2px] h-full bg-[#D4AF37]/40 opacity-0 group-hover/tooltip:opacity-100 transition-opacity"></div>
+                          {/* Default subtle dots when points are few */}
+                          {coords.length <= 15 && coords.map((pt, i) => (
+                            <circle 
+                              key={i} 
+                              cx={pt.x} 
+                              cy={pt.y} 
+                              r="3" 
+                              fill="#D4AF37" 
+                              opacity={hoveredPointIndex === i ? 0 : 0.6} 
+                            />
+                          ))}
+
+                          {/* Active Hover Point in SVG: Guideline & Glowing Vertex Dot */}
+                          {activePoint && (
+                            <g>
+                              {/* Vertical guide line passing precisely through the vertex */}
+                              <line 
+                                x1={activePoint.x} 
+                                y1="0" 
+                                x2={activePoint.x} 
+                                y2="100" 
+                                stroke="#D4AF37" 
+                                strokeWidth="1.5" 
+                                strokeDasharray="3 3" 
+                                opacity="0.65" 
+                              />
+                              {/* Halo / Glow */}
+                              <circle cx={activePoint.x} cy={activePoint.y} r="8" fill="#D4AF37" fillOpacity="0.25" />
+                              {/* Active Dot Center */}
+                              <circle cx={activePoint.x} cy={activePoint.y} r="4.5" fill="#D4AF37" stroke="#18181B" strokeWidth="2" />
+                            </g>
+                          )}
+                        </svg>
+
+                        {/* Interactive Tooltip positioned precisely at the vertex */}
+                        {activePoint && (
+                          <div 
+                            className="absolute z-30 pointer-events-none transition-all duration-75 flex flex-col items-center"
+                            style={{
+                              left: `${activePoint.x}%`,
+                              top: `${activePoint.y}%`,
+                              transform: `translate(${activePoint.x < 15 ? '-15%' : activePoint.x > 85 ? '-85%' : '-50%'}, -100%)`,
+                              paddingBottom: '10px'
+                            }}
+                          >
+                            <div className="bg-[#18181B] dark:bg-black text-white text-[11px] font-bold py-1.5 px-3 rounded-xl shadow-2xl border border-[#D4AF37]/50 flex flex-col items-center whitespace-nowrap">
+                              <span className="text-[10px] text-gray-400 font-semibold mb-0.5">{activePoint.label}</span>
+                              <span className="text-[#D4AF37] font-black text-xs tracking-wide">
+                                {chartTab === 'penjualan' ? `Rp ${formatIDR(activePoint.value)}` : activePoint.value}
+                              </span>
+                            </div>
+                            <div 
+                              className="w-0 h-0 border-x-[5px] border-x-transparent border-t-[5px] border-t-[#18181B] dark:border-t-black -mt-[1px]"
+                              style={{
+                                alignSelf: activePoint.x < 15 ? 'flex-start' : activePoint.x > 85 ? 'flex-end' : 'center',
+                                marginLeft: activePoint.x < 15 ? '10px' : 0,
+                                marginRight: activePoint.x > 85 ? '10px' : 0,
+                              }}
+                            />
+                          </div>
+                        )}
+
+                        {/* X-Axis Labels aligned with the coordinates */}
+                        <div className="absolute -bottom-6 w-full pointer-events-none">
+                          {coords.map((pt, i) => {
+                            const total = coords.length;
+                            const shouldShow = total <= 10 
+                              || i === 0 
+                              || i === total - 1 
+                              || i % Math.ceil(total / 7) === 0;
+
+                            if (!shouldShow) return null;
+                            return (
+                              <span 
+                                key={i} 
+                                className={`absolute text-[9px] sm:text-[10px] font-bold ${colors.textMuted} whitespace-nowrap -translate-x-1/2`}
+                                style={{ left: `${pt.x}%` }}
+                              >
+                                {pt.label}
+                              </span>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
-
-                    <div className="absolute -bottom-6 w-full flex justify-between">
-                       {chartData.map((d, i) => (
-                          <span key={i} className={`text-[9px] sm:text-[10px] font-bold ${colors.textMuted}`}>{d.label}</span>
-                       ))}
-                    </div>
+                      </>
+                    )}
                   </div>
                )}
             </div>
