@@ -235,19 +235,16 @@ export default function Header({
              </button>
            )}
           {syncCount > 0 ? (
-               <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-500 select-none shadow-sm" title="Sinkronisasi data ke Cloud...">
-                  <Loader2 size={13} className="animate-spin text-blue-500 shrink-0" />
-                  <span className="text-[11px] font-bold text-blue-500">Sync ({syncCount})</span>
-               </div>
+             <div className="flex items-center justify-center p-1.5 select-none" title={`Sinkronisasi data Cloud (${syncCount} antrean)...`}>
+                <Cloud size={18} className="text-amber-400 animate-pulse shrink-0" />
+             </div>
            ) : isOnline ? (
-               <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full ${colors.creamBg} border ${colors.border} select-none shadow-sm hover:border-emerald-500/40 transition-colors`} title="Terhubung ke Cloud Database">
-                  <Cloud size={14} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
-                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Online</span>
-               </div>
+             <div className="flex items-center justify-center p-1.5 select-none" title="Terhubung ke Cloud Database">
+                <Cloud size={18} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
+             </div>
            ) : (
-             <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full ${colors.creamBg} border border-rose-500/30 select-none shadow-sm animate-pulse`} title="Mode Offline (Data tersimpan di perangkat)">
-                <CloudOff size={14} className="text-rose-500 shrink-0" />
-                <span className="text-[11px] font-bold text-rose-500">Offline</span>
+             <div className="flex items-center justify-center p-1.5 select-none" title="Mode Offline (Koneksi Terputus)">
+                <CloudOff size={18} className="text-rose-500 shrink-0 animate-pulse" />
              </div>
            )}
 

@@ -779,6 +779,53 @@ export default function SettingsPage({
                              <p className="text-[11px] text-gray-500 mt-2">Membatasi penarikan transaksi dan log lama agar PC/HP kentang tidak berat. Disarankan 3-6 bulan. Jika Anda ubah nilainya, halaman akan otomatis <i>reload</i> untuk menarik data.</p>
                           </div>
                        </div>
+
+                        <div className="border-t border-dashed border-gray-300 dark:border-gray-700 pt-6 mt-4">
+                           <h4 className="text-sm font-extrabold mb-4 text-[#D4AF37] flex items-center gap-2">
+                              <RefreshCw size={16} /> Pembaruan Sistem Tokoto
+                           </h4>
+                           <div className={`p-4 rounded-xl border ${colors.border} ${colors.creamBg} space-y-3`}>
+                              <div className="flex items-center justify-between">
+                                 <div>
+                                    <div className={`text-xs font-bold ${colors.text}`}>Versi Aplikasi</div>
+                                    <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
+                                       v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'} (PWA Cloud)
+                                    </div>
+                                 </div>
+                                 <button
+                                    type="button"
+                                    onClick={async () => {
+                                       playSound('pop', isSoundOn);
+                                       showToast('Memeriksa pembaruan sistem...', 'info');
+                                       if (window.tokotoCheckUpdate) {
+                                          await window.tokotoCheckUpdate();
+                                       }
+                                       setTimeout(() => {
+                                          showToast('Aplikasi Anda sudah menggunakan versi paling mutakhir.', 'success');
+                                       }, 1200);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#D4AF37] hover:bg-[#C5A028] text-[#18181B] flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 cursor-pointer"
+                                 >
+                                    <RefreshCw size={13} /> Periksa Pembaruan
+                                 </button>
+                              </div>
+                              <div className="flex items-center justify-between border-t border-black/5 dark:border-white/5 pt-2 text-[11px]">
+                                 <span className="text-gray-500">Uji coba tampilan popup update:</span>
+                                 <button
+                                    type="button"
+                                    onClick={() => {
+                                       playSound('pop', isSoundOn);
+                                       if (window.tokotoSimulateUpdate) {
+                                          window.tokotoSimulateUpdate();
+                                       }
+                                    }}
+                                    className="text-[#D4AF37] hover:underline font-bold cursor-pointer"
+                                 >
+                                    Simulasikan Banner Update
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
                     </div>
                  </div>
                  <button type="submit" disabled={!isTokoChanged} className={`w-full py-3.5 rounded-xl text-center font-bold text-base shadow-md transition-all ${isTokoChanged ? `${colors.goldBg} text-[#18181B] hover:opacity-90` : 'bg-gray-300 dark:bg-[#27272A] text-gray-500 opacity-50 cursor-not-allowed'}`}>Simpan</button>
