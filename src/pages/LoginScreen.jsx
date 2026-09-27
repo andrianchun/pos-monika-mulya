@@ -157,7 +157,7 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center relative overflow-hidden transition-colors duration-500`}>
+    <div className={`min-h-screen flex items-center justify-center relative overflow-x-hidden p-4 sm:p-6 transition-colors duration-500`}>
       {/* Warna Latar Belakang Dasar */}
       <div className={`absolute inset-0 z-0 ${colors.bg}`}></div>
 
@@ -177,7 +177,8 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
       <div className={`absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 ${theme === 'dark' ? 'bg-amber-900' : 'bg-amber-200'} z-0`}></div>
       <div className={`absolute bottom-[-10%] right-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 ${theme === 'dark' ? 'bg-yellow-900' : 'bg-yellow-200'} z-0`}></div>
 
-      <div className="absolute top-4 right-4 flex items-center gap-2 z-50">
+      {/* Header Controls (PWA Install + Theme Switcher) */}
+      <div className="absolute top-4 right-4 flex items-center gap-2.5 z-50">
         <PwaInstallButton 
           installPrompt={installPrompt} 
           storeName={storeInfo?.name || (tenantId === 'monikamulya' ? 'Monika Mulya' : tenantId)} 
@@ -185,66 +186,71 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
           showToast={showToast} 
           variant="icon" 
         />
-        <button onClick={() => { playSound('pop', isSoundOn); setTheme(theme === 'light' ? 'dark' : 'light'); }} className="p-3 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
-          {theme === 'light' ? <Moon size={24} /> : <Sun size={24} className="text-yellow-400" />}
+        <button 
+          type="button"
+          onClick={() => { playSound('pop', isSoundOn); setTheme(theme === 'light' ? 'dark' : 'light'); }} 
+          title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
+          className="w-10 h-10 rounded-full border border-gray-300 dark:border-zinc-700/80 bg-white/10 dark:bg-zinc-800/60 hover:bg-black/5 dark:hover:bg-white/10 text-gray-700 dark:text-yellow-400 transition-all hover:scale-105 active:scale-95 shadow-sm flex items-center justify-center shrink-0"
+        >
+          {theme === 'light' ? <Moon size={18} className="text-zinc-700 dark:text-zinc-300" /> : <Sun size={18} className="text-yellow-400" />}
         </button>
       </div>
 
-      <div className={`w-full max-w-md p-8 rounded-2xl shadow-2xl z-10 ${colors.panel} border ${colors.border}`}>
-        <div className="text-center mb-8">
+      <div className={`w-full max-w-md p-6 sm:p-8 rounded-3xl shadow-2xl z-10 ${colors.panel} border ${colors.border}`}>
+        <div className="text-center mb-6 sm:mb-8">
           {storeInfo.logo && !logoError ? (
             <img 
               src={storeInfo.logo} 
-              className="w-24 h-24 mx-auto object-contain mb-4 drop-shadow-md" 
+              className="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain mb-3 sm:mb-4 drop-shadow-md" 
               alt="logo"
               onError={() => setLogoError(true)}
             />
           ) : (
-            <div className={`w-24 h-24 mx-auto rounded-2xl ${colors.goldBg} flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.3)] mb-4`}>
-              <span className="text-4xl font-black text-[#121212]">
+            <div className={`w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-2xl ${colors.goldBg} flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.3)] mb-3 sm:mb-4`}>
+              <span className="text-3xl sm:text-4xl font-black text-[#121212]">
                 {storeInfo.name ? storeInfo.name.charAt(0).toUpperCase() : (tenantId ? tenantId.charAt(0).toUpperCase() : 'M')}
               </span>
             </div>
           )}
-          <h1 className={`text-3xl font-extrabold ${colors.gold}`}>{storeInfo.name || (tenantId === 'monikamulya' ? 'MONIKA MULYA' : tenantId)}</h1>
+          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-wide ${colors.gold}`}>{storeInfo.name || (tenantId === 'monikamulya' ? 'MONIKA MULYA' : tenantId)}</h1>
         </div>
 
         {error && <div className="mb-4 p-3 rounded-lg bg-red-100 text-red-600 text-sm font-semibold flex items-center gap-2"><AlertCircle size={18} /> {error}</div>}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-3.5 sm:space-y-4">
           <div>
-            <label className={`block text-sm font-medium mb-1 ${colors.text}`}>Username / Email</label>
+            <label className={`block text-xs sm:text-sm font-medium mb-1 ${colors.text}`}>Username / Email</label>
             <div className="relative">
-              <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
-              <input type="text" className={`w-full pl-10 pr-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={username} onChange={e => setUsername(e.target.value)} required />
+              <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={18} />
+              <input type="text" className={`w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent text-sm ${colors.text} ${colors.border}`} value={username} onChange={e => setUsername(e.target.value)} required />
             </div>
           </div>
           <div>
-            <label className={`block text-sm font-medium mb-1 ${colors.text}`}>Password</label>
+            <label className={`block text-xs sm:text-sm font-medium mb-1 ${colors.text}`}>Password</label>
             <div className="relative">
-              <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={20} />
-              <input type={showPassword ? "text" : "password"} className={`w-full pl-10 pr-12 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent ${colors.text} ${colors.border}`} value={password} onChange={e => setPassword(e.target.value)} required />
+              <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted}`} size={18} />
+              <input type={showPassword ? "text" : "password"} className={`w-full pl-10 pr-12 py-2.5 sm:py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#D4AF37] bg-transparent text-sm ${colors.text} ${colors.border}`} value={password} onChange={e => setPassword(e.target.value)} required />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${colors.textMuted} hover:text-[#D4AF37] transition-colors`}>
-                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
-          <div className="flex items-center justify-between text-sm py-2">
-            <label className="flex items-center gap-2 cursor-pointer">
+          <div className="flex items-center justify-between text-xs sm:text-sm py-1 sm:py-1.5">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
                <input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)} className="rounded text-[#D4AF37] focus:ring-[#D4AF37]" />
                <span className={colors.textMuted}>Ingat Saya</span>
             </label>
-            <button type="button" onClick={openForgotModal} className={`${colors.gold} hover:underline`}>Lupa Password?</button>
+            <button type="button" onClick={openForgotModal} className={`${colors.gold} hover:underline font-medium`}>Lupa Password?</button>
           </div>
-          <button type="submit" disabled={isLoggingIn} className={`w-full py-3 rounded-xl font-bold text-[#18181B] transition-transform active:scale-95 ${colors.goldBg} hover:opacity-90 shadow-md ${isLoggingIn ? 'opacity-60 cursor-wait' : ''}`}>{isLoggingIn ? 'Memeriksa...' : 'Masuk'}</button>
+          <button type="submit" disabled={isLoggingIn} className={`w-full py-3 rounded-xl font-bold text-[#18181B] transition-transform active:scale-95 text-sm sm:text-base ${colors.goldBg} hover:opacity-90 shadow-md ${isLoggingIn ? 'opacity-60 cursor-wait' : ''}`}>{isLoggingIn ? 'Memeriksa...' : 'Masuk'}</button>
           
-          <div className="relative flex py-2 items-center">
+          <div className="relative flex py-1.5 sm:py-2 items-center">
              <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
              <span className={`flex-shrink-0 mx-4 ${colors.textMuted} text-xs font-medium`}>ATAU</span>
              <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
           </div>
           
-          <button type="button" onClick={handleGoogleLogin} disabled={isLoggingIn} className={`w-full py-3 rounded-xl font-bold border transition-transform active:scale-95 flex items-center justify-center gap-3 shadow-sm hover:shadow-md ${colors.text} ${colors.border} ${theme === 'dark' ? 'bg-[#18181B] hover:bg-[#27272A]' : 'bg-white hover:bg-gray-50'} ${isLoggingIn ? 'opacity-60 cursor-wait' : ''}`}>
+          <button type="button" onClick={handleGoogleLogin} disabled={isLoggingIn} className={`w-full py-2.5 sm:py-3 rounded-xl font-bold border transition-transform active:scale-95 text-sm sm:text-base flex items-center justify-center gap-3 shadow-sm hover:shadow-md ${colors.text} ${colors.border} ${theme === 'dark' ? 'bg-[#18181B] hover:bg-[#27272A]' : 'bg-white hover:bg-gray-50'} ${isLoggingIn ? 'opacity-60 cursor-wait' : ''}`}>
              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
                <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
                <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
@@ -253,25 +259,18 @@ export default function LoginScreen({ onLogin, users, colors, theme, setTheme, i
              </svg>
              Masuk dengan Google
           </button>
-           <PwaInstallButton 
-             installPrompt={installPrompt} 
-             storeName={storeInfo?.name || (tenantId === 'monikamulya' ? 'Monika Mulya' : tenantId)} 
-             isSoundOn={isSoundOn} 
-             showToast={showToast} 
-             variant="card" 
-           />
         </form>
 
         {/* Watermark Co-Branding Tokoto */}
-        <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-800/80 flex flex-col items-center justify-center gap-1.5 text-center select-none">
-          <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-            <span>Didukung oleh platform</span>
-            <span className="text-orange-500 font-bold tracking-wide flex items-center gap-1.5">
-              <img src="/logo-icon.webp" alt="tokoto" className="w-4 h-4 object-contain inline-block" />
+        <div className="mt-6 pt-3 sm:mt-8 sm:pt-4 border-t border-gray-200 dark:border-gray-800/80 flex flex-col items-center justify-center gap-1 text-center select-none">
+          <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400">
+            <span>Didukung oleh</span>
+            <span className="text-orange-500 font-bold tracking-wide flex items-center gap-1">
+              <img src="/logo-icon.webp" alt="tokoto" className="w-3.5 h-3.5 object-contain inline-block" />
               tokoto.id
             </span>
           </div>
-          <p className="text-[10px] text-gray-400 dark:text-gray-500">
+          <p className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500">
             Solusi Kasir Cloud &amp; Multi-Cabang Modern
           </p>
         </div>

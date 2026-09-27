@@ -61,7 +61,7 @@ export default function PwaInstallButton({ installPrompt, storeName = 'Monika Mu
           type="button"
           onClick={handleClick}
           title={`Install Aplikasi ${storeName} ke HP`}
-          className="p-2 sm:p-2.5 rounded-full border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-[#D4AF37] transition-all hover:scale-105 active:scale-95 shadow-sm flex items-center justify-center group"
+          className="w-10 h-10 rounded-full border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-[#D4AF37] transition-all hover:scale-105 active:scale-95 shadow-sm flex items-center justify-center group shrink-0"
         >
           <Smartphone size={18} className="group-hover:rotate-6 transition-transform text-[#D4AF37]" />
         </button>
