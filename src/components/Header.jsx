@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Sun, Moon, LogOut, Settings, Menu, Bell, AlertTriangle, Package, Calendar, Send, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sun, Moon, LogOut, Settings, Menu, Bell, AlertTriangle, Package, Calendar, Send, Loader2, ChevronDown, ChevronUp, CheckCheck, X } from 'lucide-react';
 import ProfileModal from './modals/ProfileModal';
 import { playSound, formatIDR, formatDate } from '../utils/helpers';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 
-const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children, defaultOpen = false, colors }) => {
+const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children, defaultOpen = false, colors, action }) => {
    const [open, setOpen] = useState(defaultOpen);
    if (count === 0) return null;
    return (
@@ -16,6 +16,7 @@ const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children,
                <span className={`text-xs font-bold ${colors.text}`}>{title}</span>
             </div>
             <div className="flex items-center gap-2">
+               {action && <div onClick={e => e.stopPropagation()}>{action}</div>}
                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 ${colors.text}`}>{count}</span>
                {open ? <ChevronUp size={14} className={colors.textMuted} /> : <ChevronDown size={14} className={colors.textMuted} />}
             </div>
@@ -32,7 +33,7 @@ const CollapsibleNotifGroup = ({ title, count, icon: Icon, colorClass, children,
 export default function Header({ 
   activeMenu, user, setUser, isSidebarOpen, setIsSidebarOpen, theme, setTheme, 
   colors, isSoundOn, storeInfo, onNavigateAndEdit, 
-  products, sales, purchases, suppliers, syncCount,
+  products, setProducts, sales, purchases, suppliers, syncCount,
   users, setUsers, showToast, activeShift, setShowShiftOpenModal, setShowShiftCloseModal, shiftHistory, recordActivity, installPrompt
 }) {
   const [showProfile, setShowProfile] = useState(false);
@@ -149,6 +150,23 @@ export default function Header({
   const hppChangedItems = useMemo(() => {
     return products.filter(p => p.hppChanged === true);
   }, [products]);
+
+  const handleDismissAllHpp = (e) => {
+    if (e) e.stopPropagation();
+    playSound('pop', isSoundOn);
+    if (setProducts) {
+       setProducts(prev => prev.map(p => p.hppChanged ? { ...p, hppChanged: false } : p));
+       if (showToast) showToast('Semua notifikasi HPP telah dibersihkan!', 'success');
+    }
+  };
+
+  const handleDismissSingleHpp = (e, productId) => {
+    if (e) e.stopPropagation();
+    playSound('pop', isSoundOn);
+    if (setProducts) {
+       setProducts(prev => prev.map(p => p.id === productId ? { ...p, hppChanged: false } : p));
+    }
+  };
 
   const totalNotifCount = lowStockItems.length + incomingDebts.length + incomingReceivables.length + expiringItems.length + hppChangedItems.length;
 
@@ -351,14 +369,39 @@ export default function Header({
                               })}
                            </CollapsibleNotifGroup>
 
-                           <CollapsibleNotifGroup title="Harga Beli (HPP) Berubah" count={hppChangedItems.length} icon={AlertTriangle} colorClass="text-blue-500" colors={colors} defaultOpen={true}>
+                           <CollapsibleNotifGroup 
+                              title="Harga Beli (HPP) Berubah" 
+                              count={hppChangedItems.length} 
+                              icon={AlertTriangle} 
+                              colorClass="text-blue-500" 
+                              colors={colors} 
+                              defaultOpen={true}
+                              action={
+                                 <button 
+                                    onClick={handleDismissAllHpp}
+                                    title="Bersihkan semua notifikasi HPP"
+                                    className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors flex items-center gap-1"
+                                 >
+                                    <CheckCheck size={12} /> Bersihkan
+                                 </button>
+                              }
+                           >
                               {hppChangedItems.map(item => (
-                                  <div key={`hpp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className={`p-3 rounded-xl bg-blue-500/5 border-blue-500/20 border flex flex-col gap-1 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity`}>
+                                  <div key={`hpp-${item.id}`} onClick={() => { if(onNavigateAndEdit) { playSound('pop', isSoundOn); setShowNotifDropdown(false); onNavigateAndEdit('produk', item.id); } }} className={`p-3 rounded-xl bg-blue-500/5 border-blue-500/20 border flex flex-col gap-1 min-w-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity relative group`}>
                                       <div className="flex justify-between items-start gap-2">
                                           <span className={`font-bold text-[11px] truncate ${colors.text}`}>{item.name}</span>
-                                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 whitespace-nowrap`}>HPP Berubah</span>
+                                          <div className="flex items-center gap-1 shrink-0">
+                                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 whitespace-nowrap`}>HPP Berubah</span>
+                                             <button 
+                                                onClick={(e) => handleDismissSingleHpp(e, item.id)} 
+                                                className="text-gray-400 hover:text-red-500 p-0.5 transition-colors"
+                                                title="Abaikan notifikasi ini"
+                                             >
+                                                <X size={12} />
+                                             </button>
+                                          </div>
                                       </div>
-                                      <span className="text-[10px] text-gray-500">Dari: Rp{formatIDR(item.lastHpp || 0)} → Rp{formatIDR(item.basePrice || 0)}</span>
+                                      <span className="text-[10px] text-gray-500">Dari: Rp{formatIDR(item.lastHpp || item.cost || 0)} → Rp{formatIDR(item.cost || item.basePrice || 0)}</span>
                                       <span className="text-[9px] text-blue-600 dark:text-blue-400 font-semibold mt-1">Klik untuk sesuaikan Harga Jual</span>
                                   </div>
                               ))}

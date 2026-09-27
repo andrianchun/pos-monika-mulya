@@ -382,7 +382,14 @@ export default function POS({ products, setProducts, customers, setCustomers, su
         paymentHistory: [
            ...(depositUsed > 0 ? [{ date: docDate.toISOString(), amount: depositUsed, method: 'Saldo Deposit', accountId: null, customerId: selectedCustomer }] : []),
            ...(pointDiscount > 0 ? [{ date: docDate.toISOString(), amount: pointDiscount, method: 'Tukar Poin', accountId: null }] : []),
-           ...(paidCash > 0 ? [{ date: docDate.toISOString(), amount: paidCash, method: activeAccount ? activeAccount.name : 'Unknown', accountId: Number(paymentMethodId) }] : [])
+           ...(paidCash > 0 ? [{ 
+              date: docDate.toISOString(), 
+              amount: actualCashToKas, 
+              tendered: paidCash, 
+              change: (totalPaid > total && depositAdded === 0) ? (totalPaid - total) : 0, 
+              method: activeAccount ? activeAccount.name : 'Unknown', 
+              accountId: Number(paymentMethodId) 
+           }] : [])
         ]
       };
 
@@ -422,9 +429,10 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                   }
                   return sum + (Number(cItem.qty) * conversion);
               }, 0);
-              let newBasePrice = p.basePrice || 0;
-              let hppChanged = p.hppChanged;
-              let lastHpp = p.lastHpp;
+              let currentCost = Number(p.cost !== undefined ? p.cost : (p.basePrice || 0));
+              let newCost = currentCost;
+              let hppChanged = p.hppChanged || false;
+              let lastHpp = p.lastHpp || currentCost;
 
               if (posMode === 'pembelian') {
                   cartItemsForProduct.forEach(cItem => {
@@ -434,13 +442,17 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                           if (mu) conversion = Number(mu.conversion) || 1;
                       }
                       const purchasedBasePrice = Number(cItem.unitPrice) / conversion;
-                      if (purchasedBasePrice !== p.basePrice && purchasedBasePrice > 0) {
-                          lastHpp = p.basePrice;
-                          newBasePrice = purchasedBasePrice;
+                      // HANYA tandai jika ada perubahan HPP riil dan harga lama bukan 0
+                      if (purchasedBasePrice > 0 && currentCost > 0 && Math.round(purchasedBasePrice) !== Math.round(currentCost)) {
+                          lastHpp = currentCost;
+                          newCost = Math.round(purchasedBasePrice);
                           hppChanged = true;
                           if (recordActivity) {
-                              recordActivity('Update HPP Otomatis', `HPP "${p.name}" diperbarui dari Rp${formatIDR(lastHpp || 0)} ke Rp${formatIDR(newBasePrice)} dari transaksi Pembelian.`);
+                              recordActivity('Update HPP Otomatis', `HPP "${p.name}" diperbarui dari Rp${formatIDR(lastHpp)} ke Rp${formatIDR(newCost)} dari transaksi Pembelian.`);
                           }
+                      } else if (purchasedBasePrice > 0 && currentCost === 0) {
+                          newCost = Math.round(purchasedBasePrice);
+                          lastHpp = newCost;
                       }
                   });
               }
@@ -448,7 +460,8 @@ export default function POS({ products, setProducts, customers, setCustomers, su
               return { 
                  ...p, 
                  stock: posMode === 'penjualan' ? p.stock - totalQtyImpact : p.stock + totalQtyImpact,
-                 basePrice: newBasePrice,
+                 cost: newCost,
+                 basePrice: newCost,
                  hppChanged: hppChanged,
                  lastHpp: lastHpp
               };

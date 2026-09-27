@@ -29,7 +29,7 @@ const MiniPieChart = ({ data }) => {
    );
 };
 
-export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, customers, colors, baseColors, isSoundOn, theme, storeInfo, showToast, globalMode, setGlobalMode, globalChartMode, setGlobalChartMode, user }) {
+export default function Reports({ sales, purchases, products, accounting, setAccounting, financialAccounts, customers, colors, baseColors, isSoundOn, theme, storeInfo, showToast, globalMode, setGlobalMode, globalChartMode, setGlobalChartMode, user, shiftHistory = [], activeShift = null }) {
   const canViewKeuangan = user?.role === 'admin' || (user?.permissions || []).includes('laporan_keuangan');
   const canViewBarang = user?.role === 'admin' || (user?.permissions || []).includes('laporan_barang');
   
@@ -257,13 +257,58 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
       const allTimeHPP = sales.reduce((sum, s) => sum + s.items.reduce((itemSum, item) => itemSum + (item.cost * item.qty), 0), 0);
       const labaKotorAllTime = allTimeSales - allTimeHPP;
       
-      const bebanOperasional = accounting.filter(a => a.type === 'kas' && a.amount < 0 && !a.name.toLowerCase().includes('pembayaran nota') && !a.name.toLowerCase().includes('bayar nota')).reduce((sum, a) => sum + Math.abs(a.amount), 0);
-      const pendapatanLain = accounting.filter(a => a.type === 'kas' && a.amount > 0 && !a.name.toLowerCase().includes('penerimaan nota') && !a.name.toLowerCase().includes('terima nota') && !a.name.toLowerCase().includes('modal') && !a.name.toLowerCase().includes('saldo')).reduce((sum, a) => sum + a.amount, 0);
+      const bebanOperasional = accounting.filter(a => {
+         if (a.type !== 'kas' || a.amount >= 0) return false;
+         const n = (a.name || '').toLowerCase();
+         const c = (a.category || '').toLowerCase();
+         if (n.includes('pembayaran nota') || n.includes('bayar nota') || c.includes('pembayaran nota') || c.includes('bayar nota')) return false;
+         if (n.includes('setoran shift') || n.includes('setoran kas') || c.includes('setoran') || c.includes('prive')) return false;
+         if (n.includes('selisih shift') || c.includes('selisih shift')) return false;
+         if (n.includes('cicilan nota') || c.includes('cicilan nota')) return false;
+         if (n.includes('batal bayar') || n.includes('hapus nota')) return false;
+         return true;
+      }).reduce((sum, a) => sum + Math.abs(a.amount), 0);
+
+      const pendapatanLain = accounting.filter(a => {
+         if (a.type !== 'kas' || a.amount <= 0) return false;
+         const n = (a.name || '').toLowerCase();
+         const c = (a.category || '').toLowerCase();
+         if (n.includes('penerimaan nota') || n.includes('terima nota') || c.includes('penerimaan nota')) return false;
+         if (n.includes('modal') || n.includes('saldo awal') || c.includes('modal')) return false;
+         if (n.includes('selisih shift') || c.includes('selisih shift')) return false;
+         return true;
+      }).reduce((sum, a) => sum + a.amount, 0);
+
       const labaBersihBerjalan = labaKotorAllTime + pendapatanLain - bebanOperasional;
 
       const persediaan = products.reduce((sum, p) => sum + (p.stock * p.cost), 0);
       const piutang = sales.filter(s => s.status === 'Tempo').reduce((sum, s) => sum + Math.max(0, s.total - (s.paid || 0)), 0);
-      const kasBalances = financialAccounts.map(acc => ({ id: acc.id, name: acc.name, balance: accounting.filter(a => a.type === 'kas' && a.accountId === acc.id).reduce((sum, a) => sum + a.amount, 0) }));
+
+      // Hitung Total Prive (Setoran kas ke pemilik)
+      const totalPrive = Math.abs(accounting.filter(a => {
+         const n = (a.name || '').toLowerCase();
+         const c = (a.category || '').toLowerCase();
+         return a.type === 'ekuitas' || n.includes('setoran shift') || c.includes('setoran') || c.includes('prive');
+      }).reduce((sum, a) => sum + Math.abs(a.amount), 0));
+
+      // Kas Fisik Aktual di Laci (mengacu ke shift aktif atau sisa modal shift terakhir)
+      let kasLaciAktual = 0;
+      if (activeShift && activeShift.status === 'OPEN') {
+         kasLaciAktual = (activeShift.startingCash || 0) + (activeShift.cashIn || 0) - (activeShift.cashOut || 0);
+      } else if (shiftHistory && shiftHistory.length > 0) {
+         kasLaciAktual = shiftHistory[0].nextStartingCash !== undefined ? shiftHistory[0].nextStartingCash : (shiftHistory[0].actualCash || 0);
+      } else {
+         kasLaciAktual = 0;
+      }
+
+      const kasBalances = financialAccounts.map(acc => {
+         if (acc.type === 'tunai' || acc.id === 1) {
+            return { id: acc.id, name: acc.name, balance: Math.max(0, kasLaciAktual) };
+         }
+         const b = accounting.filter(a => a.type === 'kas' && a.accountId === acc.id).reduce((sum, a) => sum + a.amount, 0);
+         return { id: acc.id, name: acc.name, balance: Math.max(0, b) };
+      });
+
       const totalKas = kasBalances.reduce((sum, k) => sum + k.balance, 0);
       const asetLancarTotal = totalKas + piutang + persediaan;
       const asetTetap = accounting.filter(a => a.type === 'aset_tetap').reduce((sum, a) => sum + a.amount, 0);
@@ -275,13 +320,17 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
       const totalLiabilitas = utang + totalDepositPelanggan + liabLainOnly;
 
       const totalEkuitas = totalAset - totalLiabilitas;
-      const modalDisetor = accounting.filter(a => a.type === 'modal' || a.type === 'ekuitas').reduce((sum, a) => sum + a.amount, 0);
+      const modalDisetor = accounting.filter(a => a.type === 'modal' && !a.name.toLowerCase().includes('setoran')).reduce((sum, a) => sum + a.amount, 0) || 5000000;
       const labaDitahan = totalEkuitas - modalDisetor - labaBersihBerjalan;
 
-      return { asetLancarTotal, asetTetap, totalAset, liabLainOnly, utang, totalDepositPelanggan, totalLiabilitas, modalDisetor, labaDitahan, labaBersihBerjalan, totalEkuitas, persediaan, piutang, kasBalances, totalKas };
+      return { 
+         asetLancarTotal, asetTetap, totalAset, liabLainOnly, utang, totalDepositPelanggan, totalLiabilitas, 
+         modalDisetor, labaDitahan, labaBersihBerjalan, totalEkuitas, persediaan, piutang, kasBalances, totalKas,
+         labaKotorAllTime, bebanOperasional, pendapatanLain, totalPrive 
+      };
    };
 
-   const neraca = useMemo(() => calculateNeraca(), [sales, purchases, accounting, products, financialAccounts, customers]);
+   const neraca = useMemo(() => calculateNeraca(), [sales, purchases, accounting, products, financialAccounts, customers, shiftHistory, activeShift]);
 
   const handleDateJump = (e) => {
      if(!e.target.value) return;
@@ -590,6 +639,9 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
                                  <span className={`${colors.textMuted} group-hover:text-[#18181B] dark:group-hover:text-white`}>Modal Disetor</span><span className="font-semibold">Rp {formatIDR(neraca.modalDisetor)}</span>
                               </div>
                               <div className="flex justify-between p-1"><span className={colors.textMuted}>Laba Bersih (Tahun Berjalan)</span><span className={`font-semibold ${neraca.labaBersihBerjalan >= 0 ? 'text-green-600' : 'text-red-500'}`}>{neraca.labaBersihBerjalan < 0 ? '-' : ''}Rp {formatIDR(Math.abs(neraca.labaBersihBerjalan))}</span></div>
+                              {neraca.totalPrive > 0 && (
+                                 <div className="flex justify-between p-1"><span className={colors.textMuted}>Setoran Kas ke Pemilik (Prive)</span><span className="font-semibold text-blue-600">Rp {formatIDR(neraca.totalPrive)}</span></div>
+                              )}
                               <div className="flex justify-between p-1"><span className={colors.textMuted}>Laba Ditahan / Penyesuaian</span><span className={`font-semibold ${colors.gold}`}>{neraca.labaDitahan < 0 ? '-' : ''}Rp {formatIDR(Math.abs(neraca.labaDitahan))}</span></div>
                            </div>
                            <div className={`flex justify-between mt-3 pt-2 border-t border-dashed font-bold ${colors.text}`}><span>Total Ekuitas</span><span>Rp {formatIDR(neraca.totalEkuitas)}</span></div>

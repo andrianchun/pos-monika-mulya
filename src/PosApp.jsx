@@ -201,11 +201,12 @@ export default function PosApp({ tenantGlobalInfo }) {
                 name: ownerData.name || auth.currentUser?.displayName || "Pemilik Usaha",
                 username: auth.currentUser?.email || ownerData.email || "owner",
                 email: auth.currentUser?.email || ownerData.email || "",
+                avatar: ownerData.avatar || null,
                 role: "admin",
                 permissions: ['dashboard', 'pos', 'riwayat_penjualan', 'riwayat_pembelian', 'kontak_customer', 'kontak_supplier', 'produk', 'laporan_keuangan', 'laporan_barang', 'aktivitas', 'pengaturan'],
                 isFirebaseAuth: true
               };
-              setDoc(doc(getTenantCollection("users"), authUid), profile).catch(e => console.warn("Gagal mirror owner ke lokal", e));
+              setDoc(doc(getTenantCollection("users"), authUid), profile, { merge: true }).catch(e => console.warn("Gagal mirror owner ke lokal", e));
             }
           }
         } catch(err) {
@@ -1041,7 +1042,7 @@ export default function PosApp({ tenantGlobalInfo }) {
             isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}
             theme={theme} setTheme={setTheme} colors={themeColors} isSoundOn={true} 
             storeInfo={storeInfo} onNavigateAndEdit={handleNavigateAndEdit}
-            products={products} sales={sales} purchases={purchases} suppliers={suppliers} 
+            products={products} setProducts={customSetProducts} sales={sales} purchases={purchases} suppliers={suppliers} 
             syncCount={syncCount}
             users={users} setUsers={customSetUsers}
             showToast={showToast}
@@ -1061,7 +1062,7 @@ export default function PosApp({ tenantGlobalInfo }) {
              {activeMenu === 'produk' && <ProductManager products={products} setProducts={customSetProducts} categories={categories} units={units} sales={sales} colors={baseThemeColors} user={user} isSoundOn={true} showToast={showToast} editIntent={editIntent} recordActivity={recordActivity} storeInfo={storeInfo} setStoreInfo={customSetStoreInfo} />}
              {activeMenu === 'riwayat' && <POSHistory sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} accounting={accounting} setAccounting={customSetAccounting} customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} financialAccounts={financialAccounts} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} editIntent={editIntent} user={user} recordActivity={recordActivity} />}
                {activeMenu === 'kontak' && <ContactManager customers={customers} setCustomers={customSetCustomers} suppliers={suppliers} setSuppliers={customSetSuppliers} sales={sales} setSales={customSetSales} purchases={purchases} setPurchases={customSetPurchases} products={products} setProducts={customSetProducts} colors={themeColors} isSoundOn={true} showToast={showToast} globalMode={globalMode} setGlobalMode={setGlobalMode} handleNavigateAndEdit={handleNavigateAndEdit} user={user} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} />}
-             {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} user={user} />}
+             {activeMenu === 'laporan' && <Reports sales={sales} purchases={purchases} products={products} accounting={accounting} setAccounting={customSetAccounting} financialAccounts={financialAccounts} customers={customers} colors={themeColors} baseColors={baseThemeColors} storeInfo={storeInfo} isSoundOn={true} showToast={showToast} theme={theme} globalMode={globalMode} setGlobalMode={setGlobalMode} globalChartMode={globalChartMode} setGlobalChartMode={setGlobalChartMode} user={user} shiftHistory={shiftHistory} activeShift={activeShift} />}
              {activeMenu === 'aktivitas' && <ActivityLogPage activityLogs={activityLogs} shiftHistory={shiftHistory} colors={themeColors} />}
              
              {activeMenu === 'langganan' && user?.role === 'admin' && (
@@ -1112,6 +1113,7 @@ export default function PosApp({ tenantGlobalInfo }) {
               storeInfo={storeInfo}
               sales={sales}
               financialAccounts={financialAccounts}
+              purchases={purchases}
           />
       )}
 

@@ -5,7 +5,7 @@ import { formatIDR, parseIDR, formatDate, formatDateTime } from '../../utils/hel
 export default function ShiftCloseModal({ colors,  
    activeShift, setActiveShift, shiftHistory, setShiftHistory, 
    onClose, accounting, setAccounting, user, storeInfo,
-   sales = [], financialAccounts = []
+   sales = [], financialAccounts = [], purchases = []
 }) {
    const [step, setStep] = useState(1);
    const [actualCashStr, setActualCashStr] = useState('');
@@ -13,13 +13,13 @@ export default function ShiftCloseModal({ colors,
    
    const [summary, setSummary] = useState(null);
 
-   const { calculatedSalesCash, calculatedSalesNonTunai } = useMemo(() => {
-       let sCash = 0, sNonTunai = 0;
-       if (!activeShift || !sales || !financialAccounts) return { calculatedSalesCash: 0, calculatedSalesNonTunai: 0 };
+   const { calculatedSalesCash, calculatedSalesNonTunai, calculatedPurchasesCash } = useMemo(() => {
+       let sCash = 0, sNonTunai = 0, pCash = 0;
+       if (!activeShift || !sales || !financialAccounts) return { calculatedSalesCash: 0, calculatedSalesNonTunai: 0, calculatedPurchasesCash: 0 };
        
        const shiftStart = new Date(activeShift.startTime).getTime();
        
-       const shiftSales = sales.filter(s => {
+       const shiftSales = (sales || []).filter(s => {
            const saleTime = new Date(s.date).getTime();
            return saleTime >= shiftStart;
        });
@@ -31,18 +31,55 @@ export default function ShiftCloseModal({ colors,
                    if (accId) {
                        const account = financialAccounts.find(a => String(a.id) === String(accId));
                        if (account) {
-                           if (account.type === 'tunai') sCash += ph.amount;
-                           else if (account.type === 'non-tunai' || account.type === 'ewallet' || account.type === 'bank') sNonTunai += ph.amount;
+                           if (account.type === 'tunai') {
+                               let netAmount = Number(ph.amount || 0);
+                               // Fallback jika paymentHistory lama menyimpan uang kotor (tendered) bukan uang bersih
+                               if (ph.tendered && ph.change !== undefined) {
+                                   netAmount = Number(ph.amount || 0);
+                               } else if (Number(sale.change) > 0 && Number(ph.amount) >= Number(sale.change)) {
+                                   netAmount = Number(ph.amount) - Number(sale.change);
+                               }
+                               sCash += netAmount;
+                           }
+                           else if (account.type === 'non-tunai' || account.type === 'ewallet' || account.type === 'bank') {
+                               sNonTunai += Number(ph.amount || 0);
+                           }
                        }
                    }
                });
            }
        });
-       
-       return { calculatedSalesCash: sCash, calculatedSalesNonTunai: sNonTunai };
-   }, [activeShift, sales, financialAccounts]);
 
-   const expectedCash = activeShift ? (activeShift.startingCash + calculatedSalesCash + activeShift.cashIn - activeShift.cashOut) : 0;
+       const shiftPurchases = (purchases || []).filter(p => {
+           const pTime = new Date(p.date).getTime();
+           return pTime >= shiftStart;
+       });
+
+       shiftPurchases.forEach(p => {
+           if (p.paymentHistory) {
+               p.paymentHistory.forEach(ph => {
+                   const accId = ph.accountId;
+                   if (accId) {
+                       const account = financialAccounts.find(a => String(a.id) === String(accId));
+                       if (account && account.type === 'tunai') {
+                           pCash += Number(ph.amount || 0);
+                       }
+                   }
+               });
+           } else if (p.accountId) {
+               const account = financialAccounts.find(a => String(a.id) === String(p.accountId));
+               if (account && account.type === 'tunai') {
+                   pCash += Number(p.paid || p.total || 0);
+               }
+           }
+       });
+       
+       return { calculatedSalesCash: sCash, calculatedSalesNonTunai: sNonTunai, calculatedPurchasesCash: pCash };
+   }, [activeShift, sales, purchases, financialAccounts]);
+
+   const expectedCash = activeShift 
+       ? (activeShift.startingCash + calculatedSalesCash - calculatedPurchasesCash + (activeShift.cashIn || 0) - (activeShift.cashOut || 0)) 
+       : 0;
    const actualCashNum = parseIDR(actualCashStr);
    const dropCashNum = parseIDR(dropCashStr);
    const sisaDiLaci = actualCashNum - dropCashNum;
@@ -67,6 +104,7 @@ export default function ShiftCloseModal({ colors,
           endTime: new Date().toISOString(),
           salesCash: calculatedSalesCash,
           salesNonTunai: calculatedSalesNonTunai,
+          purchasesCash: calculatedPurchasesCash,
           expectedCash,
           actualCash,
           selisih,
@@ -82,31 +120,20 @@ export default function ShiftCloseModal({ colors,
    const handleFinalize = () => {
        if (!summary) return;
        
-       // Create Accounting Entries for shortages/overages if any
        let newAccounting = [...accounting];
        const accId = Date.now();
        const operatorName = user?.displayName || user?.name || (user?.email ? user.email.split('@')[0] : '(anonim)');
        
-       if (summary.selisih !== 0) {
+       // PENTING: Selisih Shift (Minus/Plus) fisik laci TIDAK di-inject sebagai beban operasional toko!
+       // Selisih shift tetap tersimpan rapi di shiftHistory kasir sebagai catatan audit fisik.
+       
+       // Catat setoran uang ke pemilik (Prive) sebagai Ekuitas, bukan beban operasional
+       if (summary.dropCash > 0) {
            newAccounting.push({
                id: accId,
                date: summary.endTime,
-               type: 'kas',
-               category: summary.selisih < 0 ? 'Selisih Shift (Minus)' : 'Selisih Shift (Plus)',
-               name: `Selisih Shift kasir ${operatorName}`,
-               amount: summary.selisih,
-               accountId: financialAccounts[0]?.id || 1,
-               isSystemGenerated: true
-           });
-       }
-       
-       // Record drop cash
-       if (summary.dropCash > 0) {
-           newAccounting.push({
-               id: accId + 1,
-               date: summary.endTime,
-               type: 'kas',
-               category: 'Setoran Kas',
+               type: 'ekuitas',
+               category: 'Prive / Setoran Pemilik',
                name: `Setoran Shift kasir ${operatorName}`,
                amount: -summary.dropCash,
                accountId: financialAccounts[0]?.id || 1,
@@ -141,6 +168,9 @@ export default function ShiftCloseModal({ colors,
       text += `*--- FISIK LACI ---*\n`;
       text += `Modal Awal: Rp ${formatIDR(s.startingCash)}\n`;
       text += `Penjualan Tunai: Rp ${formatIDR(s.salesCash)}\n`;
+      if (s.purchasesCash > 0) {
+          text += `Belanja Tunai Laci: -Rp ${formatIDR(s.purchasesCash)}\n`;
+      }
       text += `Kas Masuk: Rp ${formatIDR(s.cashIn || 0)}\n`;
       text += `Kas Keluar: Rp ${formatIDR(s.cashOut || 0)}\n`;
       text += `Total Harusnya: Rp ${formatIDR(s.expectedCash)}\n`;
@@ -194,7 +224,7 @@ export default function ShiftCloseModal({ colors,
                            <div>
                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                   Total Uang Tunai di Laci Saat Ini
-                               </label>
+                                </label>
                                <div className="relative">
                                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rp</span>
                                   <input
@@ -212,7 +242,7 @@ export default function ShiftCloseModal({ colors,
                            <div>
                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                   Uang yang Disetor ke Pemilik (Toko)
-                               </label>
+                                </label>
                                <div className="relative">
                                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rp</span>
                                   <input
@@ -268,9 +298,15 @@ export default function ShiftCloseModal({ colors,
                                <span>Penjualan Tunai</span>
                                <span>{formatIDR(summary.salesCash)}</span>
                            </div>
+                           {summary.purchasesCash > 0 && (
+                               <div className="flex justify-between text-blue-600 dark:text-blue-400">
+                                   <span>Belanja Tunai Laci</span>
+                                   <span>-{formatIDR(summary.purchasesCash)}</span>
+                               </div>
+                           )}
                            <div className="flex justify-between border-b border-gray-200 dark:border-gray-600 pb-2">
                                <span>Kas Masuk / Keluar</span>
-                               <span>{formatIDR(summary.cashIn - summary.cashOut)}</span>
+                               <span>{formatIDR((summary.cashIn || 0) - (summary.cashOut || 0))}</span>
                            </div>
                            <div className="flex justify-between font-semibold pt-1 text-gray-500 dark:text-gray-400">
                                <span>Ekspektasi Uang Laci</span>
@@ -313,6 +349,23 @@ export default function ShiftCloseModal({ colors,
                                 Selesai & Akhiri Shift
                              </button>
                         )}
+
+                        <div className="flex gap-3 mt-4">
+                            <button
+                               onClick={() => window.print()}
+                               className="flex-1 p-3 bg-gray-100 dark:bg-[#27272A] hover:bg-gray-200 dark:hover:bg-[#3F3F46] text-gray-700 dark:text-gray-200 rounded-xl font-semibold flex justify-center items-center gap-2 transition-colors text-sm"
+                            >
+                               <Printer size={16} /> Cetak Struk
+                            </button>
+                            <a
+                               href={`https://wa.me/?text=${generateWaText()}`}
+                               target="_blank"
+                               rel="noreferrer"
+                               className="flex-1 p-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold flex justify-center items-center gap-2 transition-colors text-sm"
+                            >
+                               <Send size={16} /> Kirim WA
+                            </a>
+                        </div>
                    </div>
                )}
             </div>
