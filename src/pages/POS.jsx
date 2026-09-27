@@ -639,12 +639,12 @@ export default function POS({ products, setProducts, customers, setCustomers, su
                    )}
                 </div>
                 {canViewKalender && (
-                  <div className="w-[120px]">
+                  <div className="w-[145px] sm:w-[160px] shrink-0">
                      <label className={`text-[10px] sm:text-xs font-semibold mb-1 block ${colors.textMuted}`}>Waktu & Tanggal</label>
-                     <DateInput type="datetime-local" className={`w-full p-[9px] rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none text-xs [color-scheme:light] dark:[color-scheme:dark]`} value={transactionDate} onChange={e => setTransactionDate(e.target.value)} />
+                     <DateInput type="datetime-local" className={`w-full p-2 rounded-xl border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} outline-none text-[11px] sm:text-xs [color-scheme:light] dark:[color-scheme:dark]`} value={transactionDate} onChange={e => setTransactionDate(e.target.value)} />
                   </div>
                 )}
-                <button onClick={clearCart} className={`p-2.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors h-[42px]`}><Trash2 size={18} /></button>
+                <button onClick={clearCart} className={`p-2.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors h-[42px] shrink-0`}><Trash2 size={18} /></button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-3 custom-scrollbar bg-transparent relative z-10">

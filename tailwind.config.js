@@ -11,17 +11,17 @@ export default {
         sans: ['"Inter"', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
         heading: ['"Inter"', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
-      // STANDAR TIPOGRAFI BAKU SESUAI DESIGN.MD & GOLDEN RATIO
-      // Seluruh utilitas teks dipetakan ke 3 nilai rem agar bebas font kerdil
-      // dan teks membesar mengikuti setelan aksesibilitas pengguna.
+      // STANDAR TIPOGRAFI SESUAI DESIGN.MD & GOLDEN RATIO
+      // Hierarki 3-Tier utama: 33px (Display), 21px (Card/Action), 16px (Body)
+      // Disertai skala mikro (12px, 14px) untuk timestamp, badge, & form compact agar tidak terpotong
       fontSize: {
-        'xs': ['1rem', '1.4'],        // 16px (1rem) — teks isi, label, meta, badge
-        'sm': ['1rem', '1.4'],
-        'base': ['1rem', '1.4'],
-        'md': ['1.3125rem', '1.4'],   // 21px (1.3125rem) — judul kartu, angka metrik, tombol kasir
+        'xs': ['0.75rem', '1.4'],     // 12px — timestamp nota, badge, barcode, input tanggal
+        'sm': ['0.875rem', '1.4'],    // 14px — label sekunder, tab navigasi kecil
+        'base': ['1rem', '1.4'],      // 16px (1rem) — TIER 3: Teks isi standar, nama barang di keranjang
+        'md': ['1.3125rem', '1.4'],   // 21px (1.3125rem) — TIER 2: Judul kartu, subtotal, tombol bayar
         'lg': ['1.3125rem', '1.4'],
         'xl': ['1.3125rem', '1.4'],
-        '2xl': ['2.0625rem', '1.2'],  // 33px (2.0625rem) — judul layar, display besar
+        '2xl': ['2.0625rem', '1.2'],  // 33px (2.0625rem) — TIER 1: Judul layar, total nota raksasa
         '3xl': ['2.0625rem', '1.2'],
         '4xl': ['2.0625rem', '1.2'],
         '5xl': ['2.0625rem', '1.2'],
