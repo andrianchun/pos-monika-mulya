@@ -24,22 +24,7 @@ export default function POSHistory({
   const [editDoc, setEditDoc] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null); 
 
-  const [selectedYear, setSelectedYear] = useState('all');
-  const rawData = tab === 'penjualan' ? sales : purchases;
-  const availableYears = useMemo(() => {
-    const years = new Set(rawData.map(d => new Date(d.date).getFullYear()).filter(Boolean));
-    const currentYr = new Date().getFullYear();
-    years.add(currentYr);
-    return Array.from(years).sort((a, b) => b - a);
-  }, [rawData]);
-
-  const activeData = useMemo(() => {
-    if (selectedYear === 'all') return rawData;
-    return rawData.filter(d => {
-      const yr = new Date(d.date).getFullYear().toString();
-      return yr === selectedYear;
-    });
-  }, [rawData, selectedYear]); 
+  const activeData = tab === 'penjualan' ? sales : purchases; 
 
   useEffect(() => {
      if (editIntent && editIntent.menu === 'riwayat') {
@@ -254,27 +239,11 @@ export default function POSHistory({
       <div className="flex-1 overflow-hidden print:hidden p-2 sm:p-4">
          <DataTable 
             title={
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
-                  <button onClick={() => setTab('penjualan')} className={`w-[95px] sm:w-[120px] py-1.5 text-xs sm:text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'penjualan' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
-                  {canViewPembelian && (
-                     <button onClick={() => setTab('pembelian')} className={`w-[95px] sm:w-[120px] py-1.5 text-xs sm:text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
-                  )}
-                </div>
-
-                <div className={`flex items-center border ${colors.border} rounded-lg overflow-hidden h-[34px] sm:h-[36px] bg-white dark:bg-[#18181B] px-2 text-xs font-bold`}>
-                   <span className={`${colors.textMuted} mr-1.5 hidden sm:inline`}>Tahun:</span>
-                   <select 
-                      value={selectedYear} 
-                      onChange={e => { playSound('pop', isSoundOn); setSelectedYear(e.target.value); }}
-                      className={`bg-transparent outline-none cursor-pointer font-bold ${colors.text} text-xs`}
-                   >
-                      <option value="all" className="bg-white dark:bg-[#18181B]">Semua ({rawData.length})</option>
-                      {availableYears.map(yr => (
-                        <option key={yr} value={String(yr)} className="bg-white dark:bg-[#18181B]">Tahun {yr}</option>
-                      ))}
-                   </select>
-                </div>
+              <div className={`flex items-center ${colors.creamBg} p-1 rounded-lg w-fit h-fit shrink-0 border ${colors.border}`}>
+                <button onClick={() => setTab('penjualan')} className={`w-[95px] sm:w-[120px] py-1.5 text-xs sm:text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'penjualan' ? colors.goldBg + ' text-[#18181B] shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Penjualan</button>
+                {canViewPembelian && (
+                   <button onClick={() => setTab('pembelian')} className={`w-[95px] sm:w-[120px] py-1.5 text-xs sm:text-sm font-bold rounded-md transition-all flex items-center justify-center ${tab === 'pembelian' ? 'bg-blue-600 text-white shadow' : `${colors.textMuted} ${colors.goldHoverText}`}`}>Pembelian</button>
+                )}
               </div>
             }
             columns={columns} data={activeData} colors={colors} 
