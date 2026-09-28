@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FileText, Package, PieChart, ChevronLeft, Filter, BarChart, TrendingUp, TrendingDown, Wallet, Store, CreditCard, Edit, Trash2, X, AlertTriangle, History } from 'lucide-react';
+import { FileText, Package, PieChart, ChevronLeft, ChevronRight, Filter, BarChart, TrendingUp, TrendingDown, Wallet, Store, CreditCard, Edit, Trash2, X, AlertTriangle, History } from 'lucide-react';
 import { formatIDR, parseIDR, playSound, calculateDateRange, formatDate, formatDateTime, smartFormatInput } from '../utils/helpers';
 import DateInput from '../components/DateInput';
 import SimpleChart from '../components/ui/SimpleChart';
@@ -408,27 +408,49 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
           </div>
           <div className="flex items-center gap-2 mb-2 justify-end shrink-0">
              {activeReport !== 'neraca' && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                    {filterMode !== 'Keseluruhan' && filterMode !== 'Manual' && (
-                      <div className={`flex items-center border ${colors.border} rounded-lg overflow-hidden h-[34px] bg-white dark:bg-[#18181B]`}>
-                         <button onClick={() => { playSound('pop', isSoundOn); setDateOffset(prev => prev - 1); }} className={`px-2 h-full flex items-center hover:bg-gray-100 dark:hover:bg-[#27272A] ${colors.textMuted}`}><ChevronLeft size={16} /></button>
-                         <div className="relative flex items-center justify-center h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-[#27272A] transition-colors" onClick={(e) => { try { e.currentTarget.querySelector('input').showPicker(); } catch(err) {} }}>
-                            <span className={`px-2 text-[12px] sm:text-[13px] font-bold ${colors.text} pointer-events-none whitespace-nowrap`}>{dateRangeInfo.label}</span>
-                            <input type="date" className="absolute inset-0 opacity-0 w-full h-full pointer-events-none" onChange={(e) => { playSound('pop', isSoundOn); handleDateJump(e); }} max={new Date().toISOString().split('T')[0]} />
+                      <div className={`flex items-center border ${colors.border} rounded-lg overflow-hidden h-[34px] bg-white dark:bg-[#18181B] ${filterMode === 'Mingguan' ? 'w-[200px] sm:w-[220px]' : 'w-[165px] sm:w-[185px]'} shrink-0`}>
+                         <button 
+                            onClick={() => { playSound('pop', isSoundOn); setDateOffset(prev => prev - 1); }} 
+                            className={`w-[32px] h-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors shrink-0 ${colors.textMuted}`}
+                            title="Sebelumnya"
+                         >
+                            <ChevronLeft size={16} />
+                         </button>
+                         <div 
+                            className="relative flex-1 flex items-center justify-center h-full px-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#27272A] transition-colors select-none text-center overflow-hidden" 
+                            onClick={(e) => { try { e.currentTarget.querySelector('input').showPicker(); } catch(err) {} }}>
+                            <span className={`text-[12px] sm:text-[13px] font-bold ${colors.text} pointer-events-none whitespace-nowrap truncate`}>
+                               {dateRangeInfo.label}
+                            </span>
+                            <input 
+                               type="date" 
+                               className="absolute inset-0 opacity-0 w-full h-full pointer-events-none" 
+                               onChange={(e) => { playSound('pop', isSoundOn); handleDateJump(e); }} 
+                               max={new Date().toISOString().split('T')[0]} 
+                            />
                          </div>
-                         <button onClick={() => { if(dateOffset < 0) { playSound('pop', isSoundOn); setDateOffset(prev => prev + 1); } }} className={`px-2 h-full flex items-center transition-colors ${dateOffset >= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#27272A]'} ${colors.textMuted}`} disabled={dateOffset >= 0}><ChevronLeft size={16} className="transform rotate-180" /></button>
+                         <button 
+                            onClick={() => { if(dateOffset < 0) { playSound('pop', isSoundOn); setDateOffset(prev => prev + 1); } }} 
+                            className={`w-[32px] h-full flex items-center justify-center transition-colors shrink-0 ${dateOffset >= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#27272A]'} ${colors.textMuted}`} 
+                            disabled={dateOffset >= 0}
+                            title="Berikutnya"
+                         >
+                            <ChevronRight size={16} />
+                         </button>
                       </div>
                    )}
                    {filterMode === 'Manual' && (
-                      <div className="flex items-center gap-1 h-[34px]">
-                         <DateInput className={`h-full px-2 text-xs sm:text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={startDate} onChange={e => setStartDate(e.target.value)} />
+                      <div className="flex items-center gap-1 h-[34px] shrink-0">
+                         <DateInput className={`h-full w-[110px] sm:w-[120px] px-2 text-xs sm:text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={startDate} onChange={e => setStartDate(e.target.value)} />
                          <span className={colors.textMuted}>-</span>
-                         <DateInput className={`h-full px-2 text-xs sm:text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={endDate} onChange={e => setEndDate(e.target.value)} />
+                         <DateInput className={`h-full w-[110px] sm:w-[120px] px-2 text-xs sm:text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={endDate} onChange={e => setEndDate(e.target.value)} />
                       </div>
                    )}
-                   <div className={`flex items-center gap-1 border ${colors.border} bg-white dark:bg-[#18181B] rounded-lg px-2 h-[34px]`}>
-                      <Filter size={13} className={colors.textMuted}/>
-                      <select className={`bg-transparent text-[12px] sm:text-[13px] font-bold outline-none ${colors.text} cursor-pointer`} value={filterMode} onChange={e => { playSound('pop', isSoundOn); setFilterMode(e.target.value); setDateOffset(0); }}>
+                   <div className={`flex items-center gap-1.5 border ${colors.border} bg-white dark:bg-[#18181B] rounded-lg px-2.5 h-[34px] w-[115px] sm:w-[125px] shrink-0`}>
+                      <Filter size={13} className={`${colors.textMuted} shrink-0`}/>
+                      <select className={`w-full bg-transparent text-[12px] sm:text-[13px] font-bold outline-none ${colors.text} cursor-pointer`} value={filterMode} onChange={e => { playSound('pop', isSoundOn); setFilterMode(e.target.value); setDateOffset(0); }}>
                          <option className="bg-white dark:bg-[#18181B]">Harian</option>
                          <option className="bg-white dark:bg-[#18181B]">Mingguan</option>
                          <option className="bg-white dark:bg-[#18181B]">Bulanan</option>

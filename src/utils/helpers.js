@@ -263,10 +263,10 @@ export const calculateDateRange = (filterMode, offset = 0) => {
     start = getWeekStart(now);
     start.setDate(start.getDate() + (offset * 7));
     start.setHours(0, 0, 0, 0);
-    end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-    label = `${formatDate(start.toISOString())} s/d ${formatDate(end.toISOString())}`;
+    const startStr = start.getFullYear() === end.getFullYear() 
+      ? start.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) 
+      : formatDate(start.toISOString());
+    label = `${startStr} - ${formatDate(end.toISOString())}`;
   } else if (filterMode === 'Bulanan' || filterMode === 'Bulan Ini' || filterMode === 'bulan') {
     start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
     start.setHours(0, 0, 0, 0);
