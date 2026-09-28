@@ -2,6 +2,32 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, Plus, Trash2, ChevronLeft, ChevronRight, X, Filter, Check } from 'lucide-react';
 import useDebounce from '../../hooks/useDebounce';
 
+const MONTH_NAMES_ID = [
+  'januari', 'februari', 'maret', 'april', 'mei', 'juni',
+  'juli', 'agustus', 'september', 'oktober', 'november', 'desember'
+];
+const MONTH_SHORTS_ID = [
+  'jan', 'feb', 'mar', 'apr', 'mei', 'jun',
+  'jul', 'agu', 'ags', 'sep', 'okt', 'nov', 'des'
+];
+
+function getFormattedDateKeywords(dateVal) {
+  if (!dateVal) return '';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return '';
+
+  const day = d.getDate();
+  const day2 = String(day).padStart(2, '0');
+  const month = d.getMonth() + 1;
+  const month2 = String(month).padStart(2, '0');
+  const year = d.getFullYear();
+
+  const mName = MONTH_NAMES_ID[month - 1] || '';
+  const mShort = MONTH_SHORTS_ID[month - 1] || '';
+
+  return `${day2}/${month2}/${year} ${day2}/${month2} ${day}/${month} ${day2}-${month2}-${year} ${day2}-${month2} ${day}-${month} ${day2} ${mName} ${day2} ${mShort} ${day} ${mName} ${day} ${mShort} ${mName} ${mShort} ${year}`;
+}
+
 export default function DataTable({ columns, data, onDelete, canDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false, headerRight, noSortKey, searchPlaceholder = 'Cari nama atau Barcode...', searchKeys }) {
   const [page, setPage] = useState(1);
   const [inputPage, setInputPage] = useState('1');
@@ -53,7 +79,15 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
     const keysToSearch = searchKeys || columns.map(c => c.key).filter(Boolean);
 
     return sortedData.filter(item => {
-       const rowText = keysToSearch.map(k => String(item[k] || '')).join(' ').toLowerCase();
+       const rowText = keysToSearch.map(k => {
+          const val = item[k];
+          if (!val && val !== 0) return '';
+          if (k === 'date' || (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val))) {
+             return `${String(val)} ${getFormattedDateKeywords(val)}`;
+          }
+          return String(val);
+       }).join(' ').toLowerCase();
+
        return searchWords.every(word => rowText.includes(word));
     });
   }, [sortedData, debouncedSearch, columns, searchKeys]);

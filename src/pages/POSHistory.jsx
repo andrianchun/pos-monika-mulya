@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 // PERBAIKAN 1: Import Share2 untuk icon Kirim WA
-import { Printer, Edit, RotateCcw, Send } from 'lucide-react';
-import { formatIDR, playSound } from '../utils/helpers';
+import { Printer, Edit, RotateCcw, Send, Calendar, X } from 'lucide-react';
+import { formatIDR, playSound, formatDate } from '../utils/helpers';
 import DataTable from '../components/ui/DataTable';
+import DateInput from '../components/DateInput';
 import DeleteConfirmModal from '../components/modals/DeleteConfirmModal';
 import DocumentReceiptModal from '../components/modals/DocumentReceiptModal';
 import DocumentReturnModal from '../components/modals/DocumentReturnModal';
@@ -24,7 +25,25 @@ export default function POSHistory({
   const [editDoc, setEditDoc] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null); 
 
-  const activeData = tab === 'penjualan' ? sales : purchases; 
+  // Filter Rentang Tanggal
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [tempStart, setTempStart] = useState('');
+  const [tempEnd, setTempEnd] = useState('');
+
+  const activeData = useMemo(() => {
+    const raw = tab === 'penjualan' ? sales : purchases;
+    if (!startDate && !endDate) return raw;
+
+    const startTs = startDate ? new Date(startDate + 'T00:00:00').getTime() : 0;
+    const endTs = endDate ? new Date(endDate + 'T23:59:59.999').getTime() : Infinity;
+
+    return raw.filter(item => {
+      const t = new Date(item.date).getTime();
+      return t >= startTs && t <= endTs;
+    });
+  }, [sales, purchases, tab, startDate, endDate]); 
 
   useEffect(() => {
      if (editIntent && editIntent.menu === 'riwayat') {
@@ -234,6 +253,101 @@ export default function POSHistory({
     }] : [])
   ];
 
+  const handleOpenDateModal = () => {
+    playSound('pop', isSoundOn);
+    setTempStart(startDate);
+    setTempEnd(endDate);
+    setShowDateModal(true);
+  };
+
+  const getLocalDateStr = (d = new Date()) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const applyPreset = (preset) => {
+    playSound('pop', isSoundOn);
+    const todayStr = getLocalDateStr(new Date());
+
+    if (preset === 'today') {
+      setTempStart(todayStr);
+      setTempEnd(todayStr);
+    } else if (preset === '7days') {
+      const past7 = new Date();
+      past7.setDate(past7.getDate() - 6);
+      setTempStart(getLocalDateStr(past7));
+      setTempEnd(todayStr);
+    } else if (preset === 'month') {
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      setTempStart(getLocalDateStr(firstDay));
+      setTempEnd(todayStr);
+    } else if (preset === 'all') {
+      setTempStart('');
+      setTempEnd('');
+    }
+  };
+
+  const handleApplyFilter = () => {
+    playSound('pop', isSoundOn);
+    setStartDate(tempStart);
+    setEndDate(tempEnd);
+    setShowDateModal(false);
+  };
+
+  const handleResetFilter = () => {
+    playSound('pop', isSoundOn);
+    setStartDate('');
+    setEndDate('');
+    setTempStart('');
+    setTempEnd('');
+    setShowDateModal(false);
+  };
+
+  const isDateFiltered = Boolean(startDate || endDate);
+
+  const customHeaderRight = (
+    <div className="flex items-center gap-1.5 sm:gap-2">
+      {isDateFiltered && (
+        <div className="flex items-center gap-1.5 h-[44px] px-2.5 sm:px-3 rounded-xl border border-[#D4AF37] bg-[#D4AF37]/10 text-xs font-bold text-[#D4AF37] shadow-sm select-none">
+          <Calendar size={15} className="shrink-0" />
+          <span className="truncate max-w-[130px] sm:max-w-[200px]">
+            {startDate ? formatDate(startDate) : 'Awal'} - {endDate ? formatDate(endDate) : 'Sekarang'}
+          </span>
+          <button 
+            type="button"
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              playSound('pop', isSoundOn); 
+              setStartDate(''); 
+              setEndDate(''); 
+            }}
+            className="p-1 hover:bg-[#D4AF37]/20 rounded-full transition-colors ml-0.5 cursor-pointer"
+            title="Hapus filter rentang tanggal"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={handleOpenDateModal}
+        className={`flex items-center gap-1.5 h-[44px] px-3 rounded-xl border ${
+          isDateFiltered 
+            ? 'border-[#D4AF37] bg-[#D4AF37] text-[#18181B]' 
+            : `${colors.border} bg-white dark:bg-[#18181B] ${colors.text} hover:bg-gray-100 dark:hover:bg-[#27272A]`
+        } text-xs font-bold shrink-0 shadow-sm transition-all active:scale-95 cursor-pointer`}
+        title="Filter rentang tanggal"
+      >
+        <Calendar size={16} className={isDateFiltered ? 'text-[#18181B]' : colors.gold} />
+        <span className="hidden sm:inline">Rentang Tanggal</span>
+      </button>
+    </div>
+  );
+
   return (
     <div className="h-full flex flex-col relative overflow-hidden -m-4 md:-m-6 print:m-0 bg-gray-50 dark:bg-[#121212]">
       <div className="flex-1 overflow-hidden print:hidden p-2 sm:p-4">
@@ -246,14 +360,105 @@ export default function POSHistory({
                 )}
               </div>
             }
+            headerRight={customHeaderRight}
             columns={columns} data={activeData} colors={colors} 
-            searchPlaceholder="Cari"
+            searchPlaceholder="Cari nota, customer, atau tanggal..."
             posLayout={true}
             onDelete={canDelete ? (r) => { playSound('pop', isSoundOn); setDeleteConfirmId(r.id); } : undefined} 
             actions={actions} 
             defaultSort={{key: 'date', direction: 'desc'}}
          />
       </div>
+
+      {showDateModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+           <div className={`w-full max-w-sm rounded-2xl border ${colors.border} bg-white dark:bg-[#18181B] shadow-2xl overflow-hidden flex flex-col`}>
+              <div className={`p-4 border-b ${colors.border} flex justify-between items-center bg-gray-50/50 dark:bg-[#202024]`}>
+                 <div className="flex items-center gap-2">
+                    <Calendar size={18} className={colors.gold} />
+                    <h3 className={`font-black text-sm ${colors.text}`}>Filter Rentang Tanggal</h3>
+                 </div>
+                 <button onClick={() => setShowDateModal(false)} className={`p-1 rounded-lg text-gray-400 hover:${colors.text} hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors cursor-pointer`}>
+                    <X size={18} />
+                 </button>
+              </div>
+
+              <div className="p-4 space-y-4">
+                 <div>
+                    <label className={`text-[11px] font-bold ${colors.textMuted} mb-1.5 block`}>Pilihan Cepat:</label>
+                    <div className="grid grid-cols-2 gap-2">
+                       <button 
+                         type="button" 
+                         onClick={() => applyPreset('today')} 
+                         className={`py-2 px-2.5 text-xs font-bold rounded-lg border ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A] ${colors.text} transition-colors cursor-pointer`}
+                       >
+                         Hari Ini
+                       </button>
+                       <button 
+                         type="button" 
+                         onClick={() => applyPreset('7days')} 
+                         className={`py-2 px-2.5 text-xs font-bold rounded-lg border ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A] ${colors.text} transition-colors cursor-pointer`}
+                       >
+                         7 Hari Terakhir
+                       </button>
+                       <button 
+                         type="button" 
+                         onClick={() => applyPreset('month')} 
+                         className={`py-2 px-2.5 text-xs font-bold rounded-lg border ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A] ${colors.text} transition-colors cursor-pointer`}
+                       >
+                         Bulan Ini
+                       </button>
+                       <button 
+                         type="button" 
+                         onClick={() => applyPreset('all')} 
+                         className={`py-2 px-2.5 text-xs font-bold rounded-lg border border-dashed ${colors.border} hover:bg-gray-100 dark:hover:bg-[#27272A] text-gray-500 transition-colors cursor-pointer`}
+                       >
+                         Semua (Reset)
+                       </button>
+                    </div>
+                 </div>
+
+                 <div className="space-y-3 pt-1">
+                    <div>
+                       <label className={`text-[11px] font-bold ${colors.textMuted} mb-1 block`}>Dari Tanggal:</label>
+                       <DateInput 
+                          value={tempStart} 
+                          onChange={(e) => setTempStart(e.target.value)} 
+                          max={tempEnd || undefined}
+                          className={`h-10 px-3 text-xs sm:text-sm font-semibold rounded-xl border ${colors.border} bg-white dark:bg-[#121212] ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} 
+                       />
+                    </div>
+                    <div>
+                       <label className={`text-[11px] font-bold ${colors.textMuted} mb-1 block`}>Sampai Tanggal:</label>
+                       <DateInput 
+                          value={tempEnd} 
+                          onChange={(e) => setTempEnd(e.target.value)} 
+                          min={tempStart || undefined}
+                          className={`h-10 px-3 text-xs sm:text-sm font-semibold rounded-xl border ${colors.border} bg-white dark:bg-[#121212] ${colors.text} outline-none focus:ring-1 focus:ring-[#D4AF37]`} 
+                       />
+                    </div>
+                 </div>
+              </div>
+
+              <div className={`p-4 border-t ${colors.border} bg-gray-50/50 dark:bg-[#202024] flex gap-2`}>
+                 <button 
+                   type="button" 
+                   onClick={handleResetFilter} 
+                   className={`flex-1 py-2.5 text-xs font-bold rounded-xl border ${colors.border} ${colors.text} hover:bg-gray-100 dark:hover:bg-[#27272A] transition-colors cursor-pointer`}
+                 >
+                   Reset
+                 </button>
+                 <button 
+                   type="button" 
+                   onClick={handleApplyFilter} 
+                   className={`flex-1 py-2.5 text-xs font-bold rounded-xl ${colors.goldBg} text-[#18181B] shadow hover:opacity-90 transition-opacity cursor-pointer`}
+                 >
+                   Terapkan
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
 
       {deleteConfirmId && <DeleteConfirmModal title="Hapus Permanen Transaksi?" desc="Stok dan data pembukuan kas akan dikembalikan (di-revert) seperti sebelum transaksi ini. Apakah Anda yakin?" onConfirm={confirmDeleteAction} onCancel={() => setDeleteConfirmId(null)} colors={colors} isSoundOn={isSoundOn} />}
       
