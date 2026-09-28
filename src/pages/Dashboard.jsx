@@ -13,7 +13,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
     minggu: 'Minggu Ini',
     bulan: 'Bulan Ini',
     tahun: 'Tahun Ini',
-    semua: 'Semua (Per Tahun)'
+    semua: 'Semua'
   };
 
   const filteredSales = useMemo(() => {
