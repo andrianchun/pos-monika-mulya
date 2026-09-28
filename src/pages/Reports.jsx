@@ -391,7 +391,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden -m-4 md:-m-6 bg-gray-50 dark:bg-[#121212]">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#18181B] px-4 pt-4 shadow-sm z-10 gap-4 shrink-0 overflow-x-auto custom-scrollbar select-none">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#18181B] px-4 pt-4 shadow-sm z-10 gap-4 shrink-0 overflow-x-auto custom-scrollbar select-none min-h-[64px]">
           <div className="flex w-full sm:w-auto overflow-x-auto custom-scrollbar">
              {canViewKeuangan && (
                 <>
@@ -402,57 +402,57 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
              {canViewBarang && (
                 <>
                    <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('pembelian'); setGlobalMode('pembelian'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'pembelian' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Pembelian</button>
-                   <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('produk'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'produk' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Produk</button>
+                   <button onClick={() => { playSound('pop', isSoundOn); setActiveReport('produk'); }} className={`flex-1 pb-3 px-3 text-[13px] sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors whitespace-nowrap min-w-[100px] ${activeReport === 'produk' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>Produk</button>
                 </>
              )}
           </div>
-          {(activeReport === 'penjualan' || activeReport === 'pembelian' || activeReport === 'neraca') && (
-              <div className="flex items-center gap-2 mb-3 flex-wrap sm:flex-nowrap justify-end shrink-0">
-                 {activeReport !== 'neraca' && (
-                    <div className="flex items-center gap-2 mr-1">
-                       {filterMode !== 'Keseluruhan' && filterMode !== 'Manual' && (
-                          <div className={`flex items-center border ${colors.border} rounded-lg overflow-hidden h-[36px] bg-white dark:bg-[#18181B]`}>
-                             <button onClick={() => { playSound('pop', isSoundOn); setDateOffset(prev => prev - 1); }} className={`px-2 h-full flex items-center hover:bg-gray-100 dark:hover:bg-[#27272A] ${colors.textMuted}`}><ChevronLeft size={16} /></button>
-                             <div className="relative flex items-center justify-center h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-[#27272A] transition-colors" onClick={(e) => { try { e.currentTarget.querySelector('input').showPicker(); } catch(err) {} }}>
-                                <span className={`px-2 text-[13px] font-bold ${colors.text} pointer-events-none whitespace-nowrap`}>{dateRangeInfo.label}</span>
-                                <input type="date" className="absolute inset-0 opacity-0 w-full h-full pointer-events-none" onChange={(e) => { playSound('pop', isSoundOn); handleDateJump(e); }} max={new Date().toISOString().split('T')[0]} />
-                             </div>
-                             <button onClick={() => { if(dateOffset < 0) { playSound('pop', isSoundOn); setDateOffset(prev => prev + 1); } }} className={`px-2 h-full flex items-center transition-colors ${dateOffset >= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#27272A]'} ${colors.textMuted}`} disabled={dateOffset >= 0}><ChevronLeft size={16} className="transform rotate-180" /></button>
-                          </div>
-                       )}
-                       {filterMode === 'Manual' && (
-                          <div className="flex items-center gap-1 h-[36px]">
-                             <DateInput className={`h-full px-2 text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={startDate} onChange={e => setStartDate(e.target.value)} />
-                             <span className={colors.textMuted}>-</span>
-                             <DateInput className={`h-full px-2 text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={endDate} onChange={e => setEndDate(e.target.value)} />
-                          </div>
-                       )}
-                       <div className={`flex items-center gap-1 border ${colors.border} bg-white dark:bg-[#18181B] rounded-lg px-2 h-[36px]`}>
-                          <Filter size={14} className={colors.textMuted}/>
-                          <select className={`bg-transparent text-[13px] font-bold outline-none ${colors.text} cursor-pointer`} value={filterMode} onChange={e => { playSound('pop', isSoundOn); setFilterMode(e.target.value); setDateOffset(0); }}>
-                             <option className="bg-white dark:bg-[#18181B]">Harian</option>
-                             <option className="bg-white dark:bg-[#18181B]">Mingguan</option>
-                             <option className="bg-white dark:bg-[#18181B]">Bulanan</option>
-                             <option className="bg-white dark:bg-[#18181B]">Tahunan</option>
-                             <option className="bg-white dark:bg-[#18181B]">Keseluruhan</option>
-                             <option className="bg-white dark:bg-[#18181B]">Manual</option>
-                          </select>
-                       </div>
-                    </div>
-                 )}
-                 {activeReport === 'neraca' && (
-                    <button onClick={() => { playSound('pop', isSoundOn); setAccForm({ id: '', type: 'kas', accountId: financialAccounts[0]?.id||'', name: '', amount: '', date: getLocalDatetime(), isExpense: false }); setShowAccModal(true); }} className={`mr-2 px-4 py-1.5 font-bold text-[#18181B] rounded-md shadow-sm bg-[#D4AF37] hover:opacity-90 flex items-center gap-1 text-sm`}><Edit size={16}/> Input Data</button>
-                 )}
-                 <div className="hidden sm:flex bg-gray-100/50 dark:bg-[#2a2a24] rounded-lg p-1 items-center gap-1">
-                    <button onClick={() => { playSound('pop', isSoundOn); setViewMode('grafik'); }} className={`px-4 py-1.5 rounded-md text-[13px] font-bold flex items-center gap-2 transition-all ${viewMode === 'grafik' ? 'bg-white dark:bg-[#18181B] shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:text-gray-700'}`}>
-                       <BarChart size={16}/> Grafik
-                    </button>
-                    <button onClick={() => { playSound('pop', isSoundOn); setViewMode('tabel'); }} className={`px-4 py-1.5 rounded-md text-[13px] font-bold flex items-center gap-2 transition-all ${viewMode === 'tabel' ? 'bg-white dark:bg-[#18181B] shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:text-gray-700'}`}>
-                       <Filter size={16}/> Tabel
-                    </button>
-                 </div>
-              </div>
-          )}
+          <div className="flex items-center gap-2 mb-3 flex-wrap sm:flex-nowrap justify-end shrink-0">
+             {activeReport !== 'neraca' && (
+                <div className="flex items-center gap-2 mr-1">
+                   {filterMode !== 'Keseluruhan' && filterMode !== 'Manual' && (
+                      <div className={`flex items-center border ${colors.border} rounded-lg overflow-hidden h-[36px] bg-white dark:bg-[#18181B]`}>
+                         <button onClick={() => { playSound('pop', isSoundOn); setDateOffset(prev => prev - 1); }} className={`px-2 h-full flex items-center hover:bg-gray-100 dark:hover:bg-[#27272A] ${colors.textMuted}`}><ChevronLeft size={16} /></button>
+                         <div className="relative flex items-center justify-center h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-[#27272A] transition-colors" onClick={(e) => { try { e.currentTarget.querySelector('input').showPicker(); } catch(err) {} }}>
+                            <span className={`px-2 text-[13px] font-bold ${colors.text} pointer-events-none whitespace-nowrap`}>{dateRangeInfo.label}</span>
+                            <input type="date" className="absolute inset-0 opacity-0 w-full h-full pointer-events-none" onChange={(e) => { playSound('pop', isSoundOn); handleDateJump(e); }} max={new Date().toISOString().split('T')[0]} />
+                         </div>
+                         <button onClick={() => { if(dateOffset < 0) { playSound('pop', isSoundOn); setDateOffset(prev => prev + 1); } }} className={`px-2 h-full flex items-center transition-colors ${dateOffset >= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#27272A]'} ${colors.textMuted}`} disabled={dateOffset >= 0}><ChevronLeft size={16} className="transform rotate-180" /></button>
+                      </div>
+                   )}
+                   {filterMode === 'Manual' && (
+                      <div className="flex items-center gap-1 h-[36px]">
+                         <DateInput className={`h-full px-2 text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={startDate} onChange={e => setStartDate(e.target.value)} />
+                         <span className={colors.textMuted}>-</span>
+                         <DateInput className={`h-full px-2 text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} [color-scheme:light] dark:[color-scheme:dark]`} value={endDate} onChange={e => setEndDate(e.target.value)} />
+                      </div>
+                   )}
+                   <div className={`flex items-center gap-1 border ${colors.border} bg-white dark:bg-[#18181B] rounded-lg px-2 h-[36px]`}>
+                      <Filter size={14} className={colors.textMuted}/>
+                      <select className={`bg-transparent text-[13px] font-bold outline-none ${colors.text} cursor-pointer`} value={filterMode} onChange={e => { playSound('pop', isSoundOn); setFilterMode(e.target.value); setDateOffset(0); }}>
+                         <option className="bg-white dark:bg-[#18181B]">Harian</option>
+                         <option className="bg-white dark:bg-[#18181B]">Mingguan</option>
+                         <option className="bg-white dark:bg-[#18181B]">Bulanan</option>
+                         <option className="bg-white dark:bg-[#18181B]">Tahunan</option>
+                         <option className="bg-white dark:bg-[#18181B]">Keseluruhan</option>
+                         <option className="bg-white dark:bg-[#18181B]">Manual</option>
+                      </select>
+                   </div>
+                </div>
+             )}
+             {activeReport === 'neraca' && (
+                <button onClick={() => { playSound('pop', isSoundOn); setAccForm({ id: '', type: 'kas', accountId: financialAccounts[0]?.id||'', name: '', amount: '', date: getLocalDatetime(), isExpense: false }); setShowAccModal(true); }} className={`mr-2 px-4 py-1.5 font-bold text-[#18181B] rounded-md shadow-sm bg-[#D4AF37] hover:opacity-90 flex items-center gap-1 text-sm`}><Edit size={16}/> Input Data</button>
+             )}
+             {activeReport !== 'produk' && (
+                <div className="hidden sm:flex bg-gray-100/50 dark:bg-[#2a2a24] rounded-lg p-1 items-center gap-1">
+                   <button onClick={() => { playSound('pop', isSoundOn); setViewMode('grafik'); }} className={`px-4 py-1.5 rounded-md text-[13px] font-bold flex items-center gap-2 transition-all ${viewMode === 'grafik' ? 'bg-white dark:bg-[#18181B] shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:text-gray-700'}`}>
+                      <BarChart size={16}/> Grafik
+                   </button>
+                   <button onClick={() => { playSound('pop', isSoundOn); setViewMode('tabel'); }} className={`px-4 py-1.5 rounded-md text-[13px] font-bold flex items-center gap-2 transition-all ${viewMode === 'tabel' ? 'bg-white dark:bg-[#18181B] shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:text-gray-700'}`}>
+                      <Filter size={16}/> Tabel
+                   </button>
+                </div>
+             )}
+          </div>
       </div>
 
       <div className={`flex-1 flex flex-col p-2 sm:p-4 overflow-hidden ${viewMode === 'tabel' && (activeReport === 'penjualan' || activeReport === 'pembelian') ? '' : 'overflow-y-auto custom-scrollbar'}`}>
@@ -509,7 +509,7 @@ export default function Reports({ sales, purchases, products, accounting, setAcc
           )}
 
           {activeReport === 'produk' && (
-             <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 pb-10 flex-1 rounded-xl border ${colors.border} ${colors.panel} p-4 sm:p-6 shadow-sm overflow-hidden`}>
+             <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 rounded-xl border ${colors.border} ${colors.panel} p-4 sm:p-6 shadow-sm overflow-y-auto custom-scrollbar`}>
                 <div className={`p-5 border rounded-xl ${colors.border} bg-gray-50 dark:bg-[#2a2a24] flex flex-col shadow-sm overflow-hidden`}>
                    <h3 className={`font-black text-xl mb-4 ${colors.text} flex items-center gap-2`}>
                       <TrendingUp className="text-blue-600" size={24}/> Item Paling Laris
