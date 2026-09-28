@@ -606,48 +606,27 @@ export default function Dashboard({ products, sales, purchases, customers, color
                         {/* 1. Crisp 1px Vertical Guideline */}
                         {activePoint && (
                           <div 
-                            className="absolute top-0 bottom-6 pointer-events-none border-l border-dashed border-[#D4AF37]/50 w-0 -translate-x-[0.5px] z-10"
+                            className="absolute top-0 bottom-6 pointer-events-none border-l border-dashed border-[#D4AF37]/60 w-0 -translate-x-[0.5px] z-10"
                             style={{ left: `${activePoint.x}%` }}
                           />
                         )}
 
-                        {/* 2. Sleek Perfectly Circular Active Dot */}
+                        {/* 2. Floating Tooltip Badge above chart (Ke atas, sama sekali tidak menutupi kurva) */}
                         {activePoint && (
                           <div 
-                            className="absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center"
-                            style={{ left: `${activePoint.x}%`, top: `${activePoint.y}%` }}
-                          >
-                            <div className="w-4 h-4 rounded-full bg-[#D4AF37]/25 absolute animate-ping" />
-                            <div className="w-3.5 h-3.5 rounded-full bg-[#D4AF37]/35 absolute" />
-                            <div className="w-2.5 h-2.5 rounded-full bg-[#D4AF37] border-2 border-white dark:border-[#18181B] shadow-sm relative z-10" />
-                          </div>
-                        )}
-
-                        {/* 3. Interactive Tooltip positioned precisely above the dot */}
-                        {activePoint && (
-                          <div 
-                            className="absolute z-30 pointer-events-none transition-all duration-75 flex flex-col items-center"
+                            className="absolute -top-5 z-30 pointer-events-none transition-all duration-75"
                             style={{
                               left: `${activePoint.x}%`,
-                              top: `${activePoint.y}%`,
-                              transform: `translate(${activePoint.x < 15 ? '-15%' : activePoint.x > 85 ? '-85%' : '-50%'}, -100%)`,
-                              paddingBottom: '12px'
+                              transform: `translateX(${activePoint.x < 15 ? '0%' : activePoint.x > 85 ? '-100%' : '-50%'})`,
                             }}
                           >
-                            <div className="bg-[#18181B] dark:bg-black text-white text-[11px] font-bold py-1.5 px-3 rounded-xl shadow-2xl border border-[#D4AF37]/50 flex flex-col items-center whitespace-nowrap">
-                              <span className="text-[10px] text-gray-400 font-semibold mb-0.5">{activePoint.label}</span>
+                            <div className="bg-[#18181B] dark:bg-black text-white text-[11px] font-bold py-1 px-3 rounded-lg shadow-xl border border-[#D4AF37]/60 flex items-center gap-2 whitespace-nowrap">
+                              <span className="text-gray-300 font-medium">{activePoint.label}</span>
+                              <span className="w-1 h-1 rounded-full bg-[#D4AF37]"></span>
                               <span className="text-[#D4AF37] font-black text-xs tracking-wide">
                                 {chartTab === 'penjualan' ? `Rp ${formatIDR(activePoint.value)}` : activePoint.value}
                               </span>
                             </div>
-                            <div 
-                              className="w-0 h-0 border-x-[5px] border-x-transparent border-t-[5px] border-t-[#18181B] dark:border-t-black -mt-[1px]"
-                              style={{
-                                alignSelf: activePoint.x < 15 ? 'flex-start' : activePoint.x > 85 ? 'flex-end' : 'center',
-                                marginLeft: activePoint.x < 15 ? '10px' : 0,
-                                marginRight: activePoint.x > 85 ? '10px' : 0,
-                              }}
-                            />
                           </div>
                         )}
 
