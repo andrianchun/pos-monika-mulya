@@ -4,6 +4,7 @@ import useDebounce from '../../hooks/useDebounce';
 
 export default function DataTable({ columns, data, onDelete, canDelete, colors, title, actions = [], onAdd, defaultSort = { key: null, direction: 'asc' }, posLayout = false, headerRight, noSortKey, searchPlaceholder = 'Cari nama atau Barcode...', searchKeys }) {
   const [page, setPage] = useState(1);
+  const [inputPage, setInputPage] = useState('1');
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState(defaultSort);
   const [filters, setFilters] = useState({});
@@ -11,6 +12,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
   const debouncedSearch = useDebounce(search, 300);
   const limit = 10;
   const wheelTimeout = useRef(null);
+  const tableContainerRef = useRef(null);
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -80,6 +82,37 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
 
   const totalPages = Math.ceil(filtered.length / limit);
   const paginated = filtered.slice((page - 1) * limit, page * limit);
+
+  useEffect(() => {
+    setInputPage(String(page));
+  }, [page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filters]);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
+
+  useEffect(() => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTop = 0;
+    }
+  }, [page]);
+
+  const commitPageJump = (valStr) => {
+    const parsed = parseInt(valStr, 10);
+    if (!isNaN(parsed)) {
+      const target = Math.max(1, Math.min(parsed, totalPages || 1));
+      setPage(target);
+      setInputPage(String(target));
+    } else {
+      setInputPage(String(page));
+    }
+  };
 
   const handleTableWheel = (e) => {
       if (totalPages <= 1) return;
@@ -154,7 +187,7 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
         </div>
       )}
       <div className={`flex-1 overflow-hidden rounded-xl border ${colors.border} ${colors.panel} flex flex-col shadow-sm`}>
-        <div className="flex-1 overflow-auto custom-scrollbar" onWheel={handleTableWheel}>
+        <div ref={tableContainerRef} className="flex-1 overflow-auto custom-scrollbar" onWheel={handleTableWheel}>
           <table className={`w-full min-w-max text-sm text-left ${colors.text}`}>
             <thead className={`text-xs uppercase sticky top-0 bg-white dark:bg-[#1e1e1e] border-b ${colors.border} shadow-sm z-10`}>
               <tr>
@@ -229,11 +262,56 @@ export default function DataTable({ columns, data, onDelete, canDelete, colors, 
             </tbody>
           </table>
         </div>
-        <div className={`p-3 sm:p-4 border-t ${colors.border} flex justify-between items-center text-xs sm:text-sm shrink-0`}>
-          <span className={colors.textMuted}>Halaman {page} dari {totalPages || 1}</span>
-          <div className="flex gap-2">
-            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className={`p-2 rounded border ${colors.border} disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-[#27272A]`}><ChevronLeft size={16}/></button>
-            <button disabled={page === totalPages || totalPages === 0} onClick={() => setPage(p => p + 1)} className={`p-2 rounded border ${colors.border} disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-[#27272A]`}><ChevronRight size={16}/></button>
+        <div className={`p-3 sm:p-4 border-t ${colors.border} flex justify-between items-center text-xs sm:text-sm shrink-0 select-none`}>
+          <div className="flex items-center gap-1.5">
+            <span className={colors.textMuted}>Halaman</span>
+            <input
+              type="number"
+              min={1}
+              max={totalPages || 1}
+              value={inputPage}
+              disabled={!totalPages || totalPages <= 1}
+              onChange={(e) => setInputPage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  commitPageJump(e.currentTarget.value);
+                  e.currentTarget.blur();
+                }
+              }}
+              onBlur={(e) => commitPageJump(e.currentTarget.value)}
+              onFocus={(e) => e.target.select()}
+              aria-label="Nomor halaman"
+              className={`w-14 sm:w-16 h-7 text-center font-bold text-xs sm:text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#18181B] ${colors.text} focus:outline-none focus:ring-1 focus:ring-[#D4AF37] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm transition-all ${
+                !totalPages || totalPages <= 1 ? 'opacity-60 cursor-not-allowed' : 'cursor-text hover:border-[#D4AF37]'
+              }`}
+            />
+            <span className={colors.textMuted}>dari {totalPages || 1}</span>
+          </div>
+          <div className="flex gap-1.5 sm:gap-2">
+            <button 
+              disabled={page <= 1} 
+              onClick={() => {
+                const target = Math.max(page - 1, 1);
+                setPage(target);
+                setInputPage(String(target));
+              }} 
+              className={`p-1.5 sm:p-2 rounded-lg border ${colors.border} disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-[#27272A] active:scale-95 transition-all`}
+              title="Halaman sebelumnya"
+            >
+              <ChevronLeft size={16}/>
+            </button>
+            <button 
+              disabled={page >= totalPages || totalPages === 0} 
+              onClick={() => {
+                const target = Math.min(page + 1, totalPages);
+                setPage(target);
+                setInputPage(String(target));
+              }} 
+              className={`p-1.5 sm:p-2 rounded-lg border ${colors.border} disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-[#27272A] active:scale-95 transition-all`}
+              title="Halaman berikutnya"
+            >
+              <ChevronRight size={16}/>
+            </button>
           </div>
         </div>
       </div>

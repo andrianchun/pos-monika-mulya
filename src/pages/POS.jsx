@@ -44,6 +44,7 @@ export default function POS({ products, setProducts, customers, setCustomers, su
   const [dueDate, setDueDate] = useState('');
   const [completedDoc, setCompletedDoc] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [inputPage, setInputPage] = useState('1');
   const [showKasEkstraModal, setShowKasEkstraModal] = useState(false);
   const itemsPerPage = 36;
   const wheelTimeout = useRef(null);
@@ -102,6 +103,30 @@ export default function POS({ products, setProducts, customers, setCustomers, su
 
   const totalPages = Math.ceil(displayProducts.length / itemsPerPage);
   const paginatedProducts = displayProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setInputPage(String(currentPage));
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  const commitPageJump = (valStr) => {
+    const parsed = parseInt(valStr, 10);
+    if (!isNaN(parsed)) {
+      const target = Math.max(1, Math.min(parsed, totalPages || 1));
+      if (target !== currentPage) {
+        playSound('pop', isSoundOn);
+        setCurrentPage(target);
+      }
+      setInputPage(String(target));
+    } else {
+      setInputPage(String(currentPage));
+    }
+  };
 
   const handleGridWheel = (e) => {
       if (totalPages <= 1) return;
@@ -605,19 +630,51 @@ export default function POS({ products, setProducts, customers, setCustomers, su
               </div>
               
               {totalPages > 1 && (
-                 <div className="flex justify-center items-center gap-4 pb-10 pt-2">
+                 <div className="flex justify-center items-center gap-2 sm:gap-4 pb-10 pt-2 select-none">
                     <button 
-                       onClick={() => { playSound('pop', isSoundOn); setCurrentPage(prev => Math.max(prev - 1, 1)); }} 
-                       disabled={currentPage === 1}
-                       className={`p-2 rounded-lg border ${colors.border} ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#1e1e1e] active:scale-95'} transition-all`}
+                       onClick={() => { 
+                          playSound('pop', isSoundOn); 
+                          const target = Math.max(currentPage - 1, 1);
+                          setCurrentPage(target); 
+                          setInputPage(String(target));
+                       }} 
+                       disabled={currentPage <= 1}
+                       className={`p-2 rounded-lg border ${colors.border} ${currentPage <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#1e1e1e] active:scale-95'} transition-all`}
+                       title="Halaman sebelumnya"
                     >
                        <ChevronLeft size={20} className={colors.text} />
                     </button>
-                    <span className={`text-sm font-bold ${colors.text}`}>Halaman {currentPage} dari {totalPages}</span>
+                    <div className="flex items-center gap-1.5">
+                       <span className={`text-sm font-bold ${colors.text}`}>Halaman</span>
+                       <input
+                          type="number"
+                          min={1}
+                          max={totalPages}
+                          value={inputPage}
+                          onChange={(e) => setInputPage(e.target.value)}
+                          onKeyDown={(e) => {
+                             if (e.key === 'Enter') {
+                                commitPageJump(e.currentTarget.value);
+                                e.currentTarget.blur();
+                             }
+                          }}
+                          onBlur={(e) => commitPageJump(e.currentTarget.value)}
+                          onFocus={(e) => e.target.select()}
+                          aria-label="Nomor halaman"
+                          className={`w-14 sm:w-16 h-8 text-center font-bold text-sm rounded-lg border ${colors.border} bg-white dark:bg-[#1e1e1e] ${colors.text} focus:outline-none focus:ring-1 focus:ring-[#D4AF37] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm transition-all cursor-text hover:border-[#D4AF37]`}
+                       />
+                       <span className={`text-sm font-bold ${colors.text}`}>dari {totalPages}</span>
+                    </div>
                     <button 
-                       onClick={() => { playSound('pop', isSoundOn); setCurrentPage(prev => Math.min(prev + 1, totalPages)); }} 
-                       disabled={currentPage === totalPages}
-                       className={`p-2 rounded-lg border ${colors.border} ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#1e1e1e] active:scale-95'} transition-all`}
+                       onClick={() => { 
+                          playSound('pop', isSoundOn); 
+                          const target = Math.min(currentPage + 1, totalPages);
+                          setCurrentPage(target); 
+                          setInputPage(String(target));
+                       }} 
+                       disabled={currentPage >= totalPages}
+                       className={`p-2 rounded-lg border ${colors.border} ${currentPage >= totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#1e1e1e] active:scale-95'} transition-all`}
+                       title="Halaman berikutnya"
                     >
                        <ChevronRight size={20} className={colors.text} />
                     </button>
