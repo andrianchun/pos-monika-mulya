@@ -8,25 +8,13 @@ export default function Dashboard({ products, sales, purchases, customers, color
   const [listTab, setListTab] = useState('laris');
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
-  const baseRanges = {
+  const ranges = {
     hari: 'Hari Ini',
     minggu: 'Minggu Ini',
     bulan: 'Bulan Ini',
-    tahun: '1 Tahun Terakhir',
+    tahun: 'Tahun Ini',
     semua: 'Semua (Per Tahun)'
   };
-
-  const getRangeLabel = (tr) => {
-    if (tr && tr.startsWith('tahun_')) return `Tahun ${tr.replace('tahun_', '')}`;
-    return baseRanges[tr] || 'Bulan Ini';
-  };
-
-  const availableYears = useMemo(() => {
-    const years = new Set(sales.map(s => new Date(s.date).getFullYear()).filter(Boolean));
-    const currentYr = new Date().getFullYear();
-    years.add(currentYr);
-    return Array.from(years).sort((a, b) => b - a);
-  }, [sales]);
 
   const filteredSales = useMemo(() => {
     return sales.filter(s => {
@@ -46,13 +34,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
         return d >= monthAgo;
       }
       if (timeRange === 'tahun') {
-        const yearAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-        yearAgo.setHours(0,0,0,0);
-        return d >= yearAgo;
-      }
-      if (timeRange.startsWith('tahun_')) {
-        const targetYear = parseInt(timeRange.replace('tahun_', ''), 10);
-        return d.getFullYear() === targetYear;
+        return d.getFullYear() === now.getFullYear();
       }
       if (timeRange === 'semua') return true;
       return true;
@@ -87,14 +69,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
         return d >= twoMonthsAgo && d < monthAgo;
       }
       if (timeRange === 'tahun') {
-        const twoYearsAgo = new Date(now.getFullYear(), now.getMonth() - 23, 1);
-        const yearAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-        twoYearsAgo.setHours(0,0,0,0); yearAgo.setHours(0,0,0,0);
-        return d >= twoYearsAgo && d < yearAgo;
-      }
-      if (timeRange.startsWith('tahun_')) {
-        const targetYear = parseInt(timeRange.replace('tahun_', ''), 10);
-        return d.getFullYear() === targetYear - 1;
+        return d.getFullYear() === now.getFullYear() - 1;
       }
       return false; 
     });
@@ -191,30 +166,8 @@ export default function Dashboard({ products, sales, purchases, customers, color
       labels = [];
       const tempMap = {};
       const now = new Date();
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const yr = String(d.getFullYear()).slice(2);
-        const name = `${monthNames[d.getMonth()]} '${yr}`;
-        labels.push(name);
-        tempMap[name] = { penjualan: 0, transaksi: 0, customer: new Set() };
-      }
-      filteredSales.forEach(s => {
-        const d = new Date(s.date);
-        const yr = String(d.getFullYear()).slice(2);
-        const name = `${monthNames[d.getMonth()]} '${yr}`;
-        if (tempMap[name]) {
-          tempMap[name].penjualan += s.total;
-          tempMap[name].transaksi += 1;
-          if(s.customer) tempMap[name].customer.add(s.customer);
-        }
-      });
-      dataMap = tempMap;
-    } else if (timeRange.startsWith('tahun_')) {
-      const targetYear = parseInt(timeRange.replace('tahun_', ''), 10);
-      const yrShort = String(targetYear).slice(2);
-      labels = [];
-      const tempMap = {};
+      const currentYr = now.getFullYear();
+      const yrShort = String(currentYr).slice(2);
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
       for (let i = 0; i < 12; i++) {
         const name = `${monthNames[i]} '${yrShort}`;
@@ -223,7 +176,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
       }
       filteredSales.forEach(s => {
         const d = new Date(s.date);
-        if (d.getFullYear() === targetYear) {
+        if (d.getFullYear() === currentYr) {
           const name = `${monthNames[d.getMonth()]} '${yrShort}`;
           if (tempMap[name]) {
             tempMap[name].penjualan += s.total;
@@ -413,58 +366,29 @@ export default function Dashboard({ products, sales, purchases, customers, color
     <div className="space-y-4 select-none -m-4 md:-m-6 p-4 sm:p-6 min-h-full bg-gray-50 dark:bg-[#121212] pb-10">
       <div className="flex justify-between items-center mb-4">
          <h2 className={`text-xl sm:text-2xl font-extrabold ${colors.text}`}>Dashboard Overview</h2>
-         <div className="flex items-center gap-2">
-            {/* 1. Selector Tahun Terpisah (Opsi 1) */}
-            {availableYears.length > 0 && (
-              <div className={`flex items-center border ${colors.border} rounded-xl overflow-hidden h-[38px] ${colors.panel} px-2.5 text-xs font-bold shadow-sm hover:border-[#D4AF37] transition-all`}>
-                <span className={`${colors.textMuted} mr-1.5 hidden sm:inline`}>Tahun:</span>
-                <select
-                  value={timeRange.startsWith('tahun_') ? timeRange.replace('tahun_', '') : ''}
-                  onChange={(e) => {
-                    playSound('pop', isSoundOn);
-                    if (e.target.value) {
-                      setTimeRange(`tahun_${e.target.value}`);
-                    } else {
-                      setTimeRange('bulan');
-                    }
-                  }}
-                  className={`bg-transparent outline-none cursor-pointer font-bold ${timeRange.startsWith('tahun_') ? 'text-[#D4AF37]' : colors.text} text-xs`}
-                >
-                  <option value="" className="bg-white dark:bg-[#18181B] text-gray-400">Pilih Tahun</option>
-                  {availableYears.map((yr) => (
-                    <option key={yr} value={String(yr)} className="bg-white dark:bg-[#18181B] text-gray-900 dark:text-white">
-                      Tahun {yr}
-                    </option>
+         <div className="relative">
+            <button 
+              onClick={() => setShowRangeDropdown(!showRangeDropdown)}
+              className={`flex items-center gap-2 ${colors.panel} border ${colors.border} px-4 py-2 rounded-xl text-xs sm:text-sm ${colors.text} hover:border-[#D4AF37] transition-all shadow-sm font-bold h-[38px]`}
+            >
+              {ranges[timeRange] || 'Bulan Ini'} <ChevronDown size={15} className={showRangeDropdown ? 'rotate-180' : ''} />
+            </button>
+            {showRangeDropdown && (
+              <>
+                <div className="fixed inset-0 z-[99]" onClick={() => setShowRangeDropdown(false)} />
+                <div className={`absolute right-0 mt-2 w-44 rounded-xl shadow-xl ${colors.panel} border ${colors.border} z-[100] overflow-hidden p-1 space-y-0.5 animate-in fade-in zoom-in-95 duration-150`}>
+                  {Object.entries(ranges).map(([key, label]) => (
+                    <button 
+                      key={key} 
+                      onClick={() => { setTimeRange(key); setShowRangeDropdown(false); playSound('pop', isSoundOn); }} 
+                      className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${timeRange === key ? 'text-[#D4AF37] font-bold bg-[#D4AF37]/10' : colors.text}`}
+                    >
+                      {label}
+                    </button>
                   ))}
-                </select>
-              </div>
+                </div>
+              </>
             )}
-
-            {/* 2. Dropdown Rentang Waktu Utama (Hanya Rentang Standar) */}
-            <div className="relative">
-              <button 
-                onClick={() => setShowRangeDropdown(!showRangeDropdown)}
-                className={`flex items-center gap-2 ${colors.panel} border ${colors.border} px-3.5 py-2 rounded-xl text-xs sm:text-sm ${colors.text} hover:border-[#D4AF37] transition-all shadow-sm font-bold h-[38px]`}
-              >
-                {getRangeLabel(timeRange)} <ChevronDown size={15} className={showRangeDropdown ? 'rotate-180' : ''} />
-              </button>
-              {showRangeDropdown && (
-                <>
-                  <div className="fixed inset-0 z-[99]" onClick={() => setShowRangeDropdown(false)} />
-                  <div className={`absolute right-0 mt-2 w-44 rounded-xl shadow-xl ${colors.panel} border ${colors.border} z-[100] overflow-hidden p-1 space-y-0.5 animate-in fade-in zoom-in-95 duration-150`}>
-                    {Object.entries(baseRanges).map(([key, label]) => (
-                      <button 
-                        key={key} 
-                        onClick={() => { setTimeRange(key); setShowRangeDropdown(false); playSound('pop', isSoundOn); }} 
-                        className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${timeRange === key ? 'text-[#D4AF37] font-bold bg-[#D4AF37]/10' : colors.text}`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
          </div>
       </div>
       
@@ -517,7 +441,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
          <div className={`col-span-1 lg:col-span-2 p-6 rounded-2xl border ${colors.border} ${colors.panel} shadow-sm flex flex-col`}>
             <div className="flex justify-between items-center mb-6">
-               <h3 className={`font-black text-base ${colors.text}`}>Grafik {getRangeLabel(timeRange)}</h3>
+               <h3 className={`font-black text-base ${colors.text}`}>Grafik {ranges[timeRange] || 'Bulan Ini'}</h3>
                <div className={`flex bg-gray-100 dark:bg-[#121212] rounded-xl p-1 border ${colors.border}`}>
                   <button onClick={() => setGlobalChartMode('bar')} className={`px-4 py-1.5 rounded-lg transition-all ${globalChartMode === 'bar' ? 'bg-white dark:bg-[#27272A] shadow-sm text-[#D4AF37]' : 'text-gray-400'}`}><BarChart2 size={16}/></button>
                   <button onClick={() => setGlobalChartMode('line')} className={`px-4 py-1.5 rounded-lg transition-all ${globalChartMode === 'line' ? 'bg-white dark:bg-[#27272A] shadow-sm text-[#D4AF37]' : 'text-gray-400'}`}><Activity size={16}/></button>
