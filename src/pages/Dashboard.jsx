@@ -601,41 +601,29 @@ export default function Dashboard({ products, sales, purchases, customers, color
                             />
                           )}
 
-                          {/* Default subtle dots when points are few */}
-                          {coords.length <= 15 && coords.map((pt, i) => (
-                            <circle 
-                              key={i} 
-                              cx={pt.x} 
-                              cy={pt.y} 
-                              r="3" 
-                              fill="#D4AF37" 
-                              opacity={hoveredPointIndex === i ? 0 : 0.6} 
-                            />
-                          ))}
-
-                          {/* Active Hover Point in SVG: Guideline & Glowing Vertex Dot */}
-                          {activePoint && (
-                            <g>
-                              {/* Vertical guide line passing precisely through the vertex */}
-                              <line 
-                                x1={activePoint.x} 
-                                y1="0" 
-                                x2={activePoint.x} 
-                                y2="100" 
-                                stroke="#D4AF37" 
-                                strokeWidth="1.5" 
-                                strokeDasharray="3 3" 
-                                opacity="0.65" 
-                              />
-                              {/* Halo / Glow */}
-                              <circle cx={activePoint.x} cy={activePoint.y} r="8" fill="#D4AF37" fillOpacity="0.25" />
-                              {/* Active Dot Center */}
-                              <circle cx={activePoint.x} cy={activePoint.y} r="4.5" fill="#D4AF37" stroke="#18181B" strokeWidth="2" />
-                            </g>
-                          )}
                         </svg>
 
-                        {/* Interactive Tooltip positioned precisely at the vertex */}
+                        {/* 1. Crisp 1px Vertical Guideline */}
+                        {activePoint && (
+                          <div 
+                            className="absolute top-0 bottom-6 pointer-events-none border-l border-dashed border-[#D4AF37]/50 w-0 -translate-x-[0.5px] z-10"
+                            style={{ left: `${activePoint.x}%` }}
+                          />
+                        )}
+
+                        {/* 2. Sleek Perfectly Circular Active Dot */}
+                        {activePoint && (
+                          <div 
+                            className="absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center"
+                            style={{ left: `${activePoint.x}%`, top: `${activePoint.y}%` }}
+                          >
+                            <div className="w-4 h-4 rounded-full bg-[#D4AF37]/25 absolute animate-ping" />
+                            <div className="w-3.5 h-3.5 rounded-full bg-[#D4AF37]/35 absolute" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-[#D4AF37] border-2 border-white dark:border-[#18181B] shadow-sm relative z-10" />
+                          </div>
+                        )}
+
+                        {/* 3. Interactive Tooltip positioned precisely above the dot */}
                         {activePoint && (
                           <div 
                             className="absolute z-30 pointer-events-none transition-all duration-75 flex flex-col items-center"
@@ -643,7 +631,7 @@ export default function Dashboard({ products, sales, purchases, customers, color
                               left: `${activePoint.x}%`,
                               top: `${activePoint.y}%`,
                               transform: `translate(${activePoint.x < 15 ? '-15%' : activePoint.x > 85 ? '-85%' : '-50%'}, -100%)`,
-                              paddingBottom: '10px'
+                              paddingBottom: '12px'
                             }}
                           >
                             <div className="bg-[#18181B] dark:bg-black text-white text-[11px] font-bold py-1.5 px-3 rounded-xl shadow-2xl border border-[#D4AF37]/50 flex flex-col items-center whitespace-nowrap">
