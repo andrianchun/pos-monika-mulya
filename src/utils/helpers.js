@@ -22,25 +22,11 @@ export const formatIDR = (val) => {
   if (isNaN(numVal)) return '';
   
   let isNegative = numVal < 0;
-  let absVal = Math.abs(numVal);
+  // Normalisasi Rupiah: Bulatkan ke bilangan bulat terdekat (Rupiah murni tanpa desimal/sen)
+  let roundedVal = Math.round(Math.abs(numVal));
+  let formattedInt = roundedVal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   
-  // SMART ROUNDING:
-  // 1. Remove JavaScript floating point imprecision (e.g. 0.1+0.2=0.30000000000000004)
-  absVal = parseFloat(absVal.toFixed(10));
-  // 2. Cap to maximum 4 decimal places for business logic consistency
-  absVal = Math.round(absVal * 10000) / 10000;
-  
-  let parts = absVal.toString().split('.');
-  let intPart = parts[0];
-  let decPart = parts.length > 1 ? parts[1] : null;
-  
-  let formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  
-  let result = formattedInt;
-  if (decPart !== null) {
-    result += ',' + decPart;
-  }
-  return isNegative ? '-' + result : result;
+  return isNegative ? '-' + formattedInt : formattedInt;
 };
 
 // Smart string formatter for input fields (keeps trailing comma while typing)
